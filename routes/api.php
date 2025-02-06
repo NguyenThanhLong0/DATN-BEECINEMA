@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
+use App\Http\Controllers\Api\SeatTemplateController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -47,3 +48,20 @@ Route::patch('cinemas/{cinema}',    [CinemaController::class, 'update'])->name('
 
 Route::delete('cinemas/{cinema}',   [CinemaController::class, 'destroy'])->name('cinemas.destroy');
 
+//SeatTemplate
+
+// Route::apiResource('seat-templates', SeatTemplateController::class);
+
+Route::get('/seat-templates', [SeatTemplateController::class, 'index']);
+
+Route::post('/seat-templates', [SeatTemplateController::class, 'store']);
+
+Route::get('/seat-templates/{seatTemplate}', [SeatTemplateController::class, 'show']);
+
+Route::put('/seat-templates/{seatTemplate}', [SeatTemplateController::class, 'update']);
+
+Route::patch('/seat-templates/{seatTemplate}', [SeatTemplateController::class, 'update']);
+
+Route::delete('/seat-templates/{seatTemplate}', [SeatTemplateController::class, 'destroy']);
+
+Route::patch('seat-templates/change-active/{seatTemplate}', [SeatTemplateController::class, 'changeActive']);
