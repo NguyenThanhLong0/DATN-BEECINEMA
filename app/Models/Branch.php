@@ -11,8 +11,8 @@ class Branch extends Model
 
     protected $fillable = ['name', 'slug', 'is_active'];
 
-    // public function cinemas()
-    // {
-    //     return $this->hasMany(Cinema::class);
-    // }
+    public function cinemas()
+    {
+        return $this->hasMany(Cinema::class);
+    }
 }
