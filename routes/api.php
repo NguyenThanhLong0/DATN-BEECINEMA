@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
+use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -65,3 +66,21 @@ Route::patch('/seat-templates/{seatTemplate}', [SeatTemplateController::class, '
 Route::delete('/seat-templates/{seatTemplate}', [SeatTemplateController::class, 'destroy']);
 
 Route::patch('seat-templates/change-active/{seatTemplate}', [SeatTemplateController::class, 'changeActive']);
+
+
+//Rooms
+
+Route::get('/rooms', [RoomController::class, 'index']); 
+
+Route::post('/rooms', [RoomController::class, 'store']);
+
+Route::get('/rooms/{room}', [RoomController::class, 'show']);
+
+Route::put('/rooms/{room}', [RoomController::class, 'update']);   
+
+Route::patch('/rooms/{room}', [RoomController::class, 'update']);
+
+Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
+
+Route::patch('rooms/update-active/{room}',      [RoomController::class, 'updateActive']);
+// cập nhật is_active thì nhập cả id = ...; is_active = ...; _method = patch

@@ -18,8 +18,8 @@ class Cinema extends Model
     }
 
     // Quan hệ với phòng chiếu (rooms)
-    // public function rooms()
-    // {
-    //     return $this->hasMany(Room::class);
-    // }
+    public function rooms()
+    {
+        return $this->hasMany(Room::class);
+    }
 }
