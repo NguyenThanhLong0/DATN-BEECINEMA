@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\TypeRoomController;
+use App\Http\Controllers\Api\TypeSeatController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -96,13 +97,13 @@ Route::prefix('posts')->group(function () {
 
 //Rooms
 
-Route::get('/rooms', [RoomController::class, 'index']); 
+Route::get('/rooms', [RoomController::class, 'index']);
 
 Route::post('/rooms', [RoomController::class, 'store']);
 
 Route::get('/rooms/{room}', [RoomController::class, 'show']);
 
-Route::put('/rooms/{room}', [RoomController::class, 'update']);   
+Route::put('/rooms/{room}', [RoomController::class, 'update']);
 
 Route::patch('/rooms/{room}', [RoomController::class, 'update']);
 
@@ -125,3 +126,16 @@ Route::patch('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
 
 Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
 
+//Type Seat
+
+Route::get('/type-seats', [TypeSeatController::class, 'index']);
+
+Route::post('/type-seats', [TypeSeatController::class, 'store']);
+
+Route::get('/type-seats/{typeSeat}', [TypeSeatController::class, 'show']);
+
+Route::put('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
+
+Route::patch('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
+
+Route::delete('/type-seats/{typeSeat}', [TypeSeatController::class, 'destroy']);
