@@ -6,4 +6,5 @@ Các bạn kéo code về thì làm theo các bước sau rồi mới chạy cod
 - php artisan storage:link
 - Chạy câu lệnh: "composer install" để dùng được gói Laravel UI
 - npm run build 
--có các seeder dữ liệu có thể chạy các lệnh: "php artisan db:seed"
+<!-- -có các seeder dữ liệu có thể chạy các lệnh: "php artisan db:seed"  -->
+Hoặc chạy từ bảng trong seed với cú pháp: php artisan db:seed --class=TensTableSeeder
