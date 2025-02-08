@@ -18,7 +18,7 @@ return new class extends Migration
             $table->json('seat_structure')->nullable(); // JSON cho sơ đồ ghế
             $table->text('description')->nullable();
             $table->unsignedTinyInteger('row_regular')->default(4);
-            $table->unsignedTinyInteger('row_vip')->nullable();
+     $table->unsignedTinyInteger('row_vip')->nullable();
             $table->unsignedTinyInteger('row_double')->nullable(2);
             $table->boolean('is_active')->default(true);
             $table->boolean('is_publish')->default(false);
