@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
+use App\Http\Controllers\Api\TypeRoomController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -98,4 +99,18 @@ Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
 
 Route::patch('rooms/update-active/{room}',      [RoomController::class, 'updateActive']);
 // cập nhật is_active thì nhập cả id = ...; is_active = ...; _method = patch
+
+//Type Room
+
+Route::get('/type-rooms', [TypeRoomController::class, 'index']);
+
+Route::post('/type-rooms', [TypeRoomController::class, 'store']);
+
+Route::get('/type-rooms/{typeRoom}', [TypeRoomController::class, 'show']);
+
+Route::put('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
+
+Route::patch('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
+
+Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
 
