@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
+use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
@@ -61,6 +62,9 @@ Route::get('foods/{food}',      [FoodController::class, 'show'])->name('foods.sh
 
 Route::put('foods/{food}',      [FoodController::class, 'update'])->name('foods.update');
 
+Route::patch('/foods/{food}', [FoodController::class, 'update'])->name('foods.update.partial');;
+
+
 Route::delete('foods/{food}',   [FoodController::class, 'destroy'])->name('foods.destroy');
 
 //SeatTemplate
@@ -99,3 +103,16 @@ Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
 Route::patch('rooms/update-active/{room}',      [RoomController::class, 'updateActive']);
 // cập nhật is_active thì nhập cả id = ...; is_active = ...; _method = patch
 
+// Combos
+
+Route::get('combos',               [ComboController::class, 'index'])->name('combos.index');
+
+Route::post('combos',              [ComboController::class, 'store'])->name('combos.store');
+
+Route::get('combos/{combo}',      [ComboController::class, 'show'])->name('combos.show');
+
+Route::put('combos/{combo}',      [ComboController::class, 'update'])->name('combos.update');
+
+Route::patch('combos/{combo}',    [ComboController::class, 'update'])->name('combos.update.partial');
+
+Route::delete('combos/{combo}',   [ComboController::class, 'destroy'])->name('combos.destroy');
