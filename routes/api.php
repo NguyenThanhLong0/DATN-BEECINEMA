@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\SeatTemplateController;
+use App\Http\Controllers\Api\PostApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -65,3 +66,13 @@ Route::patch('/seat-templates/{seatTemplate}', [SeatTemplateController::class, '
 Route::delete('/seat-templates/{seatTemplate}', [SeatTemplateController::class, 'destroy']);
 
 Route::patch('seat-templates/change-active/{seatTemplate}', [SeatTemplateController::class, 'changeActive']);
+
+//Post
+Route::prefix('posts')->group(function () {
+    Route::get('/', [PostApiController::class, 'index']); // Lấy danh sách bài viết
+    Route::post('/', [PostApiController::class, 'store']); // Thêm bài viết
+    Route::get('{id}', [PostApiController::class, 'show']); // Xem chi tiết bài viết
+    Route::put('{id}', [PostApiController::class, 'update']); // Cập nhật bài viết
+    Route::delete('{id}', [PostApiController::class, 'destroy']); // Xóa bài viết
+    Route::put('{id}/toggle', [PostApiController::class, 'toggle']); // Bật/tắt trạng thái
+});

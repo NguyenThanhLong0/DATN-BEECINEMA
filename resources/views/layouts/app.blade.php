@@ -30,7 +30,7 @@
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
                     <!-- Left Side Of Navbar -->
                     <ul class="navbar-nav me-auto">
-
+                        <a href="{{ route('posts.') }}" style="text-decoration:none; color: black;">Quản lý bài viết</a> 
                     </ul>
 
                     <!-- Right Side Of Navbar -->
