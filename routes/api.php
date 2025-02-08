@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
+use App\Http\Controllers\Api\FoodController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -47,3 +48,14 @@ Route::patch('cinemas/{cinema}',    [CinemaController::class, 'update'])->name('
 
 Route::delete('cinemas/{cinema}',   [CinemaController::class, 'destroy'])->name('cinemas.destroy');
 
+//foods
+
+Route::get('foods',               [FoodController::class, 'index'])->name('foods.index');
+
+Route::post('foods',              [FoodController::class, 'store'])->name('foods.store');
+
+Route::get('foods/{food}',      [FoodController::class, 'show'])->name('foods.show');
+
+Route::put('foods/{food}',      [FoodController::class, 'update'])->name('foods.update');
+
+Route::delete('foods/{food}',   [FoodController::class, 'destroy'])->name('foods.destroy');
