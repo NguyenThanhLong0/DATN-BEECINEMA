@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\TypeRoomController;
+use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -144,6 +145,16 @@ Route::put('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
 Route::patch('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
 
 Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
+
+// Voucher
+Route::prefix('vouchers')->group(function () {
+    Route::get('/', [VoucherApiController::class, 'index']); // Lấy danh sách voucher
+    Route::post('/', [VoucherApiController::class, 'store']); // Tạo mới voucher
+    Route::get('{id}', [VoucherApiController::class, 'show']); // Lấy chi tiết voucher
+    Route::put('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
+    Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
+
+});
 
 //Type Seat
 
