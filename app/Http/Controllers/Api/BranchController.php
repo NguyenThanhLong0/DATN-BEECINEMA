@@ -30,7 +30,6 @@ class BranchController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:branches',
-            'slug' => 'required|string|max:255|unique:branches',
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -39,12 +38,13 @@ class BranchController extends Controller
         }
 
         try {
-            $branch = Branch::create($request->only(['name', 'slug', 'is_active']));
+            $branch = Branch::create($request->only(['name', 'is_active']));
             return response()->json(['message' => 'Thêm mới thành công!', 'branch' => $branch], 201);
         } catch (\Throwable $th) {
-            return response()->json(['message' => 'Thêm mới thất bại!'], 500);
+            return response()->json(['message' => 'Thêm mới thất bại!', 'error' => $th->getMessage()], 500);
         }
     }
+
 
     /**
      * Display the specified resource.
@@ -65,7 +65,6 @@ class BranchController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'nullable|string|max:255|unique:branches,name,' . $branch->id,
-            'slug' => 'nullable|string|max:255|unique:branches,slug,' . $branch->id,
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -74,7 +73,7 @@ class BranchController extends Controller
         }
 
         try {
-            $branch->update($request->only(['name', 'slug', 'is_active']));
+            $branch->update($request->only(['name', 'is_active']));
             return response()->json(['message' => 'Sửa thành công!', 'branch' => $branch], 200);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Sửa thất bại!'], 500);
