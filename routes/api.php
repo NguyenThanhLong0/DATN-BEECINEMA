@@ -2,12 +2,14 @@
 
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
+use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
+use App\Http\Controllers\Api\TypeSeatController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -64,6 +66,9 @@ Route::get('foods/{food}',      [FoodController::class, 'show'])->name('foods.sh
 
 Route::put('foods/{food}',      [FoodController::class, 'update'])->name('foods.update');
 
+Route::patch('/foods/{food}', [FoodController::class, 'update'])->name('foods.update.partial');;
+
+
 Route::delete('foods/{food}',   [FoodController::class, 'destroy'])->name('foods.destroy');
 
 //SeatTemplate
@@ -97,13 +102,13 @@ Route::prefix('posts')->group(function () {
 
 //Rooms
 
-Route::get('/rooms', [RoomController::class, 'index']); 
+Route::get('/rooms', [RoomController::class, 'index']);
 
 Route::post('/rooms', [RoomController::class, 'store']);
 
 Route::get('/rooms/{room}', [RoomController::class, 'show']);
 
-Route::put('/rooms/{room}', [RoomController::class, 'update']);   
+Route::put('/rooms/{room}', [RoomController::class, 'update']);
 
 Route::patch('/rooms/{room}', [RoomController::class, 'update']);
 
@@ -111,6 +116,21 @@ Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
 
 Route::patch('rooms/update-active/{room}',      [RoomController::class, 'updateActive']);
 // cập nhật is_active thì nhập cả id = ...; is_active = ...; _method = patch
+
+
+// Combos
+
+Route::get('combos',               [ComboController::class, 'index'])->name('combos.index');
+
+Route::post('combos',              [ComboController::class, 'store'])->name('combos.store');
+
+Route::get('combos/{combo}',      [ComboController::class, 'show'])->name('combos.show');
+
+Route::put('combos/{combo}',      [ComboController::class, 'update'])->name('combos.update');
+
+Route::patch('combos/{combo}',    [ComboController::class, 'update'])->name('combos.update.partial');
+
+Route::delete('combos/{combo}',   [ComboController::class, 'destroy'])->name('combos.destroy');
 
 //Type Room
 
@@ -135,3 +155,18 @@ Route::prefix('vouchers')->group(function () {
     Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
 
 });
+
+//Type Seat
+
+Route::get('/type-seats', [TypeSeatController::class, 'index']);
+
+Route::post('/type-seats', [TypeSeatController::class, 'store']);
+
+Route::get('/type-seats/{typeSeat}', [TypeSeatController::class, 'show']);
+
+Route::put('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
+
+Route::patch('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
+
+Route::delete('/type-seats/{typeSeat}', [TypeSeatController::class, 'destroy']);
+
