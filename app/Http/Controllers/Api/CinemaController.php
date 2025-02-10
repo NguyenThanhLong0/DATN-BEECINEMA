@@ -30,7 +30,7 @@ class CinemaController extends Controller
         $validator = Validator::make($request->all(), [
             'branch_id' => 'required|exists:branches,id',
             'name' => 'required|string|max:255|unique:cinemas',
-            'slug' => 'required|string|max:255|unique:cinemas',
+            // 'slug' => 'required|string|max:255|unique:cinemas',
             'address' => 'required|string',
             'surcharge' => 'nullable|numeric',
             'description' => 'nullable|string',
@@ -69,7 +69,7 @@ class CinemaController extends Controller
         $validator = Validator::make($request->all(), [
             'branch_id' => 'required|exists:branches,id',
             'name' => 'nullable|string|max:255|unique:cinemas,name,' . $cinema->id,
-            'slug' => 'nullable|string|max:255|unique:cinemas,slug,' . $cinema->id,
+            // 'slug' => 'nullable|string|max:255|unique:cinemas,slug,' . $cinema->id,
             'address' => 'nullable|string',
             'surcharge' => 'nullable|numeric',
             'description' => 'nullable|string',
