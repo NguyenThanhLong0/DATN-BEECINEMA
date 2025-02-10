@@ -104,11 +104,17 @@ class BranchController extends Controller
     public function destroy(Branch $branch)
     {
         try {
-            // Kiểm tra trạng thái của branch
+            // Kiểm tra xem chi nhánh có rạp chiếu nào không
+            if ($branch->cinemas()->count() > 0) {
+                return response()->json(['message' => 'Không thể xóa chi nhánh đã có rạp chiếu!'], 422);
+            }
+
+            // Kiểm tra trạng thái của chi nhánh
             if ($branch->is_active !== 0) {
                 return response()->json(['message' => 'Chỉ có thể xóa các chi nhánh không hoạt động!'], 422);
             }
 
+            // Tiến hành xóa chi nhánh
             $branch->delete();
             return response()->json(['message' => 'Xóa thành công!'], 200);
         } catch (\Throwable $th) {
