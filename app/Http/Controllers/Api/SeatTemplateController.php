@@ -336,4 +336,24 @@ class SeatTemplateController extends Controller
             return response()->json(['message' => 'Có lỗi xảy ra, vui lòng thử lại.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    public function getMatrixById($id)
+    {
+        $matrix = SeatTemplate::getMatrixById($id);
+        if ($matrix) {
+            return response()->json($matrix);
+        }
+        return response()->json(['message' => 'Không tìm thấy dữ liệu.'], 404);
+    }
+
+    /**
+     * Lấy danh sách tất cả MATRIXS.
+     */
+    // Lấy toàn bộ matrix
+    public function getAllMatrix()
+    {
+        return response()->json(SeatTemplate::MATRIXS, 200);
+    }
+    
+    
 }

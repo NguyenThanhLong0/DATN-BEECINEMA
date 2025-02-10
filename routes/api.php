@@ -89,6 +89,11 @@ Route::delete('/seat-templates/{seatTemplate}', [SeatTemplateController::class, 
 
 Route::patch('seat-templates/change-active/{seatTemplate}', [SeatTemplateController::class, 'changeActive']);
 
+Route::get('seat-templates/matrix/{id}', [SeatTemplateController::class, 'getMatrixById']);
+
+Route::get('getAll-matrix', [SeatTemplateController::class, 'getAllMatrix']);
+
+
 
 //Post
 Route::prefix('posts')->group(function () {
@@ -169,4 +174,3 @@ Route::put('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
 Route::patch('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
 
 Route::delete('/type-seats/{typeSeat}', [TypeSeatController::class, 'destroy']);
-
