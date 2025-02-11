@@ -95,6 +95,7 @@ Route::get('getAll-matrix', [SeatTemplateController::class, 'getAllMatrix']);
 
 
 
+
 //Post
 Route::prefix('posts')->group(function () {
     Route::get('/', [PostApiController::class, 'index']); // Lấy danh sách bài viết
