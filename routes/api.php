@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
+use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
@@ -94,8 +95,6 @@ Route::get('seat-templates/matrix/{id}', [SeatTemplateController::class, 'getMat
 Route::get('getAll-matrix', [SeatTemplateController::class, 'getAllMatrix']);
 
 
-
-
 //Post
 Route::prefix('posts')->group(function () {
     Route::get('/', [PostApiController::class, 'index']); // Lấy danh sách bài viết
@@ -175,3 +174,18 @@ Route::put('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
 Route::patch('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
 
 Route::delete('/type-seats/{typeSeat}', [TypeSeatController::class, 'destroy']);
+
+//Movie
+
+Route::get('/movies', [MovieController::class, 'index']);
+
+Route::post('/movies', [MovieController::class, 'store']);
+
+Route::get('/movies/{movie}', [MovieController::class, 'show']);
+
+Route::put('/movies/{movie}', [MovieController::class, 'update']);
+
+Route::patch('/movies/{movie}', [MovieController::class, 'update']);
+
+Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
+
