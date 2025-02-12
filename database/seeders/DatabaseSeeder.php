@@ -3,6 +3,8 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+
+use App\Models\ComboFood;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -27,6 +29,9 @@ class DatabaseSeeder extends Seeder
             SeatTemplateSeeder::class,
             RoomSeeder::class,
             SeatSeeder::class,
+            FoodSeeder::class,
+            ComboSeeder::class,
+            ComboFood::class,
         ]);
     }
 }
