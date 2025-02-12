@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Room;
 use Illuminate\Http\Request;
 use App\Models\SeatTemplate;
 use Illuminate\Http\Response;
@@ -106,9 +107,119 @@ class SeatTemplateController extends Controller
 {
     public function index()
     {
-        // return response()->json(SeatTemplate::all());
-        return response()->json(SeatTemplate::paginate(10));
+        $seatTemplates = SeatTemplate::paginate(10);
+
+        $seatTemplates->getCollection()->transform(function ($seatTemplate) {
+            // Lấy thông tin chi tiết của matrix và gán vào `matrix_id`
+            $seatTemplate->matrix_id = SeatTemplate::getMatrixById($seatTemplate->matrix_id);
+
+            // Giải mã `seat_structure` nếu tồn tại
+            $seatStructure = $seatTemplate->seat_structure;
+            if (is_string($seatStructure)) {
+                $seatStructure = json_decode($seatStructure, true) ?: json_decode(stripslashes($seatStructure), true);
+            }
+
+            // Xử lý tạo `seat_map` nếu `seat_structure` không rỗng
+            $seatMap = [];
+            $totalSeats = 0;
+
+            if ($seatStructure) {
+                foreach ($seatStructure as $seat) {
+                    $coordinates_y = $seat['coordinates_y'];
+                    $coordinates_x = $seat['coordinates_x'];
+                    $type_seat_id = $seat['type_seat_id'];
+
+                    // Tạo hàng nếu chưa tồn tại
+                    if (!isset($seatMap[$coordinates_y])) {
+                        $seatMap[$coordinates_y] = [
+                            'row' => $coordinates_y,
+                            'seats' => []
+                        ];
+                    }
+
+                    // Xử lý ghế đôi và ghế thường
+                    if ($type_seat_id == 3) {  // Ghế đôi
+                        $seatName = $coordinates_y . $coordinates_x . " " . $coordinates_y . ($coordinates_x + 1);
+                        $seatMap[$coordinates_y]['seats'][] = [
+                            'coordinates_x' => $coordinates_x,
+                            'coordinates_y' => $coordinates_y,
+                            'name' => $seatName
+                        ];
+                        $totalSeats += 2;
+                    } else {  // Ghế thường
+                        $seatMap[$coordinates_y]['seats'][] = [
+                            'coordinates_x' => $coordinates_x,
+                            'coordinates_y' => $coordinates_y,
+                            'name' => $coordinates_y . $coordinates_x
+                        ];
+                        $totalSeats++;
+                    }
+                }
+            }
+
+            // Chuyển đổi seatMap sang dạng danh sách
+            $seatTemplate->seat_map = array_values($seatMap);
+            $seatTemplate->total_seats = $totalSeats;
+
+            return $seatTemplate;
+        });
+
+        return response()->json($seatTemplates);
     }
+
+    public function show(SeatTemplate $seatTemplate)
+    {
+        // Lấy thông tin chi tiết của matrix và gán vào `matrix_id`
+        $seatTemplate->matrix_id = SeatTemplate::getMatrixById($seatTemplate->matrix_id);
+
+        // Giải mã `seat_structure` nếu tồn tại
+        $seatStructure = $seatTemplate->seat_structure;
+        if (is_string($seatStructure)) {
+            $seatStructure = json_decode($seatStructure, true) ?: json_decode(stripslashes($seatStructure), true);
+        }
+
+        // Tạo `seat_map`
+        $seatMap = [];
+        $totalSeats = 0;
+
+        if ($seatStructure) {
+            foreach ($seatStructure as $seat) {
+                $coordinates_y = $seat['coordinates_y'];
+                $coordinates_x = $seat['coordinates_x'];
+                $type_seat_id = $seat['type_seat_id'];
+
+                if (!isset($seatMap[$coordinates_y])) {
+                    $seatMap[$coordinates_y] = [
+                        'row' => $coordinates_y,
+                        'seats' => []
+                    ];
+                }
+
+                if ($type_seat_id == 3) {
+                    $seatName = $coordinates_y . $coordinates_x . " " . $coordinates_y . ($coordinates_x + 1);
+                    $seatMap[$coordinates_y]['seats'][] = [
+                        'coordinates_x' => $coordinates_x,
+                        'coordinates_y' => $coordinates_y,
+                        'name' => $seatName
+                    ];
+                    $totalSeats += 2;
+                } else {
+                    $seatMap[$coordinates_y]['seats'][] = [
+                        'coordinates_x' => $coordinates_x,
+                        'coordinates_y' => $coordinates_y,
+                        'name' => $coordinates_y . $coordinates_x
+                    ];
+                    $totalSeats++;
+                }
+            }
+        }
+
+        $seatTemplate->seat_map = array_values($seatMap);
+        $seatTemplate->total_seats = $totalSeats;
+
+        return response()->json($seatTemplate);
+    }
+
     /**
      * Thêm mới mẫu sơ đồ ghế.
      */
@@ -185,120 +296,229 @@ class SeatTemplateController extends Controller
     /**
      * Cập nhật mẫu sơ đồ ghế.
      */
-    public function update(Request $request, SeatTemplate $seatTemplate)
-    {
-        // Lấy danh sách ID ma trận
-        $matrixIds = array_column(SeatTemplate::MATRIXS, 'id');
-        $maxtrix = SeatTemplate::getMatrixById($request->matrix_id ?? $seatTemplate->matrix_id);
-        // Xác thực dữ liệu đầu vào
-        $rules = [
-            'name' => 'required|string|max:255|unique:seat_templates,name,' . $seatTemplate->id,
-            'description' => 'required|string|max:255',
-            'matrix_id' => !$seatTemplate->is_publish ? ['required', Rule::in($matrixIds)] : 'nullable',
-        ];
+public function update(Request $request, SeatTemplate $seatTemplate)
+{
+    // Lấy danh sách ID ma trận
+    $matrixIds = array_column(SeatTemplate::MATRIXS, 'id');
+    $maxtrix = SeatTemplate::getMatrixById($request->matrix_id ?? $seatTemplate->matrix_id);
 
-        if (!$seatTemplate->is_publish) {
-            $rules['row_regular'] = 'required|integer|min:0|max:' . $maxtrix['max_row'];
-            $rules['row_vip'] = 'required|integer|min:0|max:' . $maxtrix['max_row'];
-            $rules['row_double'] = 'required|integer|min:0|max:' . $maxtrix['max_row'];
-        }
+    // Xác thực dữ liệu đầu vào
+    $rules = [
+        'name' => 'sometimes|required|string|max:255|unique:seat_templates,name,' . $seatTemplate->id,
+        'description' => 'sometimes|required|string|max:255',
+        'matrix_id' => !$seatTemplate->is_publish ? ['required', Rule::in($matrixIds)] : 'nullable',
+        'is_publish' => 'nullable|boolean',
+        'is_active' => 'nullable|boolean',
+    ];
 
-        // Thông báo lỗi tùy chỉnh
-        $messages = [
-            'name.required' => 'Vui lòng nhập tên mẫu.',
-            'name.unique' => 'Tên mẫu đã tồn tại.',
-            'name.string' => 'Tên mẫu phải là kiểu chuỗi.',
-            'name.max' => 'Độ dài tên mẫu không được vượt quá 255 ký tự.',
-            'row_regular.required' => 'Vui lòng nhập số lượng hàng ghế.',
-            'row_regular.integer'  => 'Hàng ghế phải là một số nguyên.',
-            'row_regular.min'      => 'Hàng ghế phải lớn hơn hoặc bằng 0.',
-            'row_regular.max'      => 'Hàng ghế phải nhỏ hơn hoặc bằng ' . $maxtrix['max_row'] . '.',
-
-
-            'row_vip.required'     => 'Vui lòng nhập số lượng hàng ghế.',
-            'row_vip.integer'      => 'Hàng ghế phải là một số nguyên.',
-            'row_vip.min'          => 'Hàng ghế phải lớn hơn hoặc bằng 0.',
-            'row_vip.max'      => 'Hàng ghế phải nhỏ hơn hoặc bằng ' . $maxtrix['max_row'] . '.',
-
-
-            'row_double.required'  => 'Vui lòng nhập số lượng hàng ghế.',
-            'row_double.integer'   => 'Hàng ghế phải là một số nguyên.',
-            'row_double.min'       => 'Hàng ghế phải lớn hơn hoặc bằng 0.',
-            'row_double.max'      => 'Hàng ghế phải nhỏ hơn hoặc bằng ' . $maxtrix['max_row'] . '.',
-            'description.required' => 'Vui lòng nhập mô tả.',
-            'description.string' => 'Mô tả phải là kiểu chuỗi.',
-            'description.max' => 'Độ dài mô tả không được vượt quá 255 ký tự.',
-            'matrix_id.required' => "Vui lòng chọn ma trận ghế",
-            'matrix_id.in' => 'Ma trận ghế không hợp lệ.'
-        ];
-
-        // Thực hiện validate
-        $validator = Validator::make($request->all(), $rules, $messages);
-
-        if (!$seatTemplate->is_publish) {
-            $validator->after(function ($validator) use ($request, $maxtrix) {
-                $total = $request->row_regular + $request->row_vip + $request->row_double;
-
-                if (
-                    $validator->errors()->has('row_regular') ||
-                    $validator->errors()->has('row_vip') ||
-                    $validator->errors()->has('row_double')
-                ) {
-                    // Lấy lỗi đầu tiên của từng trường
-                    $error_message = $validator->errors()->first('row_regular') ?:
-                        $validator->errors()->first('row_vip') ?:
-                        $validator->errors()->first('row_double');
-
-                    $validator->errors()->add('rows', $error_message);
-                }
-
-                if ($total !== $maxtrix['max_row']) {
-                    $validator->errors()->add('rows', 'Tổng số hàng ghế phải bằng ' . $maxtrix['max_row'] . '.');
-                }
-            });
-        }
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], Response::HTTP_UNPROCESSABLE_ENTITY); // 422
-        }
-
-        try {
-            DB::transaction(function () use ($request, $seatTemplate) {
-                // Cập nhật thông tin mẫu ghế
-                $dataSeatTemplate = [
-                    'name' => $request->name,
-                    'description' => $request->description,
-                    'is_publish' => $request->input('is_publish', $seatTemplate->is_publish), //thêm cập nhật is_public
-                ];
-
-                // Chỉ thêm matrix_id và structure_seat nếu chưa publish
-                if (!$seatTemplate->is_publish) {
-                    $dataSeatTemplate['matrix_id'] = $request->matrix_id;
-                    $dataSeatTemplate['row_regular'] = $request->row_regular;
-                    $dataSeatTemplate['row_vip'] = $request->row_vip;
-                    $dataSeatTemplate['row_double'] = $request->row_double;
-
-                    // Kiểm tra nếu matrix_id thay đổi, thì cần phải reset structure_seat
-                    if (
-                        $seatTemplate->matrix_id !== $request->matrix_id ||
-                        $seatTemplate->row_regular !== $request->row_regular ||
-                        $seatTemplate->row_vip !== $request->row_vip ||
-                        $seatTemplate->row_double !== $request->row_double
-                    ) {
-                        $dataSeatTemplate['seat_structure'] = null;
-                    }
-                }
-
-                // Cập nhật seatTemplate với dữ liệu mới
-                $seatTemplate->update($dataSeatTemplate);
-            });
-            session()->flash('success', 'Thao tác thành công');
-            return response()->json(['message' => "Thao tác thành công"], Response::HTTP_OK); // 200
-
-        } catch (\Throwable $th) {
-            return response()->json(['error' => $th->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR); // 500
-        }
+    if (!$seatTemplate->is_publish) {
+        $rules['row_regular'] = 'sometimes|required|integer|min:0|max:' . $maxtrix['max_row'];
+        $rules['row_vip'] = 'sometimes|required|integer|min:0|max:' . $maxtrix['max_row'];
+        $rules['row_double'] = 'sometimes|required|integer|min:0|max:' . $maxtrix['max_row'];
     }
+
+    // Thông báo lỗi tùy chỉnh
+    $messages = [
+        'name.required' => 'Vui lòng nhập tên mẫu.',
+        'name.unique' => 'Tên mẫu đã tồn tại.',
+        'name.max' => 'Tên mẫu không được vượt quá 255 ký tự.',
+        'row_regular.required' => 'Vui lòng nhập số lượng hàng ghế thường.',
+        'row_vip.required' => 'Vui lòng nhập số lượng hàng ghế VIP.',
+        'row_double.required' => 'Vui lòng nhập số lượng hàng ghế đôi.',
+        'description.required' => 'Vui lòng nhập mô tả.',
+        'matrix_id.required' => 'Vui lòng chọn ma trận ghế.',
+    ];
+
+    // Thực hiện validate
+    $validator = Validator::make($request->all(), $rules, $messages);
+
+    // Kiểm tra tổng số hàng ghế nếu mẫu chưa được publish
+    if (!$seatTemplate->is_publish) {
+        $validator->after(function ($validator) use ($request, $maxtrix) {
+            $total = $request->row_regular + $request->row_vip + $request->row_double;
+            if ($total !== $maxtrix['max_row']) {
+                $validator->errors()->add('rows', 'Tổng số hàng ghế phải bằng ' . $maxtrix['max_row'] . '.');
+            }
+        });
+    }
+
+    // Trả về lỗi nếu validate không thành công
+    if ($validator->fails()) {
+        return response()->json(['errors' => $validator->errors()], Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    try {
+        DB::transaction(function () use ($request, $seatTemplate) {
+            // Cập nhật `is_publish` trước
+            if ($request->has('is_publish')) {
+                $seatTemplate->update(['is_publish' => $request->is_publish]);
+            }
+
+            // Làm mới dữ liệu
+            $seatTemplate->refresh();
+
+            // Chặn cập nhật `is_active` nếu mẫu chưa được publish
+            if ($request->has('is_active')) {
+                if ($request->is_active == 1 && !$seatTemplate->is_publish) {
+                    throw new \Exception('Template chưa được publish, không thể kích hoạt.');
+                }
+
+                // Cập nhật `is_active`
+                $seatTemplate->update(['is_active' => $request->is_active]);
+            }
+
+            // Chuẩn bị dữ liệu cập nhật
+            $dataSeatTemplate = [
+                'name' => $request->name,
+                'description' => $request->description,
+            ];
+
+            if (!$seatTemplate->is_publish) {
+                $dataSeatTemplate['matrix_id'] = $request->matrix_id;
+                $dataSeatTemplate['row_regular'] = $request->row_regular;
+                $dataSeatTemplate['row_vip'] = $request->row_vip;
+                $dataSeatTemplate['row_double'] = $request->row_double;
+
+                // Xử lý cấu trúc ghế nếu có
+                if ($request->has('seat_structure')) {
+                    $seatStructure = $request->input('seat_structure');
+
+                    if (is_string($seatStructure)) {
+                        $decoded = json_decode($seatStructure, true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $seatStructure = $decoded;
+                        }
+                    }
+
+                    $dataSeatTemplate['seat_structure'] = json_encode($seatStructure);
+                }
+
+                // Reset `seat_structure` nếu các thông tin hàng ghế hoặc matrix thay đổi
+                if (
+                    $seatTemplate->matrix_id !== $request->matrix_id ||
+                    $seatTemplate->row_regular !== $request->row_regular ||
+                    $seatTemplate->row_vip !== $request->row_vip ||
+                    $seatTemplate->row_double !== $request->row_double
+                ) {
+                    $dataSeatTemplate['seat_structure'] = $dataSeatTemplate['seat_structure'] ?? null;
+                }
+            }
+
+            // Cập nhật dữ liệu
+            $seatTemplate->update($dataSeatTemplate);
+        });
+
+        return response()->json(['message' => 'Cập nhật thành công!', 'seatTemplate' => $seatTemplate], Response::HTTP_OK);
+
+    } catch (\Throwable $th) {
+        return response()->json(['error' => $th->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+    }
+}
+
+
+    // public function update(Request $request, SeatTemplate $seatTemplate)
+    // {
+    //     // Lấy danh sách ID ma trận
+    //     $matrixIds = array_column(SeatTemplate::MATRIXS, 'id');
+    //     $maxtrix = SeatTemplate::getMatrixById($request->matrix_id ?? $seatTemplate->matrix_id);
+
+    //     // Xác thực dữ liệu đầu vào
+    //     $rules = [
+    //         'name' => 'sometimes|string|max:255|unique:seat_templates,name,' . $seatTemplate->id,
+    //         'description' => 'sometimes|string|max:255',
+    //         'matrix_id' => !$seatTemplate->is_publish ? ['required', Rule::in($matrixIds)] : 'nullable',
+    //         'is_publish' => 'nullable|boolean',
+    //         'is_active' => 'nullable|boolean',
+    //     ];
+
+    //     if (!$seatTemplate->is_publish) {
+    //         // $rules['row_regular'] = 'required|integer|min:0|max:' . $maxtrix['max_row'];
+    //         // $rules['row_vip'] = 'required|integer|min:0|max:' . $maxtrix['max_row'];
+    //         // $rules['row_double'] = 'required|integer|min:0|max:' . $maxtrix['max_row'];
+
+    //         $rules['row_regular'] = 'sometimes|required|integer|min:0|max:' . $maxtrix['max_row'];
+    //         $rules['row_vip'] = 'sometimes|required|integer|min:0|max:' . $maxtrix['max_row'];
+    //         $rules['row_double'] = 'sometimes|required|integer|min:0|max:' . $maxtrix['max_row'];
+    //     }
+
+    //     // Thực hiện validate
+    //     $validator = Validator::make($request->all(), $rules);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['errors' => $validator->errors()], Response::HTTP_UNPROCESSABLE_ENTITY); // 422
+    //     }
+
+    //     try {
+    //         DB::transaction(function () use ($request, $seatTemplate) {
+    //             // **Cập nhật `is_publish` trước**
+    //             if ($request->has('is_publish')) {
+    //                 $seatTemplate->update(['is_publish' => $request->is_publish]);
+    //             }
+
+    //             // **Làm mới dữ liệu từ database**
+    //             $seatTemplate->refresh();
+
+    //             // **Chỉ chặn cập nhật `is_active` nếu đang cố thay đổi thành `1` khi `is_publish = 0`**
+    //             if ($request->has('is_active')) {
+    //                 if ($request->is_active == 1 && !$seatTemplate->is_publish) {
+    //                     throw new \Exception('Template chưa được publish, không thể thay đổi trạng thái kích hoạt.');
+    //                 }
+
+    //                 // Cập nhật `is_active`
+    //                 $seatTemplate->update(['is_active' => $request->is_active]);
+    //             }
+
+    //             // **Cập nhật các dữ liệu khác**
+    //             $dataSeatTemplate = [
+    //                 'name' => $request->name,
+    //                 'description' => $request->description,
+    //             ];
+
+    //             // Chỉ cập nhật cấu trúc ghế nếu mẫu chưa được publish
+    //             if (!$seatTemplate->is_publish) {
+    //                 $dataSeatTemplate['matrix_id'] = $request->matrix_id;
+    //                 $dataSeatTemplate['row_regular'] = $request->row_regular;
+    //                 $dataSeatTemplate['row_vip'] = $request->row_vip;
+    //                 $dataSeatTemplate['row_double'] = $request->row_double;
+
+    //                 // Cập nhật `seat_structure` nếu có dữ liệu
+    //                 if ($request->has('seat_structure')) {
+    //                     $seatStructure = $request->input('seat_structure');
+
+    //                     // Nếu là một chuỗi JSON, kiểm tra và giải mã trước
+    //                     if (is_string($seatStructure)) {
+    //                         $decoded = json_decode($seatStructure, true);
+    //                         if (json_last_error() === JSON_ERROR_NONE) {
+    //                             $seatStructure = $decoded;
+    //                         }
+    //                     }
+
+    //                     // Chuyển về JSON để lưu vào DB
+    //                     $dataSeatTemplate['seat_structure'] = json_encode($seatStructure);
+    //                 }
+
+    //                 // Kiểm tra nếu matrix_id hoặc cấu trúc thay đổi, thì cần phải reset `seat_structure`
+    //                 if (
+    //                     $seatTemplate->matrix_id !== $request->matrix_id ||
+    //                     $seatTemplate->row_regular !== $request->row_regular ||
+    //                     $seatTemplate->row_vip !== $request->row_vip ||
+    //                     $seatTemplate->row_double !== $request->row_double
+    //                 ) {
+    //                     $dataSeatTemplate['seat_structure'] = $dataSeatTemplate['seat_structure'] ?? null;
+    //                 }
+    //             }
+
+    //             // Cập nhật các trường khác
+    //             $seatTemplate->update($dataSeatTemplate);
+    //         });
+
+    //         return response()->json(['message' => 'Cập nhật thành công!', 'seatTemplate' => $seatTemplate], Response::HTTP_OK); // 200
+
+    //     } catch (\Throwable $th) {
+    //         return response()->json(['error' => $th->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR); // 500
+    //     }
+    // }
+
 
     /**
      * Thay đổi trạng thái kích hoạt.
@@ -318,22 +538,45 @@ class SeatTemplateController extends Controller
     }
 
 
-    public function show(SeatTemplate $seatTemplate)
-    {
-        try {
-            return response()->json($seatTemplate);
-        } catch (\Throwable $th) {
-            return response()->json(['message' => 'Có lỗi xảy ra, vui lòng thử lại.']);
-        }
-    }
-
     public function destroy(SeatTemplate $seatTemplate)
     {
         try {
+            // Kiểm tra nếu `is_publish` là 1 thì không cho phép xóa
+            if ($seatTemplate->is_publish) {
+                return response()->json(['message' => 'Không thể xóa, template đã được publish.'], Response::HTTP_BAD_REQUEST);
+            }
+
+            // Kiểm tra nếu `seat_template` đang được sử dụng trong phòng nào đó
+            $roomCount = Room::where('seat_template_id', $seatTemplate->id)->count();
+            if ($roomCount > 0) {
+                return response()->json(['message' => 'Không thể xóa, template này đang được sử dụng trong phòng khác.'], Response::HTTP_BAD_REQUEST);
+            }
+
+            // Xóa template nếu các điều kiện thỏa mãn
             $seatTemplate->delete();
+
             return response()->json(['message' => 'Xóa thành công!'], Response::HTTP_OK);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Có lỗi xảy ra, vui lòng thử lại.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+
+    public function getMatrixById($id)
+    {
+        $matrix = SeatTemplate::getMatrixById($id);
+        if ($matrix) {
+            return response()->json($matrix);
+        }
+        return response()->json(['message' => 'Không tìm thấy dữ liệu.'], 404);
+    }
+
+    /**
+     * Lấy danh sách tất cả MATRIXS.
+     */
+    // Lấy toàn bộ matrix
+    public function getAllMatrix()
+    {
+        return response()->json(SeatTemplate::MATRIXS, 200);
     }
 }

@@ -32,8 +32,9 @@ class SeatTemplate extends Model
         return collect(self::MATRIXS)->firstWhere('id', $id);
     }
 
-    // public function rooms()
-    // {
-    //     return $this->hasMany(Room::class);
-    // }
+
+    public function rooms()
+    {
+        return $this->hasMany(Room::class);
+    }
 }
