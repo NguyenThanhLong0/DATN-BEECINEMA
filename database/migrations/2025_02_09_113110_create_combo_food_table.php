@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Combo;
+use App\Models\Food;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,14 +13,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('foods', function (Blueprint $table) {
+        Schema::create('combo_food', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
-            $table->string('img_thumbnail')->nullable();
-            $table->string('price')->nullable();
-            $table->string('type')->nullable();;
-            $table->string('description')->nullable();
-            $table->boolean('is_active')->default(true);
+            $table->foreignIdFor(Food::class)->constrained();
+            $table->foreignIdFor(Combo::class)->constrained();
+            $table->unsignedInteger('quantity')->default(0);
             $table->timestamps();
         });
     }
@@ -28,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('foods');
+        Schema::dropIfExists('combo_foods');
     }
 };
