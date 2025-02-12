@@ -122,21 +122,30 @@ class SeatTemplateController extends Controller
             // Xử lý tạo `seat_map` nếu `seat_structure` không rỗng
             $seatMap = [];
             $totalSeats = 0;
-
+            
+            // Giả sử danh sách loại ghế có dạng này:
+            $typeSeats = [
+                1 => 'regular',
+                2 => 'vip',
+                3 => 'double'
+            ];
+            
             if ($seatStructure) {
                 foreach ($seatStructure as $seat) {
                     $coordinates_y = $seat['coordinates_y'];
                     $coordinates_x = $seat['coordinates_x'];
                     $type_seat_id = $seat['type_seat_id'];
-
+                    $type_seat = isset($typeSeats[$type_seat_id]) ? $typeSeats[$type_seat_id] : 'Không xác định';
+            
                     // Tạo hàng nếu chưa tồn tại
                     if (!isset($seatMap[$coordinates_y])) {
                         $seatMap[$coordinates_y] = [
                             'row' => $coordinates_y,
+                            'type' => $type_seat, // Gán loại ghế cho cả row
                             'seats' => []
                         ];
                     }
-
+            
                     // Xử lý ghế đôi và ghế thường
                     if ($type_seat_id == 3) {  // Ghế đôi
                         $seatName = $coordinates_y . $coordinates_x . " " . $coordinates_y . ($coordinates_x + 1);
@@ -156,6 +165,7 @@ class SeatTemplateController extends Controller
                     }
                 }
             }
+            
 
             // Chuyển đổi seatMap sang dạng danh sách
             $seatTemplate->seat_map = array_values($seatMap);
@@ -181,21 +191,32 @@ class SeatTemplateController extends Controller
         // Tạo `seat_map`
         $seatMap = [];
         $totalSeats = 0;
-
+        
+        // Giả sử danh sách loại ghế có dạng này:
+        $typeSeats = [
+            1 => 'regular',
+            2 => 'vip',
+            3 => 'double'
+        ];
+        
         if ($seatStructure) {
             foreach ($seatStructure as $seat) {
                 $coordinates_y = $seat['coordinates_y'];
                 $coordinates_x = $seat['coordinates_x'];
                 $type_seat_id = $seat['type_seat_id'];
-
+                $type_seat = isset($typeSeats[$type_seat_id]) ? $typeSeats[$type_seat_id] : 'Không xác định';
+        
+                // Tạo hàng nếu chưa tồn tại
                 if (!isset($seatMap[$coordinates_y])) {
                     $seatMap[$coordinates_y] = [
                         'row' => $coordinates_y,
+                        'type' => $type_seat, // Gán loại ghế cho cả row
                         'seats' => []
                     ];
                 }
-
-                if ($type_seat_id == 3) {
+        
+                // Xử lý ghế đôi và ghế thường
+                if ($type_seat_id == 3) {  // Ghế đôi
                     $seatName = $coordinates_y . $coordinates_x . " " . $coordinates_y . ($coordinates_x + 1);
                     $seatMap[$coordinates_y]['seats'][] = [
                         'coordinates_x' => $coordinates_x,
@@ -203,7 +224,7 @@ class SeatTemplateController extends Controller
                         'name' => $seatName
                     ];
                     $totalSeats += 2;
-                } else {
+                } else {  // Ghế thường
                     $seatMap[$coordinates_y]['seats'][] = [
                         'coordinates_x' => $coordinates_x,
                         'coordinates_y' => $coordinates_y,
@@ -213,6 +234,7 @@ class SeatTemplateController extends Controller
                 }
             }
         }
+        
 
         $seatTemplate->seat_map = array_values($seatMap);
         $seatTemplate->total_seats = $totalSeats;
