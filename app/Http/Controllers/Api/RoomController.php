@@ -17,17 +17,222 @@ use Illuminate\Support\Facades\Log;
 
 class RoomController extends Controller
 {
-    public function index()
-    {
-        return response()->json(Room::with(['branch', 'cinema', 'typeRoom', 'seatTemplate'])->paginate(10));
+
+    
+//     public function index()
+// {
+//     try {
+//         $rooms = Room::with([
+//             'branch',
+//             'cinema',
+//             'typeRoom',
+//             'seatTemplate'
+//         ])->paginate(10);
+
+//         foreach ($rooms as $room) {
+//             // Nếu có `matrix_id`, lấy ma trận ghế từ `SeatTemplate`
+//             if ($room->seatTemplate && $room->seatTemplate->matrix_id) {
+//                 $room->seatTemplate->matrix_id = SeatTemplate::getMatrixById((int)$room->seatTemplate->matrix_id);
+//             }
+
+//             // **Lấy danh sách ghế của phòng**
+//             $seats = Seat::where('room_id', $room->id)->get();
+
+//             // **Tính tổng số ghế, số ghế hỏng & số ghế hoạt động**
+//             $totalSeats = $seats->count();
+//             $brokenSeats = $seats->where('is_active', 0)->count();
+//             $activeSeats = $totalSeats - $brokenSeats;
+
+//             // **Tạo seat map**
+//             $seatMap = [];
+//             foreach ($seats as $seat) {
+//                 $row = $seat->coordinates_y; // Lấy hàng ghế (ví dụ: "A", "B", ...)
+//                 $col = $seat->coordinates_x; // Lấy số ghế (ví dụ: "1", "2", ...)
+
+//                 if (!isset($seatMap[$row])) {
+//                     $seatMap[$row] = [];
+//                 }
+
+//                 $seatMap[$row][$col] = [
+//                     'id' => $seat->id,
+//                     'room_id' => $seat->room_id,
+//                     'type_seat_id' => $seat->type_seat_id,
+//                     'name' => $seat->name,
+//                     'is_active' => $seat->is_active,
+//                     'coordinates_x' => $seat->coordinates_x,
+//                     'coordinates_y' => $seat->coordinates_y,
+//                     'created_at' => $seat->created_at,
+//                     'updated_at' => $seat->updated_at,
+//                 ];
+//             }
+
+//             // **Gán thêm thông tin vào `room`**
+//             $room->totalSeats = $totalSeats;
+//             $room->activeSeats = $activeSeats;
+//             $room->brokenSeats = $brokenSeats;
+//             $room->seatMap = $seatMap;
+//         }
+
+//         return response()->json($rooms);
+//     } catch (\Throwable $th) {
+//         return response()->json([
+//             'message' => 'Không thể lấy danh sách phòng!',
+//             'error' => $th->getMessage(),
+//         ], 500);
+//     }
+// }
+
+
+public function index()
+{
+    try {
+        $rooms = Room::with([
+            'branch',
+            'cinema',
+            'typeRoom',
+            'seatTemplate'
+        ])->paginate(10);
+
+        foreach ($rooms as $room) {
+            // Nếu có `matrix_id`, lấy dữ liệu từ `SeatTemplate`
+            if ($room->seatTemplate && $room->seatTemplate->matrix_id) {
+                $room->seatTemplate->matrix_id = SeatTemplate::getMatrixById((int)$room->seatTemplate->matrix_id);
+            }
+
+            // Lấy danh sách ghế của phòng
+            $seats = Seat::where('room_id', $room->id)->get();
+
+            // Tính tổng số ghế, số ghế hỏng, số ghế hoạt động
+            $totalSeats = $seats->count();
+            $brokenSeats = $seats->where('is_active', 0)->count();
+            $activeSeats = $totalSeats - $brokenSeats;
+
+            // Tạo seat map dạng JSON
+            $seatMap = [];
+            foreach ($seats as $seat) {
+                $row = $seat->coordinates_y; // Hàng ghế (A, B, C, ...)
+                $col = $seat->coordinates_x; // Cột ghế (1, 2, 3, ...)
+
+                if (!isset($seatMap[$row])) {
+                    $seatMap[$row] = [];
+                }
+
+                // Xử lý ghế đôi (`type_seat_id = 3`) có 2 chỗ ngồi
+                if ($seat->type_seat_id == 3) {
+                    $seatMap[$row][$col] = [
+                        'id' => $seat->id,
+                        'room_id' => $seat->room_id,
+                        'type_seat_id' => $seat->type_seat_id,
+                        'name' => $seat->name,
+                        'is_active' => $seat->is_active,
+                        'coordinates_x' => $seat->coordinates_x,
+                        'coordinates_y' => $seat->coordinates_y,
+                        'created_at' => $seat->created_at,
+                        'updated_at' => $seat->updated_at,
+                    ];
+                    // Thêm ghế bên cạnh cho ghế đôi (B4, B5)
+                    $seatMap[$row][$col + 1] = [
+                        'id' => $seat->id, // ID giống nhau vì cùng một ghế
+                        'room_id' => $seat->room_id,
+                        'type_seat_id' => $seat->type_seat_id,
+                        'name' => $seat->name,
+                        'is_active' => $seat->is_active,
+                        'coordinates_x' => $seat->coordinates_x + 1,
+                        'coordinates_y' => $seat->coordinates_y,
+                        'created_at' => $seat->created_at,
+                        'updated_at' => $seat->updated_at,
+                    ];
+                } else {
+                    // Ghế thường (`type_seat_id = 1` hoặc `2`)
+                    $seatMap[$row][$col] = [
+                        'id' => $seat->id,
+                        'room_id' => $seat->room_id,
+                        'type_seat_id' => $seat->type_seat_id,
+                        'name' => $seat->name,
+                        'is_active' => $seat->is_active,
+                        'coordinates_x' => $seat->coordinates_x,
+                        'coordinates_y' => $seat->coordinates_y,
+                        'created_at' => $seat->created_at,
+                        'updated_at' => $seat->updated_at,
+                    ];
+                }
+            }
+
+            // Gán thêm thông tin vào `room`
+            $room->totalSeats = $totalSeats;
+            $room->activeSeats = $activeSeats;
+            $room->brokenSeats = $brokenSeats;
+            $room->seatMap = $seatMap;
+        }
+
+        return response()->json($rooms);
+    } catch (\Throwable $th) {
+        return response()->json([
+            'message' => 'Không thể lấy danh sách phòng!',
+            'error' => $th->getMessage(),
+        ], 500);
     }
+}
+
 
     public function show(Room $room)
-    {
-        return response()->json($room->load(['branch', 'cinema', 'typeRoom', 'seatTemplate']));
-    }
+{
+    try {
+        $room->load(['branch', 'cinema', 'typeRoom', 'seatTemplate']);
 
-    public function store(Request $request)
+        // Nếu có template ghế, lấy matrix_id
+        if ($room->seatTemplate) {
+            $room->seatTemplate->matrix_id = SeatTemplate::getMatrixById($room->seatTemplate->matrix_id);
+        }
+
+        // Lấy danh sách ghế thuộc phòng
+        $seats = Seat::where('room_id', $room->id)->get();
+
+        // Tính tổng số ghế, ghế hỏng & ghế hoạt động
+        $totalSeats = $seats->count();
+        $brokenSeats = $seats->where('is_active', 0)->count();
+        $activeSeats = $totalSeats - $brokenSeats;
+
+        // Định dạng seat map
+        $seatMap = [];
+        foreach ($seats as $seat) {
+            $row = $seat->coordinates_y;
+            $col = $seat->coordinates_x;
+
+            if (!isset($seatMap[$row])) {
+                $seatMap[$row] = [];
+            }
+
+            $seatMap[$row][$col] = [
+                'id' => $seat->id,
+                'room_id' => $seat->room_id,
+                'type_seat_id' => $seat->type_seat_id,
+                'name' => $seat->name,
+                'is_active' => $seat->is_active,
+                'coordinates_x' => $seat->coordinates_x,
+                'coordinates_y' => $seat->coordinates_y,
+                'created_at' => $seat->created_at,
+                'updated_at' => $seat->updated_at,
+            ];
+        }
+
+        return response()->json([
+            'room' => $room,
+            'totalSeats' => $totalSeats,
+            'activeSeats' => $activeSeats,
+            'brokenSeats' => $brokenSeats,
+            'seatMap' => $seatMap,
+        ]);
+    } catch (\Throwable $th) {
+        return response()->json([
+            'message' => 'Không thể lấy thông tin phòng!',
+            'error' => $th->getMessage(),
+        ], 500);
+    }
+}
+
+
+    public function store(Request $request) 
     {
         $rules = [
             'type_room_id' => 'required|exists:type_rooms,id',
@@ -83,12 +288,16 @@ class RoomController extends Controller
                 $seatTemplate = SeatTemplate::findOrFail($request->seat_template_id);
 
                 // Chuyển đổi seat_structure từ JSON object thành array
-                $seatStructureArray = json_decode($seatTemplate->seat_structure, true);
+                // $seatStructureArray = json_decode($seatTemplate->seat_structure, true);
 
+<<<<<<< Updated upstream
+                // Kiểm tra nếu seat_structure đã là mảng thì giữ nguyên, nếu là string thì decode
+=======
                 // Kiểm tra nếu dữ liệu là string thì mới giải mã JSON
-                // $seatStructureArray = is_string($seatTemplate->seat_structure)
-                //     ? json_decode($seatTemplate->seat_structure, true)
-                //     : $seatTemplate->seat_structure;
+>>>>>>> Stashed changes
+                $seatStructureArray = is_string($seatTemplate->seat_structure)
+                    ? json_decode($seatTemplate->seat_structure, true)
+                    : $seatTemplate->seat_structure;
 
                 // Tạo mảng để lưu trữ các ghế
                 $dataSeats = [];
@@ -203,7 +412,7 @@ class RoomController extends Controller
                         'type_room_id' => $request->type_room_id,
                         'name' => $request->name,
                         'seat_template_id' => $request->seat_template_id,
-                        'is_active' => $request->input('is_active', $room->is_active), 
+                        'is_active' => $request->input('is_active', $room->is_active),
                         'is_publish' => $request->input('is_publish', $room->is_publish),
                     ]);
 

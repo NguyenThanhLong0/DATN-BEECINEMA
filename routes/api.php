@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\MovieController;
+use App\Http\Controllers\Api\ComboFoodController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
@@ -175,6 +176,7 @@ Route::patch('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
 
 Route::delete('/type-seats/{typeSeat}', [TypeSeatController::class, 'destroy']);
 
+
 //Movie
 
 Route::get('/movies', [MovieController::class, 'index']);
@@ -188,4 +190,19 @@ Route::put('/movies/{movie}', [MovieController::class, 'update']);
 Route::patch('/movies/{movie}', [MovieController::class, 'update']);
 
 Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
+
+// combofood
+
+Route::get('combofoods',               [ComboFoodController::class, 'index'])->name('combos.index');
+
+Route::post('combofoods',              [ComboFoodController::class, 'store'])->name('combos.store');
+
+Route::get('combofoods/{combofood}',      [combofoodController::class, 'show'])->name('combofoods.show');
+
+Route::put('combofoods/{combofood}',      [combofoodController::class, 'update'])->name('combofoods.update');
+
+Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
+
+Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
+
 

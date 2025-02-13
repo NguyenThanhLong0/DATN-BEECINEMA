@@ -43,9 +43,9 @@ class MovieController extends Controller
         }
     }
 
-    /**
-     * Tạo mới một bộ phim.
-     */
+    
+    //  * Tạo mới một bộ phim.
+     
     // public function store(StoreMovieRequest $request)
     // {
     //     try {

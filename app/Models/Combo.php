@@ -19,7 +19,10 @@ class Combo extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
-    
+    public function comboFood()
+    {
+        return $this->hasMany(ComboFood::class);
+    }
     public function food()
     {
         return $this->belongsToMany(Food::class, 'combo_food')->withPivot('quantity');
