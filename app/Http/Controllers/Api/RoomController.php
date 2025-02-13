@@ -290,11 +290,8 @@ public function index()
                 // Chuyển đổi seat_structure từ JSON object thành array
                 // $seatStructureArray = json_decode($seatTemplate->seat_structure, true);
 
-<<<<<<< Updated upstream
+
                 // Kiểm tra nếu seat_structure đã là mảng thì giữ nguyên, nếu là string thì decode
-=======
-                // Kiểm tra nếu dữ liệu là string thì mới giải mã JSON
->>>>>>> Stashed changes
                 $seatStructureArray = is_string($seatTemplate->seat_structure)
                     ? json_decode($seatTemplate->seat_structure, true)
                     : $seatTemplate->seat_structure;

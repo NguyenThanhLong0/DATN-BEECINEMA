@@ -315,9 +315,9 @@ class SeatTemplateController extends Controller
         }
     }
 
-    /**
-     * Cập nhật mẫu sơ đồ ghế.
-     */
+    
+    //   Cập nhật mẫu sơ đồ ghế.
+     
 
     // public function update(Request $request, SeatTemplate $seatTemplate)
     // {
