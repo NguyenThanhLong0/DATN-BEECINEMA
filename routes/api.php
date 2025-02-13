@@ -191,6 +191,11 @@ Route::patch('/movies/{movie}', [MovieController::class, 'update']);
 
 Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
 
+Route::post('movies/update-active',     [MovieController::class, 'updateActive'])->name('movies.update-active');
+
+Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->name('movies.update-hot');
+
+
 
 // combofood
 
@@ -205,6 +210,3 @@ Route::put('combofoods/{combofood}',      [combofoodController::class, 'update']
 Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
 
 Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
-
-
-

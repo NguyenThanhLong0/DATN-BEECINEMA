@@ -32,7 +32,7 @@ class StoreMovieRequest extends FormRequest
         return [
             'name' => 'required|unique:movies|max:255',
             'category' => 'required|max:255',
-            'img_thumbnail' => 'required|image|max:2048',
+            'img_thumbnail' => 'required|url|max:255',
             'description' => 'required|max:255', // Giới hạn mô tả.
             'director' => 'required|max:255',
             'cast' => 'required|max:255', // Giới hạn danh sách diễn viên.
@@ -59,8 +59,8 @@ class StoreMovieRequest extends FormRequest
             'category.required' => 'Vui lòng nhập danh mục.',
             'category.max' => 'Danh mục không được vượt quá 255 ký tự.',
             'img_thumbnail.required' => 'Vui lòng chọn ảnh thumbnail.',
-            'img_thumbnail.image' => 'File phải là một hình ảnh.',
-            'img_thumbnail.max' => 'Ảnh thumbnail không được vượt quá 2MB.',
+            // 'img_thumbnail.image' => 'File phải là một hình ảnh.',
+            // 'img_thumbnail.max' => 'Ảnh thumbnail không được vượt quá 2MB.',
             'description.required' => 'Mô tả không bắt buộc.',
             'description.max' => 'Mô tả không được vượt quá 255 ký tự.',
             'director.required' => 'Vui lòng nhập tên đạo diễn.',
@@ -87,5 +87,11 @@ class StoreMovieRequest extends FormRequest
             'surcharge.min' => 'Giá thu thêm phải là số nguyên dương.',
         ];
     }
+    public function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)
+    {
+        throw new \Illuminate\Validation\ValidationException($validator, response()->json([
+            'message' => 'Validation failed',
+            'errors' => $validator->errors(),
+        ], 422));
+    }
 }
-

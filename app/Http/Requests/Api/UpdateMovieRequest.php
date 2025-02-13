@@ -23,51 +23,51 @@ class UpdateMovieRequest extends FormRequest
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
 
-     public function rules(): array
-     {
-         $movie = $this->route('movie'); // Lấy đối tượng movie từ route
+    public function rules(): array
+    {
+        $movie = $this->route('movie'); // Lấy đối tượng movie từ route
 
-         // Quy tắc cơ bản cho các trường bắt buộc
-         $baseRules = [
-             'name' => 'required|unique:movies,name,' . $movie->id . '|max:255',
-             'category' => 'required|max:255',
-             'img_thumbnail' => 'required|image|max:2048',
-             'description' => 'required|max:255',
-             'director' => 'required|max:255',
-             'cast' => 'required|max:255',
-             'trailer_url' => 'required|max:255',
-             'versions' => 'required|array',
-             'versions.*' => [
-                 'required',
-                 Rule::in(array_column(Movie::VERSIONS, 'name')),
-             ],
-             'surcharge' => 'nullable|integer|min:0',
-              'surcharge_desc' => 'nullable|max:255'
-         ];
+        // Quy tắc cơ bản cho các trường bắt buộc
+        $baseRules = [
+            'name' => 'required|unique:movies,name,' . $movie->id . '|max:255',
+            'category' => 'required|max:255',
+            'img_thumbnail' => 'required|url|max:255',
+            'description' => 'required|max:255',
+            'director' => 'required|max:255',
+            'cast' => 'required|max:255',
+            'trailer_url' => 'required|max:255',
+            'versions' => 'required|array',
+            'versions.*' => [
+                'required',
+                Rule::in(array_column(Movie::VERSIONS, 'name')),
+            ],
+            'surcharge' => 'nullable|integer|min:0',
+            'surcharge_desc' => 'nullable|max:255'
+        ];
 
-         // Nếu là lưu nháp (action == 'draft'), chỉ cần kiểm tra name
-         if ($this->input('action') === 'draft') {
-             return ['name' => $baseRules['name']];
-         }
+        // Nếu là lưu nháp (action == 'draft'), chỉ cần kiểm tra name
+        if ($this->input('action') === 'draft') {
+            return ['name' => $baseRules['name']];
+        }
 
-         // Nếu phim đã được phát hành
-         if ($movie->is_publish) {
-             // Validate img_thumbnail nullable và không validate versions
-             $baseRules['img_thumbnail'] = 'nullable|image|max:2048';
-             unset($baseRules['versions']);
-             return $baseRules;
-         }
+        // Nếu phim đã được phát hành
+        if ($movie->is_publish) {
+            // Validate img_thumbnail nullable và không validate versions
+            $baseRules['img_thumbnail'] = 'nullable|url|max:255';
+            unset($baseRules['versions']);
+            return $baseRules;
+        }
 
-         // Quy tắc bổ sung khi phim chưa phát hành và muốn xuất bản
-         $extraRules = [
-             'duration' => 'required|integer|min:30|max:180',
-             'release_date' => 'required|date|after_or_equal:today|before_or_equal:' . now()->addYears(2)->toDateString(),
-             'end_date' => 'required|after:release_date',
-         ];
+        // Quy tắc bổ sung khi phim chưa phát hành và muốn xuất bản
+        $extraRules = [
+            'duration' => 'required|integer|min:30|max:180',
+            'release_date' => 'required|date|after_or_equal:today|before_or_equal:' . now()->addYears(2)->toDateString(),
+            'end_date' => 'required|after:release_date',
+        ];
 
-         // Merge các quy tắc cơ bản và bổ sung khi phim chưa phát hành và bấm xuất bản
-         return array_merge($baseRules, $extraRules);
-     }
+        // Merge các quy tắc cơ bản và bổ sung khi phim chưa phát hành và bấm xuất bản
+        return array_merge($baseRules, $extraRules);
+    }
 
 
 
@@ -80,8 +80,8 @@ class UpdateMovieRequest extends FormRequest
             'category.required' => 'Vui lòng nhập danh mục.',
             'category.max' => 'Danh mục không được vượt quá 255 ký tự.',
             'img_thumbnail.required' => 'Vui lòng chọn ảnh thumbnail.',
-            'img_thumbnail.image' => 'File phải là một hình ảnh.',
-            'img_thumbnail.max' => 'Ảnh thumbnail không được vượt quá 2MB.',
+            // 'img_thumbnail.image' => 'File phải là một hình ảnh.',
+            // 'img_thumbnail.max' => 'Ảnh thumbnail không được vượt quá 2MB.',
             'description.required' => 'Mô tả không bắt buộc.',
             'description.max' => 'Mô tả không được vượt quá 255 ký tự.',
             'director.required' => 'Vui lòng nhập tên đạo diễn.',
@@ -108,5 +108,12 @@ class UpdateMovieRequest extends FormRequest
             'surcharge.min' => 'Giá thu thêm phải là số nguyên dương.',
         ];
     }
-}
 
+    public function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)
+    {
+        throw new \Illuminate\Validation\ValidationException($validator, response()->json([
+            'message' => 'Validation failed',
+            'errors' => $validator->errors(),
+        ], 422));
+    }
+}
