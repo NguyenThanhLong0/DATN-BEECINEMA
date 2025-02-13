@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
@@ -199,9 +200,9 @@ Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->
 
 // combofood
 
-Route::get('combofoods',               [ComboFoodController::class, 'index'])->name('combos.index');
+Route::get('combofoods',               [ComboFoodController::class, 'index'])->name('combofoods.index');
 
-Route::post('combofoods',              [ComboFoodController::class, 'store'])->name('combos.store');
+Route::post('combofoods',              [ComboFoodController::class, 'store'])->name('combofoods.store');
 
 Route::get('combofoods/{combofood}',      [combofoodController::class, 'show'])->name('combofoods.show');
 
@@ -210,3 +211,20 @@ Route::put('combofoods/{combofood}',      [combofoodController::class, 'update']
 Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
 
 Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
+
+
+// banners
+
+Route::get('banners',               [BannerController::class, 'index'])->name('banners.index');
+
+Route::post('banners',              [BannerController::class, 'store'])->name('banners.store');
+
+Route::get('banners/{banner}',      [BannerController::class, 'show'])->name('banners.show');
+
+Route::put('banners/{banner}',      [BannerController::class, 'update'])->name('banners.update');
+
+Route::patch('banners/{banner}',    [BannerController::class, 'update'])->name('banners.update.partial');
+
+Route::delete('banners/{banner}',   [BannerController::class, 'destroy'])->name('banners.destroy');
+
+
