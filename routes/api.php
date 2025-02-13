@@ -191,6 +191,7 @@ Route::patch('/movies/{movie}', [MovieController::class, 'update']);
 
 Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
 
+
 // combofood
 
 Route::get('combofoods',               [ComboFoodController::class, 'index'])->name('combos.index');
@@ -204,5 +205,6 @@ Route::put('combofoods/{combofood}',      [combofoodController::class, 'update']
 Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
 
 Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
+
 
 

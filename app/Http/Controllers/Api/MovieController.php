@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class MovieController extends Controller
 {
@@ -43,9 +44,13 @@ class MovieController extends Controller
         }
     }
 
+
     
     //  * Tạo mới một bộ phim.
      
+
+    //cũ
+
     // public function store(StoreMovieRequest $request)
     // {
     //     try {
@@ -103,40 +108,119 @@ class MovieController extends Controller
     //     }
     // }
 
+
+    //mới hơn
+    // public function store(StoreMovieRequest $request)
+    // {
+    //     try {
+    //         // Chuẩn bị dữ liệu phim
+    //         $dataMovie = [
+    //             'name' => $request->name,
+    //             'category' => $request->category,
+    //             'description' => $request->description,
+    //             'director' => $request->director,
+    //             'cast' => $request->cast,
+    //             'rating' => $request->rating,
+    //             'duration' => $request->duration,
+    //             'release_date' => $request->release_date,
+    //             'end_date' => $request->end_date,
+    //             'trailer_url' => $request->trailer_url,
+    //             'surcharge' => $request->surcharge,
+    //             'surcharge_desc' => $request->surcharge_desc,
+    //             'img_thumbnail' => $request->img_thumbnail, // Chỉ lưu đường dẫn ảnh
+    //             'is_active' => $request->has('is_active') ? 1 : 0,
+    //             'is_hot' => $request->has('is_hot') ? 1 : 0,
+    //             'is_publish' => $request->action === 'publish' ? 1 : 0,
+    //         ];
+
+    //         // Sử dụng transaction để đảm bảo không lỗi giữa chừng
+    //         $movie = DB::transaction(function () use ($request, $dataMovie) {
+    //             $movie = Movie::create($dataMovie);
+
+    //             // Nếu có danh sách phiên bản phim, thêm vào DB
+    //             if ($request->has('versions')) {
+    //                 foreach ($request->versions as $version) {
+    //                     MovieVersion::create([
+    //                         'movie_id' => $movie->id,
+    //                         'name' => $version
+    //                     ]);
+    //                 }
+    //             }
+
+    //             return $movie;
+    //         });
+
+    //         return response()->json([
+    //             'message' => 'Thêm phim mới thành công!',
+    //             'movie' => $movie->load('movieVersions') // Trả về cả danh sách phiên bản phim
+    //         ], 201);
+    //     } catch (\Throwable $th) {
+    //         return response()->json([
+    //             'message' => 'Thêm phim thất bại!',
+    //             'error' => $th->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
+
     public function store(StoreMovieRequest $request)
     {
         try {
-            // Chuẩn bị dữ liệu phim
-            $dataMovie = $request->only([
-                'name', 'category', 'description', 'director', 'cast', 'rating',
-                'duration', 'release_date', 'end_date', 'trailer_url', 'surcharge',
-                'surcharge_desc', 'img_thumbnail'
-            ]);
+            // Ghi log dữ liệu đầu vào
+            Log::info('Movie Store Request:', $request->all());
 
-            // Cài đặt trạng thái
-            $dataMovie['is_active'] = $request->has('is_active') ? 1 : 0;
-            $dataMovie['is_hot'] = $request->has('is_hot') ? 1 : 0;
-            $dataMovie['is_publish'] = $request->action === 'publish' ? 1 : 0;
+            DB::transaction(function () use ($request, &$movie) {
+                // Chuẩn bị dữ liệu phim
+                $dataMovie = $request->only([
+                    'name',
+                    'category',
+                    'description',
+                    'director',
+                    'cast',
+                    'rating',
+                    'duration',
+                    'release_date',
+                    'end_date',
+                    'trailer_url',
+                    'surcharge',
+                    'surcharge_desc',
+                    'img_thumbnail'
+                ]);
 
-            // Sinh slug tự động từ tên phim
-            // $dataMovie['slug'] = Str::slug($request->name);
+                // Cài đặt trạng thái
+                $dataMovie['is_active'] = $request->has('is_active') ? 1 : 0;
+                $dataMovie['is_hot'] = $request->has('is_hot') ? 1 : 0;
+                $dataMovie['is_special'] = $request->has('is_special') ? 1 : 0;
+                $dataMovie['is_publish'] = $request->action === 'publish' ? 1 : 0;
+                // Nếu model có Sluggable, slug sẽ tự động sinh
+                // $dataMovie['slug'] = null;
 
-            DB::transaction(function () use ($request, $dataMovie) {
                 // Tạo phim mới
                 $movie = Movie::create($dataMovie);
-
-                // Thêm các phiên bản của bộ phim
-                foreach ($request->versions ?? [] as $version) {
-                    MovieVersion::create([
-                        'movie_id' => $movie->id,
-                        'name' => $version
-                    ]);
+                Log::debug($movie);
+                // Thêm các phiên bản của bộ phim nếu có
+                if ($request->has('versions')) {
+                    $movieVersions = collect($request->versions)->map(function ($version) use ($movie) {
+                        return [
+                            'movie_id' => $movie->id,
+                            'name' => $version
+                        ];
+                    });
+                    MovieVersion::insert($movieVersions->toArray());
                 }
             });
 
-            return response()->json(['message' => 'Thêm phim mới thành công!', 'movie' => $dataMovie], 201);
+            return response()->json([
+                'message' => 'Thêm phim mới thành công!',
+                'movie' => $movie->fresh()
+            ], 201);
         } catch (\Throwable $th) {
-            return response()->json(['message' => 'Thêm phim thất bại!', 'error' => $th->getMessage()], 500);
+            Log::error('Lỗi thêm phim:', ['error' => $th->getMessage()]);
+            return response()->json([
+                'message' => 'Thêm phim thất bại!',
+                'error' => $th->getMessage(),
+                'trace' => $th->getTrace()
+            ], 500);
         }
     }
 
@@ -178,56 +262,53 @@ class MovieController extends Controller
      * Cập nhật thông tin của một bộ phim.
      */
 
-
     public function update(UpdateMovieRequest $request, Movie $movie)
     {
         try {
-            // Lưu lại đường dẫn của ảnh hiện tại trước khi cập nhật
-            $oldImage = $movie->img_thumbnail;
-    
-            // Chuẩn bị dữ liệu cập nhật từ request (loại trừ ảnh)
-            $dataMovie = $request->except('img_thumbnail');
-    
+            // Lấy dữ liệu từ request
+            $dataMovie = $request->only([
+                'name',
+                'category',
+                'description',
+                'director',
+                'cast',
+                'rating',
+                'duration',
+                'release_date',
+                'end_date',
+                'trailer_url',
+                'surcharge',
+                'surcharge_desc',
+                'img_thumbnail',
+                'is_active',
+                'is_hot',
+                'is_publish'
+            ]);
+
             // Kiểm tra nếu name thay đổi, đặt slug = null để Sluggable tự động tạo lại
             if ($request->has('name') && $request->name !== $movie->getOriginal('name')) {
                 $dataMovie['slug'] = null;
             }
-    
+
             // Kiểm tra trạng thái xuất bản
             if ($request->action === 'publish') {
                 $dataMovie['is_publish'] = 1;
             }
-    
-            DB::transaction(function () use ($dataMovie, $request, $movie, $oldImage) {
-                // Nếu có ảnh mới, xử lý ảnh mới trước khi cập nhật dữ liệu
-                if ($request->hasFile('img_thumbnail')) {
-                    // Lưu ảnh mới vào Storage
-                    $newImage = Storage::put(self::PATH_UPLOAD, $request->file('img_thumbnail'));
-    
-                    if ($newImage) {
-                        // Nếu ảnh mới lưu thành công, cập nhật đường dẫn ảnh mới vào dữ liệu
-                        $dataMovie['img_thumbnail'] = $newImage;
-    
-                        // Xóa ảnh cũ nếu tồn tại
-                        if ($oldImage && Storage::exists($oldImage)) {
-                            Storage::delete($oldImage);
-                        }
-                    }
-                }
-    
-                // Cập nhật dữ liệu phim
-                $movie->update($dataMovie);
-    
-                // Cập nhật các phiên bản phim
-                $movie->movieVersions()->delete();
-                foreach ($request->versions ?? [] as $version) {
+
+            // Cập nhật dữ liệu phim
+            $movie->update($dataMovie);
+
+            // Cập nhật các phiên bản phim (nếu có)
+            if ($request->has('versions')) {
+                $movie->movieVersions()->delete(); // Xóa các phiên bản cũ
+                foreach ($request->versions as $version) {
                     MovieVersion::create([
                         'movie_id' => $movie->id,
                         'name' => $version
                     ]);
                 }
-            });
-    
+            }
+
             return response()->json([
                 'message' => 'Cập nhật phim thành công!',
                 'movie' => $movie->fresh()
@@ -239,7 +320,6 @@ class MovieController extends Controller
             ], 500);
         }
     }
-    
 
     /**
      * Xóa một bộ phim.
@@ -247,17 +327,23 @@ class MovieController extends Controller
     public function destroy(Movie $movie)
     {
         try {
-            if (!$movie->is_publish || $movie->showtimes()->doesntExist()) {
+
+            if (!$movie->is_publish) {
                 $movie->delete();
                 return response()->json(['message' => 'Xóa phim thành công!'], 200);
             }
-
-            return response()->json(['message' => 'Phim đã được xuất bản & có suất chiếu, không thể xóa!'], 400);
+            return response()->json(['message' => 'Phim đã được xuất bản, không thể xóa!'], 400);
+            
+            // thêm showtime thì dùng cái dưới
+            // if (!$movie->is_publish || $movie->showtimes()->doesntExist()) {
+            //     $movie->delete();
+            //     return response()->json(['message' => 'Xóa phim thành công!'], 200);
+            // }
+            // return response()->json(['message' => 'Phim đã được xuất bản & có suất chiếu, không thể xóa!'], 400);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Xóa phim thất bại!', 'error' => $th->getMessage()], 500);
         }
     }
-    
 
     /**
      * Cập nhật tab đã chọn.
