@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
+use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\ComboFoodController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
@@ -96,8 +97,6 @@ Route::get('seat-templates/matrix/{id}', [SeatTemplateController::class, 'getMat
 Route::get('getAll-matrix', [SeatTemplateController::class, 'getAllMatrix']);
 
 
-
-
 //Post
 Route::prefix('posts')->group(function () {
     Route::get('/', [PostApiController::class, 'index']); // Lấy danh sách bài viết
@@ -178,6 +177,27 @@ Route::patch('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
 
 Route::delete('/type-seats/{typeSeat}', [TypeSeatController::class, 'destroy']);
 
+
+//Movie
+
+Route::get('/movies', [MovieController::class, 'index']);
+
+Route::post('/movies', [MovieController::class, 'store']);
+
+Route::get('/movies/{movie}', [MovieController::class, 'show']);
+
+Route::put('/movies/{movie}', [MovieController::class, 'update']);
+
+Route::patch('/movies/{movie}', [MovieController::class, 'update']);
+
+Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
+
+Route::post('movies/update-active',     [MovieController::class, 'updateActive'])->name('movies.update-active');
+
+Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->name('movies.update-hot');
+
+
+
 // combofood
 
 Route::get('combofoods',               [ComboFoodController::class, 'index'])->name('combofoods.index');
@@ -191,6 +211,8 @@ Route::put('combofoods/{combofood}',      [combofoodController::class, 'update']
 Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
 
 Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
+
+
 // banners
 
 Route::get('banners',               [BannerController::class, 'index'])->name('banners.index');
@@ -204,4 +226,5 @@ Route::put('banners/{banner}',      [BannerController::class, 'update'])->name('
 Route::patch('banners/{banner}',    [BannerController::class, 'update'])->name('banners.update.partial');
 
 Route::delete('banners/{banner}',   [BannerController::class, 'destroy'])->name('banners.destroy');
+
 

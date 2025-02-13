@@ -32,6 +32,8 @@ class DatabaseSeeder extends Seeder
             FoodSeeder::class,
             ComboSeeder::class,
             ComboFood::class,
+            MoviesSeeder::class,
+            MovieVersionSeeder::class,
         ]);
     }
 }
