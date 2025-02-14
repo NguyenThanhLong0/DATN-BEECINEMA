@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Collection;
 
 class MovieController extends Controller
 {
@@ -23,26 +24,29 @@ class MovieController extends Controller
     public function index(Request $request)
     {
         try {
-            // Lấy danh sách phim, lọc theo tab đã chọn
             $selectedTab = $request->get('tab', 'publish');
             $moviesQuery = Movie::query();
-
-            // Lọc theo trạng thái xuất bản
+    
             if ($selectedTab === 'publish') {
                 $moviesQuery->where('is_publish', 1);
             } elseif ($selectedTab === 'unpublish') {
                 $moviesQuery->where('is_publish', 0);
             }
-
-            // Phân trang kết quả
+    
             $movies = $moviesQuery->latest()->paginate(10);
-
+    
+            // Sử dụng vòng lặp 
+            foreach ($movies as $movie) {
+                $movie->movieVersions = $movie->movieVersions()->pluck('name')->toArray();
+            }
+    
             return response()->json($movies);
         } catch (\Throwable $th) {
-            // Trả về lỗi nếu không thể lấy danh sách phim
             return response()->json(['message' => 'Không thể lấy danh sách phim'], 500);
         }
     }
+    
+
 
 
     public function store(StoreMovieRequest $request)
@@ -111,8 +115,9 @@ class MovieController extends Controller
     public function show(Movie $movie)
     {
         try {
-            // Lấy các phiên bản phim
+            // Lấy các phiên bản phim (lấy tất thì dùng cái dưới)
             $movieVersions = $movie->movieVersions()->pluck('name')->all();
+            // $movieVersions = $movie->load('movieVersions');
 
             // Lấy các đánh giá của bộ phim
             // $movieReviews = $movie->movieReview()->get();
@@ -253,7 +258,7 @@ class MovieController extends Controller
             $movie->is_active = $request->is_active;
             $movie->save();
 
-            return response()->json(['success' => true, 'message' => 'Cập nhật thành công.','data'=>$movie]);
+            return response()->json(['success' => true, 'message' => 'Cập nhật thành công.', 'data' => $movie]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Có lỗi xảy ra, vui lòng thử lại.']);
         }
@@ -267,7 +272,7 @@ class MovieController extends Controller
             $movie->is_hot = $request->is_hot;
             $movie->save();
 
-            return response()->json(['success' => true, 'message' => 'Cập nhật thành công.','data'=>$movie]);
+            return response()->json(['success' => true, 'message' => 'Cập nhật thành công.', 'data' => $movie]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Có lỗi xảy ra, vui lòng thử lại.']);
         }
