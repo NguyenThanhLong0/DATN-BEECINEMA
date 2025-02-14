@@ -121,8 +121,6 @@ Route::patch('/rooms/{room}', [RoomController::class, 'update']);
 
 Route::delete('/rooms/{room}', [RoomController::class, 'destroy']);
 
-Route::patch('rooms/update-active/{room}',      [RoomController::class, 'updateActive']);
-// cập nhật is_active thì nhập cả id = ...; is_active = ...; _method = patch
 
 
 // Combos
