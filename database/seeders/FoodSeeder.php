@@ -15,11 +15,18 @@ class FoodSeeder extends Seeder
     {
         //
         Food::create([
-            'name'=> "khoai",
-            'img_thumbnail'=> "",
+            'name'=> "Cocacola",
+            'img_thumbnail'=> "https://example.com/combo.jpg",
             'price'=> 500,
+            'type'=> "Nước",
+            'description'=> "Nước giải khát quà tằng từ thiên nhiên",
+            'is_active'=> true
+        ],[
+            'name'=> "Bắp",
+            'img_thumbnail'=> "https://example.com/combo.jpg",
+            'price'=> 600,
             'type'=> "luộc",
-            'description'=> "ddd",
+            'description'=> "Ăn luôn",
             'is_active'=> true
         ]);
     }

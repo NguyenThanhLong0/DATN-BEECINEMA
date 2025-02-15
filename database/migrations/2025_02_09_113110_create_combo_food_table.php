@@ -17,7 +17,7 @@ return new class extends Migration
             $table->id();
             $table->foreignIdFor(Food::class)->constrained();
             $table->foreignIdFor(Combo::class)->constrained();
-            $table->unsignedInteger('quantity')->default(0);
+            $table->unsignedInteger('quantity')->default(true);
             $table->timestamps();
         });
     }
