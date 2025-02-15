@@ -31,7 +31,8 @@ class DatabaseSeeder extends Seeder
             SeatSeeder::class,
             FoodSeeder::class,
             ComboSeeder::class,
-            ComboFood::class,
+            ComboFoodSeeder::class,
+            BannerSeeder::class,
         ]);
     }
 }
