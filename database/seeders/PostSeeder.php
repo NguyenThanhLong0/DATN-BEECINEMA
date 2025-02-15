@@ -24,7 +24,7 @@ class PostSeeder extends Seeder
         //     'is_active' => true,
         //     'view_count' => 100,
         //     'created_at' => now(),
-        //     'updated_at' => now()
+        //     'updated_at' => now(),
         // ]);
     }
 }
