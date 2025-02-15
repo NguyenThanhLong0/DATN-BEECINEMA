@@ -81,7 +81,7 @@ class CinemaController extends Controller
         }
 
         try {
-            $cinema->fill($request->only(['name', 'is_active'])); // Gán giá trị mới
+            $cinema->fill($request->only(['name', 'branch_id' ,'address', 'surcharge', 'description' , 'is_active'])); // Gán giá trị mới
             if ($request->has('name') && $request->name !== $cinema->getOriginal('name')) {
                 $cinema->slug = null; // Đặt lại slug để Sluggable tự tạo lại
             }

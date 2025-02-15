@@ -10,7 +10,6 @@ use Illuminate\Http\Request;
 
 class ComboFoodController extends Controller
 {
-   
 
     public function index()
     {
