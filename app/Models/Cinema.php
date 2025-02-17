@@ -8,7 +8,7 @@ use Cviebrock\EloquentSluggable\Sluggable;
 
 class Cinema extends Model
 {
-    use HasFactory, sluggable;
+    use HasFactory, Sluggable;
 
     protected $fillable = ['branch_id', 'name', 'slug', 'address', 'surcharge', 'description', 'is_active'];
 
