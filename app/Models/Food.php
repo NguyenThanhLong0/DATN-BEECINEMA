@@ -28,7 +28,11 @@ class Food extends Model
         'Nước Uống',
         'Khác'
     ];
-    public function combos(){
-        return $this->belongsToMany(Combo::class, 'combo_food', 'food_id', 'combo_id');
+    // Quan hệ với Combo
+    public function combos()
+    {
+        // Mỗi món ăn có thể thuộc nhiều combo, qua bảng pivot 'combo_food'
+        return $this->belongsToMany(Combo::class, 'combo_food', 'food_id', 'combo_id')
+                    ->withPivot('quantity');  // Lưu số lượng món ăn trong combo
     }
 }

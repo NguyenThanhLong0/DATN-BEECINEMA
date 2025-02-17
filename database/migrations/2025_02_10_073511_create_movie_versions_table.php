@@ -1,7 +1,6 @@
 <?php
 
-use App\Models\Combo;
-use App\Models\Food;
+use App\Models\Movie;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,12 +12,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('combo_food', function (Blueprint $table) {
+        Schema::create('movie_versions', function (Blueprint $table) {
             $table->id();
-            $table->foreignIdFor(Food::class)->constrained();
-            $table->foreignIdFor(Combo::class)->constrained();
-            $table->unsignedInteger('quantity')->default(true);
+            $table->foreignIdFor(Movie::class)->constrained()->onDelete('cascade');
+            $table->string('name');             //Vietsub, Lồng tiếng, thuyết minh
             $table->timestamps();
+            $table->unique(['movie_id', 'name'], 'movie_version');
         });
     }
 
@@ -27,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('combo_foods');
+        Schema::dropIfExists('movie_versions');
     }
 };

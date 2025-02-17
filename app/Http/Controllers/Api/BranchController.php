@@ -14,16 +14,16 @@ class BranchController extends Controller
      * Display a listing of the resource.
      */
     public function index()
-{
-    try {
-        // Eager load cinemas cho tất cả branches
-        $branches = Branch::with('cinemas')->latest('id')->paginate(10);
-        
-        return response()->json($branches);
-    } catch (\Throwable $th) {
-        return response()->json(['message' => 'Không thể lấy danh sách chi nhánh!'], 500);
+    {
+        try {
+            // Eager load cinemas cho tất cả branches
+            $branches = Branch::with('cinemas')->latest('id')->paginate(10);
+
+            return response()->json($branches);
+        } catch (\Throwable $th) {
+            return response()->json(['message' => 'Không thể lấy danh sách chi nhánh!'], 500);
+        }
     }
-}
 
     /**
      * Store a newly created resource in storage.
