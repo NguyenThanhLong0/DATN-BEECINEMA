@@ -109,54 +109,44 @@ public function index()
 
             // Tạo seat map dạng JSON
             $seatMap = [];
+
             foreach ($seats as $seat) {
                 $row = $seat->coordinates_y; // Hàng ghế (A, B, C, ...)
                 $col = $seat->coordinates_x; // Cột ghế (1, 2, 3, ...)
-
+            
+                // Nếu hàng chưa tồn tại trong seatMap thì khởi tạo
                 if (!isset($seatMap[$row])) {
-                    $seatMap[$row] = [];
+                    $seatMap[$row] = [
+                        'row' => $row,
+                        'seats' => []
+                    ];
                 }
-
-                // Xử lý ghế đôi (`type_seat_id = 3`) có 2 chỗ ngồi
+            
+                // Tạo thông tin ghế
+                $seatData = [
+                    'id' => $seat->id,
+                    'room_id' => $seat->room_id,
+                    'type_seat_id' => $seat->type_seat_id,
+                    'name' => $seat->name,
+                    'is_active' => $seat->is_active,
+                    'coordinates_x' => $col,
+                    'coordinates_y' => $row,
+                    'created_at' => $seat->created_at,
+                    'updated_at' => $seat->updated_at,
+                ];
+            
+                // Thêm ghế vào hàng
+                $seatMap[$row]['seats'][] = $seatData;
+            
+                // Nếu là ghế đôi, thêm ghế bên cạnh
                 if ($seat->type_seat_id == 3) {
-                    $seatMap[$row][$col] = [
-                        'id' => $seat->id,
-                        'room_id' => $seat->room_id,
-                        'type_seat_id' => $seat->type_seat_id,
-                        'name' => $seat->name,
-                        'is_active' => $seat->is_active,
-                        'coordinates_x' => $seat->coordinates_x,
-                        'coordinates_y' => $seat->coordinates_y,
-                        'created_at' => $seat->created_at,
-                        'updated_at' => $seat->updated_at,
-                    ];
-                    // Thêm ghế bên cạnh cho ghế đôi (B4, B5)
-                    $seatMap[$row][$col + 1] = [
-                        'id' => $seat->id, // ID giống nhau vì cùng một ghế
-                        'room_id' => $seat->room_id,
-                        'type_seat_id' => $seat->type_seat_id,
-                        'name' => $seat->name,
-                        'is_active' => $seat->is_active,
-                        'coordinates_x' => $seat->coordinates_x + 1,
-                        'coordinates_y' => $seat->coordinates_y,
-                        'created_at' => $seat->created_at,
-                        'updated_at' => $seat->updated_at,
-                    ];
-                } else {
-                    // Ghế thường (`type_seat_id = 1` hoặc `2`)
-                    $seatMap[$row][$col] = [
-                        'id' => $seat->id,
-                        'room_id' => $seat->room_id,
-                        'type_seat_id' => $seat->type_seat_id,
-                        'name' => $seat->name,
-                        'is_active' => $seat->is_active,
-                        'coordinates_x' => $seat->coordinates_x,
-                        'coordinates_y' => $seat->coordinates_y,
-                        'created_at' => $seat->created_at,
-                        'updated_at' => $seat->updated_at,
-                    ];
+                    $seatData['coordinates_x'] = $col + 1; // Ghế bên cạnh
+                    $seatMap[$row]['seats'][] = $seatData;
                 }
             }
+            
+            // Chuyển thành mảng tuần tự
+            $seatMap = array_values($seatMap);
 
             // Gán thêm thông tin vào `room`
             $room->totalSeats = $totalSeats;
@@ -194,27 +184,46 @@ public function index()
         $activeSeats = $totalSeats - $brokenSeats;
 
         // Định dạng seat map
-        $seatMap = [];
-        foreach ($seats as $seat) {
-            $row = $seat->coordinates_y;
-            $col = $seat->coordinates_x;
+       // Tạo seat map dạng JSON
+       $seatMap = [];
 
-            if (!isset($seatMap[$row])) {
-                $seatMap[$row] = [];
-            }
-
-            $seatMap[$row][$col] = [
-                'id' => $seat->id,
-                'room_id' => $seat->room_id,
-                'type_seat_id' => $seat->type_seat_id,
-                'name' => $seat->name,
-                'is_active' => $seat->is_active,
-                'coordinates_x' => $seat->coordinates_x,
-                'coordinates_y' => $seat->coordinates_y,
-                'created_at' => $seat->created_at,
-                'updated_at' => $seat->updated_at,
-            ];
-        }
+       foreach ($seats as $seat) {
+           $row = $seat->coordinates_y; // Hàng ghế (A, B, C, ...)
+           $col = $seat->coordinates_x; // Cột ghế (1, 2, 3, ...)
+       
+           // Nếu hàng chưa tồn tại trong seatMap thì khởi tạo
+           if (!isset($seatMap[$row])) {
+               $seatMap[$row] = [
+                   'row' => $row,
+                   'seats' => []
+               ];
+           }
+       
+           // Tạo thông tin ghế
+           $seatData = [
+               'id' => $seat->id,
+               'room_id' => $seat->room_id,
+               'type_seat_id' => $seat->type_seat_id,
+               'name' => $seat->name,
+               'is_active' => $seat->is_active,
+               'coordinates_x' => $col,
+               'coordinates_y' => $row,
+               'created_at' => $seat->created_at,
+               'updated_at' => $seat->updated_at,
+           ];
+       
+           // Thêm ghế vào hàng
+           $seatMap[$row]['seats'][] = $seatData;
+       
+           // Nếu là ghế đôi, thêm ghế bên cạnh
+           if ($seat->type_seat_id == 3) {
+               $seatData['coordinates_x'] = $col + 1; // Ghế bên cạnh
+               $seatMap[$row]['seats'][] = $seatData;
+           }
+       }
+       
+       // Chuyển thành mảng tuần tự
+       $seatMap = array_values($seatMap);
 
         return response()->json([
             'room' => $room,
@@ -354,114 +363,60 @@ public function index()
                 'string',
                 Rule::unique('rooms')->where(function ($query) use ($request, $room) {
                     return $query->where('cinema_id', $request->cinema_id)
-                        ->where('id', '!=', $room->id); // Bỏ qua phòng hiện tại đang cập nhật
+                                 ->where('id', '!=', $room->id);
                 }),
             ],
         ];
-        if (!$request->has('branch_id')) {
-            $request->merge(['branch_id' => $room->branch_id]);
-        }
-        if (!$request->has('cinema_id')) {
-            $request->merge(['cinema_id' => $room->cinema_id]);
-        }
-        if (!$room->is_publish) {
-            // Thêm các rule này nếu phòng chưa publish
-
-            $rules['branch_id'] = 'required|exists:branches,id';
-            $rules['cinema_id'] = 'required|exists:cinemas,id';
-
-
-            $rules['type_room_id'] = 'required|exists:type_rooms,id';
-            $rules['seat_template_id'] = 'required|exists:seat_templates,id';
-        }
-
-        // Thông báo lỗi tùy chỉnh
-        $messages = [
-            'name.required' => 'Vui lòng nhập tên phòng chiếu.',
-            'name.unique' => 'Tên phòng đã tồn tại trong rạp.',
-            'branch_id.required' => "Vui lòng chọn chi nhánh.",
-            'branch_id.exists' => 'Chi nhánh bạn chọn không hợp lệ.',
-            'cinema_id.required' => "Vui lòng chọn rạp chiếu.",
-            'cinema_id.exists' => 'Rạp chiếu phim bạn chọn không hợp lệ.',
-            'type_room_id.required' => "Vui lòng chọn loại phòng.",
-            'type_room_id.exists' => 'Loại phòng chiếu bạn chọn không hợp lệ.',
-            'seat_template_id.required' => "Vui lòng chọn mẫu sơ đồ ghế",
-            'seat_template_id.exists' => 'Mẫu sơ đồ ghế không hợp lệ.'
-        ];
-
-        // Thực hiện validate
-        $validator = Validator::make($request->all(), $rules, $messages);
-
+    
+        // Validate input
+        $validator = Validator::make($request->all(), $rules);
         if ($validator->fails()) {
-            return response()->json([
-                'error' => $validator->errors(),
-            ], Response::HTTP_UNPROCESSABLE_ENTITY); // 422
+            return response()->json(['error' => $validator->errors()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-
+    
         try {
             DB::transaction(function () use ($request, $room) {
-                // Nếu phòng đã publish, chỉ cho phép cập nhật tên
-                if ($room->is_publish) {
+                // Handle "publish" action
+                if ($request->action == "publish" && !$room->is_publish) {
                     $room->update([
-                        'name' => $request->name, // Chỉ cập nhật tên
+                        'is_publish' => 1,
+                        'is_active' => 1,
                     ]);
                 } else {
+                    // Update room's is_active status
                     $room->update([
-                        'branch_id' => $request->branch_id,
-                        'cinema_id' => $request->cinema_id,
-                        'type_room_id' => $request->type_room_id,
                         'name' => $request->name,
-                        'seat_template_id' => $request->seat_template_id,
-                        'is_active' => $request->input('is_active', $room->is_active),
-                        'is_publish' => $request->input('is_publish', $room->is_publish),
+                        'is_active' => isset($request->is_active) ? 1 : 0,
                     ]);
-
-                    Seat::where('room_id', $room->id)->delete();
-
-                    $seatTemplate = SeatTemplate::findOrFail($request->seat_template_id);
-
-                    // Chuyển đổi seat_structure từ JSON object thành array
-                    $seatStructureArray = json_decode($seatTemplate->seat_structure, true);
-                    // Tạo mảng để lưu trữ các ghế
-                    $dataSeats = [];
-
-                    // Lặp qua từng ghế trong seat_structure
-                    foreach ($seatStructureArray as $seat) {
-                        $name = $seat['coordinates_y'] . $seat['coordinates_x'];
-
-                        // Nếu là ghế đôi thì thêm tên ghế thứ hai
-                        if ($seat['type_seat_id'] == 3) {
-                            $name .= ', ' . $seat['coordinates_y'] . ($seat['coordinates_x'] + 1);
-                        }
-
-                        $dataSeats[] = [
-                            'coordinates_x' => $seat['coordinates_x'],
-                            'coordinates_y' => $seat['coordinates_y'],
-                            'name' => $name,
-                            'type_seat_id' => $seat['type_seat_id'],
-                            'room_id' => $room->id,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ];
+                }
+    
+                // Update seat status if seats are provided in the request
+                if (!empty($request->seats)) {
+                    foreach ($request->seats as $seatData) {
+                        Seat::where('id', $seatData['id'])->update([
+                            'is_active' => $seatData['is_active'],
+                        ]);
                     }
-                    // Chèn ghế vào bảng seats
-                    Seat::insert($dataSeats);
                 }
             });
-            session()->flash('success', 'Thao tác thành công!');
+    
+            // Flash success message
+            session()->flash('success', 'Cập nhật thành công!');
+    
             return response()->json([
                 'message' => "Cập nhật thành công",
-                'room' => $room,
-            ], Response::HTTP_OK); // 200
-
+                'room' => $room->fresh(), // Get updated room
+            ], Response::HTTP_OK);
+    
         } catch (\Throwable $th) {
-            session()->flash('error', 'Đã sảy ra lỗi!');
+            // Flash error message
+            session()->flash('error', 'Đã xảy ra lỗi!');
+    
             return response()->json([
                 'error' => $th->getMessage(),
-            ], Response::HTTP_INTERNAL_SERVER_ERROR); // 500
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
     public function destroy(Room $room)
     {
         try {
@@ -484,22 +439,4 @@ public function index()
         }
     }
 
-
-    public function updateActive(Request $request)
-    {
-        try {
-            $room = Room::findOrFail($request->id);
-            if ($room->is_publish) {
-                $room->update([
-                    'is_active' => $request->is_active
-                ]);
-                return response()->json(['success' => true, 'message' => 'Cập nhật trạng thái thành công.', 'data' => $room]);
-            } else {
-                // Nếu template chưa được publish, trả về thông báo lỗi
-                return response()->json(['success' => false, 'message' => 'Template chưa được publish.']);
-            }
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Có lỗi xảy ra, vui lòng thử lại.']);
-        }
-    }
 }
