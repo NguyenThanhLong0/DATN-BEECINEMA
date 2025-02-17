@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('password');
             $table->text('address')->nullable();
-            $table->enum('gender', ['male', 'female', 'other'])->nullable();
+            $table->enum('gender', ['nam', 'nữ', 'giới tính khác'])->nullable();
             $table->date('birthday')->nullable();
             $table->string('role')->default(User::TYPE_MEMBER); 
             $table->timestamp('email_verified_at')->nullable();
