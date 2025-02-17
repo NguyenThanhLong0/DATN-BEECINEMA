@@ -3,15 +3,20 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
+    const TYPE_ADMIN='admin';
+    const TYPE_MANAGER='manager';
+    const TYPE_MEMBER='member';
     /**
      * The attributes that are mass assignable.
      *
@@ -21,6 +26,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'email_verified_at'
     ];
 
     /**
@@ -42,4 +49,14 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    public function IsAdmin(){
+        return $this->role==self::TYPE_ADMIN;
+    }
+    public function IsManager(){
+        return $this->role==self::TYPE_MANAGER;
+    }
+    public function IsMember(){
+        return $this->role==self::TYPE_MEMBER;
+    }
 }
