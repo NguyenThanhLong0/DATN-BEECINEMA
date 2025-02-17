@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -191,3 +193,26 @@ Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update']
 
 Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
 
+//user
+// Route::middleware(['role:admin'])->group(function () {
+//     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
+//     Route::get('/users/{id}', [UserController::class, 'show']); // Lấy thông tin user cụ thể
+//     Route::put('/users/{id}', [UserController::class, 'update']); // Cập nhật user
+//     Route::delete('/users/{id}', [UserController::class, 'destroy']); // Xóa mềm
+//     Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Khôi phục
+//     Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']); // Xóa vĩnh viễn
+// });
+
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
+    Route::get('/users/{id}', [UserController::class, 'show']); // Lấy thông tin user cụ thể
+    Route::put('/users/{id}', [UserController::class, 'update']); // Cập nhật user
+    Route::delete('/users/{id}', [UserController::class, 'destroy']); // Xóa mềm
+    Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Khôi phục
+    Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']); // Xóa vĩnh viễn
+    Route::get('/profile', [UserController::class, 'profile']); // Lấy thông tin user đang đăng nhập
+
+});
+
+//Đăng nhập
+Route::post('/login',[AuthController::class,'login']);

@@ -40,7 +40,14 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        'api' => [
+        'driver' => 'sanctum', // Hoặc 'passport' nếu bạn dùng Laravel Passport
+        'provider' => 'users',
     ],
+
+    ],
+    
 
     /*
     |--------------------------------------------------------------------------
