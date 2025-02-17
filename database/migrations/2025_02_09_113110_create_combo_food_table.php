@@ -15,9 +15,9 @@ return new class extends Migration
     {
         Schema::create('combo_food', function (Blueprint $table) {
             $table->id();
-            $table->foreignIdFor(Food::class)->constrained();
-            $table->foreignIdFor(Combo::class)->constrained();
-            $table->unsignedInteger('quantity')->default(true);
+            $table->foreignIdFor(Food::class)->constrained()->onDelete('cascade');
+            $table->foreignIdFor(Combo::class)->constrained()->onDelete('cascade');
+            $table->unsignedInteger('quantity')->default(0);
             $table->timestamps();
         });
     }
