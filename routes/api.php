@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
+use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
@@ -191,3 +192,5 @@ Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update']
 
 Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
 
+//Ticket
+Route::apiResource('tickets', TicketController::class);
