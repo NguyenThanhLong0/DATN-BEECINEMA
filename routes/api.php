@@ -33,6 +33,10 @@ use App\Http\Controllers\Api\UserController;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']);
+});
+
 
 
 //branchers
@@ -44,6 +48,7 @@ Route::post('branches',             [BranchController::class, 'store'])->name('b
 Route::get('branches/{branch}',     [BranchController::class, 'show'])->name('branches.show');
 
 Route::put('branches/{branch}',     [BranchController::class, 'update'])->name('branches.update');
+
 Route::patch('branches/{branch}',   [BranchController::class, 'update'])->name('branches.update.partial');
 
 Route::delete('branches/{branch}',  [BranchController::class, 'destroy'])->name('branches.destroy');
@@ -198,10 +203,10 @@ Route::post('movies/update-active',     [MovieController::class, 'updateActive']
 Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->name('movies.update-hot');
 
 
-
 // combofood
 
 // Route::get('combofoods',               [ComboFoodController::class, 'index'])->name('combofoods.index');
+
 
 // Route::post('combofoods',              [ComboFoodController::class, 'store'])->name('combofoods.store');
 
@@ -209,6 +214,12 @@ Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->
 
 // Route::put('combofoods/{combofood}',      [combofoodController::class, 'update'])->name('combofoods.update');
 
+// Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
+
+
+// Route::post('combofoods',              [ComboFoodController::class, 'store'])->name('combofoods.store');
+// Route::get('combofoods/{combofood}',      [combofoodController::class, 'show'])->name('combofoods.show');
+// Route::put('combofoods/{combofood}',      [combofoodController::class, 'update'])->name('combofoods.update');
 // Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
 
 // Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
@@ -235,21 +246,25 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 });
 
 //Đăng nhập
+// Route::post('/login',[AuthController::class,'login']);
+
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
+Route::post('/email/resend', [AuthController::class, 'resendVerificationEmail'])->middleware('auth:sanctum');
 Route::post('/login',[AuthController::class,'login']);
 
 // banners
-
 Route::get('banners',               [BannerController::class, 'index'])->name('banners.index');
-
 Route::post('banners',              [BannerController::class, 'store'])->name('banners.store');
-
 Route::get('banners/{banner}',      [BannerController::class, 'show'])->name('banners.show');
-
 Route::put('banners/{banner}',      [BannerController::class, 'update'])->name('banners.update');
-
 Route::patch('banners/{banner}',    [BannerController::class, 'update'])->name('banners.update.partial');
-
 Route::delete('banners/{banner}',   [BannerController::class, 'destroy'])->name('banners.destroy');
+
 
 //Showtime
 
@@ -270,3 +285,4 @@ Route::patch('showtimes/{showtime}', [ShowtimeController::class, 'update']);
 
 
 Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
+

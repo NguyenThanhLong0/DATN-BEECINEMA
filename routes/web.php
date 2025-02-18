@@ -22,7 +22,7 @@ Route::get('/', function () {
 Auth::routes(['verify'=>true]);
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])
-->middleware('verified')
+// ->middleware('verified')
 ->name('home');
 
 

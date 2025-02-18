@@ -20,12 +20,12 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('password');
             $table->text('address')->nullable();
-            $table->enum('gender', ['nam', 'nữ', 'giới tính khác'])->nullable();
+            $table->enum('gender', ['male', 'female', 'other'])->nullable();
             $table->date('birthday')->nullable();
             $table->string('role')->default(User::TYPE_MEMBER); 
             $table->timestamp('email_verified_at')->nullable();
             $table->string('remember_token', 100)->nullable();
-            $table->foreignId('cinema_id')->nullable()->constrained('cinemas')->onDelete('cascade');
+            $table->foreignId('cinema_id')->constrained('cinemas')->onDelete('cascade');
             $table->softDeletes(); // deleted_at
             $table->timestamps();  // created_at, updated_at
         });
