@@ -17,8 +17,8 @@ class MovieVersion extends Model
     {
         return $this->belongsTo(Movie::class);
     }
-    // public function showtime()
-    // {
-    //     return $this->hasOne(Showtime::class);
-    // }
+    public function showtime()
+    {
+        return $this->hasOne(Showtime::class);
+    }
 }

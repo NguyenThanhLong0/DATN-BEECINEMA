@@ -67,4 +67,14 @@ class User extends Authenticatable implements MustVerifyEmail,ShouldQueue
     public function IsMember(){
         return $this->role==self::TYPE_MEMBER;
     }
+
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
+
+    public function cinema()
+    {
+        return $this->belongsTo(Cinema::class);
+    }
 }

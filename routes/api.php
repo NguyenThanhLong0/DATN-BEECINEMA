@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\RankController;
 use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
+use App\Http\Controllers\Api\ShowtimeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
@@ -226,21 +227,25 @@ Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->
 // combofood
 
 // Route::get('combofoods',               [ComboFoodController::class, 'index'])->name('combofoods.index');
+
+
+// Route::post('combofoods',              [ComboFoodController::class, 'store'])->name('combofoods.store');
+
+// Route::get('combofoods/{combofood}',      [combofoodController::class, 'show'])->name('combofoods.show');
+
+// Route::put('combofoods/{combofood}',      [combofoodController::class, 'update'])->name('combofoods.update');
+
+// Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
+
+
 // Route::post('combofoods',              [ComboFoodController::class, 'store'])->name('combofoods.store');
 // Route::get('combofoods/{combofood}',      [combofoodController::class, 'show'])->name('combofoods.show');
 // Route::put('combofoods/{combofood}',      [combofoodController::class, 'update'])->name('combofoods.update');
 // Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
+
 // Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
 
 //user
-// Route::middleware(['role:admin'])->group(function () {
-//     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
-//     Route::get('/users/{id}', [UserController::class, 'show']); // Lấy thông tin user cụ thể
-//     Route::put('/users/{id}', [UserController::class, 'update']); // Cập nhật user
-//     Route::delete('/users/{id}', [UserController::class, 'destroy']); // Xóa mềm
-//     Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Khôi phục
-//     Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']); // Xóa vĩnh viễn
-// });
 
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
@@ -275,4 +280,19 @@ Route::get('banners/{banner}',      [BannerController::class, 'show'])->name('ba
 Route::put('banners/{banner}',      [BannerController::class, 'update'])->name('banners.update');
 Route::patch('banners/{banner}',    [BannerController::class, 'update'])->name('banners.update.partial');
 Route::delete('banners/{banner}',   [BannerController::class, 'destroy'])->name('banners.destroy');
+
+
+//Showtime
+
+Route::get('showtimes', [ShowtimeController::class, 'index']);
+
+Route::post('showtimes', [ShowtimeController::class, 'store']);
+
+Route::get('showtimes/{showtime}', [ShowtimeController::class, 'show']);
+
+Route::put('showtimes/{showtime}', [ShowtimeController::class, 'update']);
+
+Route::patch('showtimes/{showtime}', [ShowtimeController::class, 'update']);
+
+Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
 
