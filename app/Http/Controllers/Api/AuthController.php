@@ -64,7 +64,7 @@ class AuthController extends Controller
                 'email' => 'required|string|email|max:255|unique:users',
                 'password' => 'required|string|min:8|confirmed',
                 'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
-                'gender' => 'required|in:nam,nữ,giới tính khác',
+                'gender' => 'required|string|in:nam,nữ,khác',
                 'birthday' => 'required|date',
             ]);
     
@@ -78,10 +78,12 @@ class AuthController extends Controller
             ]);
     
             event(new UserRegistered($user));
+
+    
             return response()->json([
                 'message' => 'User registered. Please verify your email.',
                 'user' => $user
-            ], 201);
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Registration failed',
