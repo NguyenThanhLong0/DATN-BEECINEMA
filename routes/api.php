@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
+use App\Http\Controllers\Api\RankController;
 use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
@@ -80,6 +81,21 @@ Route::patch('/foods/{food}', [FoodController::class, 'update'])->name('foods.up
 
 
 Route::delete('foods/{food}',   [FoodController::class, 'destroy'])->name('foods.destroy');
+
+//ranks
+
+Route::get('ranks',               [RankController::class, 'index'])->name('ranks.index');
+
+Route::post('ranks',              [RankController::class, 'store'])->name('ranks.store');
+
+Route::get('ranks/{rank}',      [RankController::class, 'show'])->name('ranks.show');
+
+Route::put('ranks/{rank}',      [RankController::class, 'update'])->name('ranks.update');
+
+Route::patch('/ranks/{rank}', [RankController::class, 'update'])->name('ranks.update.partial');;
+
+
+Route::delete('ranks/{rank}',   [RankController::class, 'destroy'])->name('ranks.destroy');
 
 //SeatTemplate
 
