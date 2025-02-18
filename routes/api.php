@@ -45,6 +45,8 @@ Route::get('branches',              [BranchController::class, 'index'])->name('b
 
 Route::post('branches',             [BranchController::class, 'store'])->name('branches.store');
 
+Route::get('branches/active',  [BranchController::class, 'branchesWithCinemasActive'])->name('branches.branchesWithCinemasActive');
+
 Route::get('branches/{branch}',     [BranchController::class, 'show'])->name('branches.show');
 
 Route::put('branches/{branch}',     [BranchController::class, 'update'])->name('branches.update');
@@ -52,6 +54,9 @@ Route::put('branches/{branch}',     [BranchController::class, 'update'])->name('
 Route::patch('branches/{branch}',   [BranchController::class, 'update'])->name('branches.update.partial');
 
 Route::delete('branches/{branch}',  [BranchController::class, 'destroy'])->name('branches.destroy');
+
+
+
 
 //cinemas
 
@@ -264,6 +269,8 @@ Route::post('/change-password', [AuthController::class, 'changePassword'])->midd
 // banners
 Route::get('banners',               [BannerController::class, 'index'])->name('banners.index');
 Route::post('banners',              [BannerController::class, 'store'])->name('banners.store');
+
+Route::get('banners/active',      [BannerController::class, 'getActiveBanner'])->name('banners.getActiveBanner');
 Route::get('banners/{banner}',      [BannerController::class, 'show'])->name('banners.show');
 Route::put('banners/{banner}',      [BannerController::class, 'update'])->name('banners.update');
 Route::patch('banners/{banner}',    [BannerController::class, 'update'])->name('banners.update.partial');

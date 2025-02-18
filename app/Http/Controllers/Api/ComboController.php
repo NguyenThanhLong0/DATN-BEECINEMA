@@ -59,6 +59,52 @@ class ComboController extends Controller
             return response()->json(['error' => 'hiển thị không thành công.'], 500);
         }
     }
+
+    public function show($id)
+{
+    try {
+        // Tìm combo theo ID và load quan hệ với foods
+        $combo = Combo::with('foods')->find($id);
+
+        // Nếu không tìm thấy combo, trả về lỗi 404
+        if (!$combo) {
+            return response()->json(['message' => 'Combo không tồn tại.'], 404);
+        }
+
+        // Xử lý dữ liệu
+        $result = [
+            'id' => $combo->id,
+            'name' => $combo->name,
+            'price' => $combo->discount_price ?? $combo->price,
+            'description' => $combo->description,
+            'is_active' => $combo->is_active,
+            'discount_price' => $combo->discount_price,
+            'img_thumbnail' => $combo->img_thumbnail,
+            'combo_foods' => $combo->foods->map(fn($food) => [
+                'id' => $food->id,
+                'name' => $food->name,
+                'img_thumbnail' => $food->img_thumbnail,
+                'price' => $food->price,
+                'type' => $food->type,
+                'description' => $food->description,
+                'is_active' => $food->is_active,
+                'quantity' => $food->pivot->quantity,
+                'total_price' => $food->price * $food->pivot->quantity,
+            ]),
+        ];
+
+        return response()->json(
+             $result
+        , 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Không thể lấy thông tin combo.',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
+
+
     public function store(Request $request)
     {
         try {
