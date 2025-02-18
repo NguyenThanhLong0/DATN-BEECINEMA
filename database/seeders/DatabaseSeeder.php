@@ -37,6 +37,8 @@ class DatabaseSeeder extends Seeder
             MovieVersionSeeder::class,
             ShowtimeSeeder::class,
             SeatShowtimeSeeder::class,
+            RankSeeder::class
+
         ]);
     }
 }

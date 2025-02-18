@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\UserRegistered;
 use App\Http\Controllers\Controller;
+use App\Jobs\ResendVerificationEmailJob;
+use App\Jobs\SendPasswordResetEmail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -62,6 +65,7 @@ class AuthController extends Controller
                 'password' => 'required|string|min:8|confirmed',
                 'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
                 'gender' => 'required|in:male,female,other',
+//                 'gender' => 'required|string|in:nam,nữ,khác',
                 'birthday' => 'required|date',
                 //mơi thêm
                 // 'cinema_id' => 'nullable|exists:cinemas,id',
@@ -78,12 +82,15 @@ class AuthController extends Controller
                 // 'cinema_id' => $request->cinema_id,
             ]);
 
-            event(new Registered($user));
+
+//             event(new Registered($user));
+    
+            event(new UserRegistered($user));
 
             return response()->json([
                 'message' => 'User registered. Please verify your email.',
                 'user' => $user
-            ], 201);
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Registration failed',
@@ -109,7 +116,7 @@ class AuthController extends Controller
     {
         try {
             $request->validate(['email' => 'required|email']);
-            Password::sendResetLink($request->only('email'));
+            SendPasswordResetEmail::dispatch($request->email);
             return response()->json(['message' => 'Password reset link sent.']);
         } catch (\Exception $e) {
             return response()->json([
@@ -179,7 +186,7 @@ class AuthController extends Controller
                 return response()->json(['message' => 'Email already verified']);
             }
 
-            $request->user()->sendEmailVerificationNotification();
+            ResendVerificationEmailJob::dispatch($request->user());
             return response()->json(['message' => 'Verification email resent']);
         } catch (\Exception $e) {
             return response()->json([
@@ -188,4 +195,33 @@ class AuthController extends Controller
             ], 500);
         }
     }
+    public function changePassword(Request $request)
+{
+    try {
+        // Validate input
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:8|confirmed',
+        ]);
+
+        // Get authenticated user
+        $user = $request->user();
+
+        // Check if current password is correct
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json(['error' => 'Current password is incorrect'], 400);
+        }
+
+        // Update the password
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        return response()->json(['message' => 'Password changed successfully']);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Password change failed',
+            'message' => $e->getMessage(),
+        ], 500);
+    }
+}
 }

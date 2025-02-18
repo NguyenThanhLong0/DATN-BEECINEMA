@@ -12,6 +12,7 @@ class Banner extends Model
 
     protected $casts = [
         'img_thumbnail_url' => 'array', // Laravel sẽ tự động chuyển JSON thành mảng
+        'is_active' => 'boolean'
     ];
 
 

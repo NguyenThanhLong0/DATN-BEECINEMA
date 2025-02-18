@@ -21,6 +21,14 @@ class Cinema extends Model
         ];
     }
 
+    /**
+         * Accessor: Định dạng surcharge theo tiền Việt Nam (VND) khi lấy ra
+         */
+        public function getSurchargeAttribute($value)
+        {
+            return number_format($value, 0, ',', '.');
+        }
+
     // Quan hệ với chi nhánh (branch)
     public function branch()
     {
