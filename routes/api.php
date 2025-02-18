@@ -233,16 +233,17 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 });
 
 //Đăng nhập
-// Route::post('/login',[AuthController::class,'login']);
+
 
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login',[AuthController::class,'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
 Route::post('/email/resend', [AuthController::class, 'resendVerificationEmail'])->middleware('auth:sanctum');
-Route::post('/login',[AuthController::class,'login']);
+Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
+
 
 // banners
 Route::get('banners',               [BannerController::class, 'index'])->name('banners.index');
