@@ -13,6 +13,11 @@ class StoreShowtimeRequest extends FormRequest
     /**
      * Determine if the user is authorized to make this request.
      */
+
+    //  public function authorize(): bool
+    //  {
+    //      return auth()->user()->is_admin; // Chỉ admin mới có quyền
+    //  }
     public function authorize(): bool
     {
         return true;
@@ -230,5 +235,13 @@ class StoreShowtimeRequest extends FormRequest
             'end_hour.required' => 'Vui lòng nhập giờ đóng cửa.',
             'start_hour.required_if' => 'Vui lòng nhập giờ mở cửa khi sử dụng tự động tạo suất chiếu.',
         ];
+    }
+
+    public function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)
+    {
+        throw new \Illuminate\Validation\ValidationException($validator, response()->json([
+            'message' => 'Validation failed',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }

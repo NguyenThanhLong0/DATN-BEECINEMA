@@ -32,4 +32,14 @@ class Cinema extends Model
     {
         return $this->hasMany(Room::class);
     }
+
+    public function showtimes()
+    {
+        return $this->hasMany(Showtime::class);
+    }
+    
+    public function users()
+    {
+        return $this->hasMany(User::class);
+    }
 }

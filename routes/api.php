@@ -225,14 +225,6 @@ Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->
 // Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
 
 //user
-// Route::middleware(['role:admin'])->group(function () {
-//     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
-//     Route::get('/users/{id}', [UserController::class, 'show']); // Lấy thông tin user cụ thể
-//     Route::put('/users/{id}', [UserController::class, 'update']); // Cập nhật user
-//     Route::delete('/users/{id}', [UserController::class, 'destroy']); // Xóa mềm
-//     Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Khôi phục
-//     Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']); // Xóa vĩnh viễn
-// });
 
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
@@ -268,21 +260,15 @@ Route::delete('banners/{banner}',   [BannerController::class, 'destroy'])->name(
 
 //Showtime
 
-
-
 Route::get('showtimes', [ShowtimeController::class, 'index']);
-
 
 Route::post('showtimes', [ShowtimeController::class, 'store']);
 
-
 Route::get('showtimes/{showtime}', [ShowtimeController::class, 'show']);
-
 
 Route::put('showtimes/{showtime}', [ShowtimeController::class, 'update']);
 
 Route::patch('showtimes/{showtime}', [ShowtimeController::class, 'update']);
-
 
 Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
 

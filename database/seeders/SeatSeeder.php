@@ -14,6 +14,12 @@ class SeatSeeder extends Seeder
      */
     public function run(): void
     {
+        // Tắt kiểm tra khóa ngoại tạm thời
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+
+        // Xóa dữ liệu trong bảng 'seats'
+        DB::table('seats')->delete();
+
         // Lấy danh sách các phòng chiếu
         $rooms = Room::all();
 
@@ -32,9 +38,6 @@ class SeatSeeder extends Seeder
             echo "No seat types found. Please seed type_seats first.\n";
             return;
         }
-
-        // Xóa dữ liệu cũ
-        DB::table('seats')->truncate();
 
         // Duyệt qua từng phòng và thêm ghế
         foreach ($rooms as $room) {
@@ -57,5 +60,8 @@ class SeatSeeder extends Seeder
                 }
             }
         }
+
+        // Bật lại kiểm tra khóa ngoại
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
     }
 }
