@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ComboFoodController;
 use App\Http\Controllers\Api\MovieReviewController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
+use App\Http\Controllers\Api\MovieClientHomeController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\TicketController;
@@ -225,6 +226,10 @@ Route::post('movies/update-active',     [MovieController::class, 'updateActive']
 
 Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->name('movies.update-hot');
 
+// Movies client
+Route::get('/moviesClientHome', [MovieClientHomeController::class, 'index']);
+
+
 
 // combofood
 
@@ -264,7 +269,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 
 
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login',[AuthController::class,'login']);
+Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);

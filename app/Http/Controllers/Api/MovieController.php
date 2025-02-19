@@ -25,6 +25,19 @@ class MovieController extends Controller
     public function index(Request $request)
     {
         try {
+//             $selectedTab = $request->get('tab', 'publish');
+//             $moviesQuery = Movie::query();
+
+//             if ($selectedTab === 'publish') {
+//                 $moviesQuery->where('is_publish', 1);
+//             } elseif ($selectedTab === 'unpublish') {
+//                 $moviesQuery->where('is_publish', 0);
+//             }
+
+//             $movies = $moviesQuery->latest()->paginate(10);
+
+            // Sử dụng vòng lặp 
+          
             $movies = Movie::latest()->paginate(10);
 
             foreach ($movies as $movie) {
@@ -36,7 +49,6 @@ class MovieController extends Controller
             return response()->json(['message' => 'Không thể lấy danh sách phim'], 500);
         }
     }
-
 
 
 
