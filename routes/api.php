@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\ComboFoodController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
+use App\Http\Controllers\Api\MovieClientHomeController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\RankController;
@@ -216,8 +217,9 @@ Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
 Route::post('movies/update-active',     [MovieController::class, 'updateActive'])->name('movies.update-active');
 
 Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->name('movies.update-hot');
+
 // Movies client
-Route::get('/moviesClientHome', [MovieController::class, 'moviesClientHome']);
+Route::get('/moviesClientHome', [MovieClientHomeController::class, 'index']);
 
 
 
@@ -255,7 +257,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 
 
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login',[AuthController::class,'login']);
+Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
@@ -271,4 +273,3 @@ Route::get('banners/{banner}',      [BannerController::class, 'show'])->name('ba
 Route::put('banners/{banner}',      [BannerController::class, 'update'])->name('banners.update');
 Route::patch('banners/{banner}',    [BannerController::class, 'update'])->name('banners.update.partial');
 Route::delete('banners/{banner}',   [BannerController::class, 'destroy'])->name('banners.destroy');
-
