@@ -17,7 +17,7 @@ class TypeRoomController extends Controller
     {
         try {
             $typeRooms = TypeRoom::paginate(10);
-            return response()->json(['data' => $typeRooms], Response::HTTP_OK);
+            return response()->json($typeRooms, Response::HTTP_OK);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Không thể lấy danh sách loại phòng!'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
