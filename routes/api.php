@@ -299,8 +299,10 @@ Route::patch('showtimes/{showtime}', [ShowtimeController::class, 'update']);
 Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
 
 
+
 //Ticket
 Route::apiResource('tickets', TicketController::class);
+
 
 //MovieReview
 
@@ -315,5 +317,6 @@ Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update
 Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
 
 Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
+
 
 
