@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\ComboFoodController;
+use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
@@ -183,11 +184,25 @@ Route::get('combofoods',               [ComboFoodController::class, 'index'])->n
 
 Route::post('combofoods',              [ComboFoodController::class, 'store'])->name('combos.store');
 
-Route::get('combofoods/{combofood}',      [combofoodController::class, 'show'])->name('combofoods.show');
+Route::get('combofoods/{combofood}',      [CombofoodController::class, 'show'])->name('combofoods.show');
 
-Route::put('combofoods/{combofood}',      [combofoodController::class, 'update'])->name('combofoods.update');
+Route::put('combofoods/{combofood}',      [CombofoodController::class, 'update'])->name('combofoods.update');
 
-Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
+Route::patch('combofoods/{combofood}',    [CombofoodController::class, 'update'])->name('combofoods.update.partial');
 
-Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
+Route::delete('combofoods/{combofood}',   [CombofoodController::class, 'destroy'])->name('combofoods.destroy');
+//Contact
+Route::get('contact',               [ContactController::class, 'index'])->name('contact.index');
+
+Route::post('contact',              [ContactController::class, 'store'])->name('contact.store');
+
+Route::get('contact/{contact}',      [ContactController::class, 'show'])->name('contact.show');
+
+Route::put('contact/{contact}',      [ContactController::class, 'update'])->name('contact.update');
+
+Route::patch('contact/{contact}',    [ContactController::class, 'update'])->name('contact.update.partial');
+
+Route::delete('contact/{contact}',   [ContactController::class, 'destroy'])->name('contact.destroy');
+
+
 
