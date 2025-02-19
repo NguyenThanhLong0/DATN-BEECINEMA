@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
-use App\Models\ComboFood;
+
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -31,11 +31,13 @@ class DatabaseSeeder extends Seeder
             SeatSeeder::class,
             FoodSeeder::class,
             ComboSeeder::class,
-            ComboFood::class,
-            ShowtimeSeeder::class,
-            MovieSeeder::class,
+            ComboFoodSeeder::class,
+            BannerSeeder::class,
+            MoviesSeeder::class,
             MovieVersionSeeder::class,
-            TicketSeeder::class
+            ShowtimeSeeder::class,
+            SeatShowtimeSeeder::class,
+            RankSeeder::class
         ]);
     }
 }
