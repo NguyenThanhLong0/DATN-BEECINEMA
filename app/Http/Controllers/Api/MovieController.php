@@ -7,6 +7,7 @@ use App\Http\Requests\Api\StoreMovieRequest;
 use App\Http\Requests\Api\UpdateMovieRequest;
 use App\Models\Movie;
 use App\Models\MovieVersion;
+use App\Models\MovieReview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -38,6 +39,7 @@ class MovieController extends Controller
             // Sử dụng vòng lặp 
           
             $movies = Movie::latest()->paginate(10);
+
             foreach ($movies as $movie) {
                 $movie->movieVersions = $movie->movieVersions()->pluck('name')->toArray();
             }
@@ -122,22 +124,23 @@ class MovieController extends Controller
             // $movieVersions = $movie->load('movieVersions');
 
             // Lấy các đánh giá của bộ phim
-            // $movieReviews = $movie->movieReview()->get();
-            // $totalReviews = $movieReviews->count();
-            // $averageRating = $totalReviews > 0 ? $movieReviews->avg('rating') : 0;
+            $movieReviews = $movie->movieReview()->get();
+            $totalReviews = $movieReviews->count();
+            $averageRating = $totalReviews > 0 ? $movieReviews->avg('rating') : 0; //Tính điểm đánh giá trung bình
 
-            // // Đếm số sao của từng mức đánh giá
-            // $starCounts = [];
-            // for ($i = 1; $i <= 10; $i++) {
-            //     $starCounts[$i] = $movieReviews->where('rating', $i)->count();
-            // }
+            // Đếm số lượng đánh giá theo từng mức sao
+            $starCounts = [];
+            for ($i = 1; $i <= 10; $i++) {
+                $starCounts[$i] = $movieReviews->where('rating', $i)->count();
+            }
+
             $movie->movieVersions = $movieVersions;
             // Trả về thông tin chi tiết bộ phim
             return response()->json([
-                'movie' => $movie
-                // 'totalReviews' => $totalReviews,
-                // 'averageRating' => $averageRating,
-                // 'starCounts' => $starCounts
+                'movie' => $movie,
+                'totalReviews' => $totalReviews,
+                'averageRating' => $averageRating,
+                'starCounts' => $starCounts
             ]);
         } catch (\Throwable $th) {
             // Trả về lỗi nếu không thể lấy thông tin phim
