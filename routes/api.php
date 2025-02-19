@@ -183,10 +183,10 @@ Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
 // Voucher
 Route::prefix('vouchers')->group(function () {
     Route::get('/', [VoucherApiController::class, 'index']); // Lấy danh sách voucher
-    Route::post('/', [VoucherApiController::class, 'store']); // Tạo mới voucher
+    Route::post('/create', [VoucherApiController::class, 'store']); // Tạo mới voucher
     Route::get('{id}', [VoucherApiController::class, 'show']); // Lấy chi tiết voucher
-    Route::put('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
-    Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
+    Route::put('update/{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
+    Route::delete('destroy/{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
 
 });
 
