@@ -216,6 +216,9 @@ Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
 Route::post('movies/update-active',     [MovieController::class, 'updateActive'])->name('movies.update-active');
 
 Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->name('movies.update-hot');
+// Movies client
+Route::get('/moviesClientHome', [MovieController::class, 'moviesClientHome']);
+
 
 
 // combofood

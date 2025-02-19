@@ -26,26 +26,26 @@ class MovieController extends Controller
         try {
             $selectedTab = $request->get('tab', 'publish');
             $moviesQuery = Movie::query();
-    
+
             if ($selectedTab === 'publish') {
                 $moviesQuery->where('is_publish', 1);
             } elseif ($selectedTab === 'unpublish') {
                 $moviesQuery->where('is_publish', 0);
             }
-    
+
             $movies = $moviesQuery->latest()->paginate(10);
-    
+
             // Sử dụng vòng lặp 
             foreach ($movies as $movie) {
                 $movie->movieVersions = $movie->movieVersions()->pluck('name')->toArray();
             }
-    
+
             return response()->json($movies);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Không thể lấy danh sách phim'], 500);
         }
     }
-    
+
 
 
 
@@ -275,6 +275,68 @@ class MovieController extends Controller
             return response()->json(['success' => true, 'message' => 'Cập nhật thành công.', 'data' => $movie]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Có lỗi xảy ra, vui lòng thử lại.']);
+        }
+    }
+    // movie client
+    public function moviesClientHome()
+    {
+        try {
+           
+            $currentNow = now();
+
+        //Phim đang chiếu
+        $moviesShowing = Movie::where([
+            ['is_active', '1'],
+            ['is_publish', '1'],
+            ['release_date', '<=', $currentNow],
+            ['end_date', '>=', $currentNow]
+        ])
+        ->orderBy('is_hot', 'desc')
+        ->latest('id')
+        ->limit(8)
+        ->get();
+
+        // Phim sắp chiếu
+        $moviesUpcoming = Movie::where([
+            ['is_active', '1'],
+            ['is_publish', '1'],
+            ['release_date', '>', $currentNow]
+        ])
+        ->orderBy('is_hot', 'desc')
+        ->latest('id')
+        ->limit(8)
+        ->get();
+
+        // Phim suất chiếu đặc biệt
+        $moviesSpecial = Movie::where([
+            ['is_active', '1'],
+            ['is_publish', '1'],
+            ['is_special', '1'],
+            ['end_date', '<', $currentNow], // Phim đã hết thời gian chiếu
+        ])
+        ->orWhere([
+            ['is_active', '1'],
+            ['is_publish', '1'],
+            ['is_special', '1'], // chỉ lấy được phim đánh dấu đặc biệt
+            ['release_date', '>', $currentNow]]) // Phim sắp chiếu
+        ->orderBy('is_hot', 'desc')
+        ->latest('id')
+        ->limit(8)
+        ->get();
+
+        // Trả về 3 danh sách phim dưới dạng JSON
+        return response()->json([
+            'message' => 'hiển thị thành công!',
+            'status' => true,
+            'moviesShowing' => $moviesShowing,
+            'moviesUpcoming' => $moviesUpcoming,
+            'moviesSpecial' => $moviesSpecial
+        ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'message' => 'hiển thị không thất bại!',
+                'status' => false,
+            ]);
         }
     }
 }
