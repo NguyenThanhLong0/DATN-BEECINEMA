@@ -8,7 +8,7 @@ use Cviebrock\EloquentSluggable\Sluggable;
 
 class Cinema extends Model
 {
-    use HasFactory, sluggable;
+    use HasFactory, Sluggable;
 
     protected $fillable = ['branch_id', 'name', 'slug', 'address', 'surcharge', 'description', 'is_active'];
 
@@ -21,6 +21,14 @@ class Cinema extends Model
         ];
     }
 
+    /**
+         * Accessor: Định dạng surcharge theo tiền Việt Nam (VND) khi lấy ra
+         */
+        public function getSurchargeAttribute($value)
+        {
+            return number_format($value, 0, ',', '.');
+        }
+
     // Quan hệ với chi nhánh (branch)
     public function branch()
     {
@@ -31,5 +39,15 @@ class Cinema extends Model
     public function rooms()
     {
         return $this->hasMany(Room::class);
+    }
+
+    public function showtimes()
+    {
+        return $this->hasMany(Showtime::class);
+    }
+    
+    public function users()
+    {
+        return $this->hasMany(User::class);
     }
 }

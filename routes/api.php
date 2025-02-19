@@ -11,10 +11,12 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
+use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\RankController;
 use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
+use App\Http\Controllers\Api\ShowtimeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
@@ -45,6 +47,8 @@ Route::get('branches',              [BranchController::class, 'index'])->name('b
 
 Route::post('branches',             [BranchController::class, 'store'])->name('branches.store');
 
+Route::get('branches/active',  [BranchController::class, 'branchesWithCinemasActive'])->name('branches.branchesWithCinemasActive');
+
 Route::get('branches/{branch}',     [BranchController::class, 'show'])->name('branches.show');
 
 Route::put('branches/{branch}',     [BranchController::class, 'update'])->name('branches.update');
@@ -52,6 +56,9 @@ Route::put('branches/{branch}',     [BranchController::class, 'update'])->name('
 Route::patch('branches/{branch}',   [BranchController::class, 'update'])->name('branches.update.partial');
 
 Route::delete('branches/{branch}',  [BranchController::class, 'destroy'])->name('branches.destroy');
+
+
+
 
 //cinemas
 
@@ -177,10 +184,10 @@ Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
 // Voucher
 Route::prefix('vouchers')->group(function () {
     Route::get('/', [VoucherApiController::class, 'index']); // Lấy danh sách voucher
-    Route::post('/', [VoucherApiController::class, 'store']); // Tạo mới voucher
+    Route::post('/create', [VoucherApiController::class, 'store']); // Tạo mới voucher
     Route::get('{id}', [VoucherApiController::class, 'show']); // Lấy chi tiết voucher
-    Route::put('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
-    Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
+    Route::put('update/{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
+    Route::delete('destroy/{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
 
 });
 
@@ -224,21 +231,25 @@ Route::get('/moviesClientHome', [MovieController::class, 'moviesClientHome']);
 // combofood
 
 // Route::get('combofoods',               [ComboFoodController::class, 'index'])->name('combofoods.index');
+
+
+// Route::post('combofoods',              [ComboFoodController::class, 'store'])->name('combofoods.store');
+
+// Route::get('combofoods/{combofood}',      [combofoodController::class, 'show'])->name('combofoods.show');
+
+// Route::put('combofoods/{combofood}',      [combofoodController::class, 'update'])->name('combofoods.update');
+
+// Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
+
+
 // Route::post('combofoods',              [ComboFoodController::class, 'store'])->name('combofoods.store');
 // Route::get('combofoods/{combofood}',      [combofoodController::class, 'show'])->name('combofoods.show');
 // Route::put('combofoods/{combofood}',      [combofoodController::class, 'update'])->name('combofoods.update');
 // Route::patch('combofoods/{combofood}',    [combofoodController::class, 'update'])->name('combofoods.update.partial');
+
 // Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
 
 //user
-// Route::middleware(['role:admin'])->group(function () {
-//     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
-//     Route::get('/users/{id}', [UserController::class, 'show']); // Lấy thông tin user cụ thể
-//     Route::put('/users/{id}', [UserController::class, 'update']); // Cập nhật user
-//     Route::delete('/users/{id}', [UserController::class, 'destroy']); // Xóa mềm
-//     Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Khôi phục
-//     Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']); // Xóa vĩnh viễn
-// });
 
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
@@ -267,8 +278,27 @@ Route::post('/change-password', [AuthController::class, 'changePassword'])->midd
 // banners
 Route::get('banners',               [BannerController::class, 'index'])->name('banners.index');
 Route::post('banners',              [BannerController::class, 'store'])->name('banners.store');
+
+Route::get('banners/active',      [BannerController::class, 'getActiveBanner'])->name('banners.getActiveBanner');
 Route::get('banners/{banner}',      [BannerController::class, 'show'])->name('banners.show');
 Route::put('banners/{banner}',      [BannerController::class, 'update'])->name('banners.update');
 Route::patch('banners/{banner}',    [BannerController::class, 'update'])->name('banners.update.partial');
 Route::delete('banners/{banner}',   [BannerController::class, 'destroy'])->name('banners.destroy');
 
+
+//Showtime
+
+Route::get('showtimes', [ShowtimeController::class, 'index']);
+
+Route::post('showtimes', [ShowtimeController::class, 'store']);
+
+Route::get('showtimes/{showtime}', [ShowtimeController::class, 'show']);
+
+Route::put('showtimes/{showtime}', [ShowtimeController::class, 'update']);
+
+Route::patch('showtimes/{showtime}', [ShowtimeController::class, 'update']);
+
+Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
+
+//Ticket
+Route::apiResource('tickets', TicketController::class);

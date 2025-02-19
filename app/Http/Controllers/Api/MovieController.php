@@ -24,18 +24,20 @@ class MovieController extends Controller
     public function index(Request $request)
     {
         try {
-            $selectedTab = $request->get('tab', 'publish');
-            $moviesQuery = Movie::query();
+//             $selectedTab = $request->get('tab', 'publish');
+//             $moviesQuery = Movie::query();
 
-            if ($selectedTab === 'publish') {
-                $moviesQuery->where('is_publish', 1);
-            } elseif ($selectedTab === 'unpublish') {
-                $moviesQuery->where('is_publish', 0);
-            }
+//             if ($selectedTab === 'publish') {
+//                 $moviesQuery->where('is_publish', 1);
+//             } elseif ($selectedTab === 'unpublish') {
+//                 $moviesQuery->where('is_publish', 0);
+//             }
 
-            $movies = $moviesQuery->latest()->paginate(10);
+//             $movies = $moviesQuery->latest()->paginate(10);
 
             // Sử dụng vòng lặp 
+          
+            $movies = Movie::latest()->paginate(10);
             foreach ($movies as $movie) {
                 $movie->movieVersions = $movie->movieVersions()->pluck('name')->toArray();
             }
@@ -129,11 +131,10 @@ class MovieController extends Controller
             // for ($i = 1; $i <= 10; $i++) {
             //     $starCounts[$i] = $movieReviews->where('rating', $i)->count();
             // }
-
+            $movie->movieVersions = $movieVersions;
             // Trả về thông tin chi tiết bộ phim
             return response()->json([
-                'movie' => $movie,
-                'movieVersions' => $movieVersions,
+                'movie' => $movie
                 // 'totalReviews' => $totalReviews,
                 // 'averageRating' => $averageRating,
                 // 'starCounts' => $starCounts
@@ -159,6 +160,7 @@ class MovieController extends Controller
                 'director',
                 'cast',
                 'rating',
+                'img_thumbnail',
                 'trailer_url',
                 'surcharge',
                 'surcharge_desc',
@@ -171,7 +173,7 @@ class MovieController extends Controller
             // Không cho phép cập nhật duration, start_date, end_date nếu phim đã xuất bản
             if (!$movie->is_publish) {
                 $dataMovie['duration'] = $request->duration;
-                $dataMovie['start_date'] = $request->start_date;
+                $dataMovie['release_date'] = $request->release_date;
                 $dataMovie['end_date'] = $request->end_date;
             } else {
                 Log::warning("Cập nhật bị từ chối: Không thể chỉnh sửa thời lượng, ngày bắt đầu và kết thúc khi phim đã xuất bản.");

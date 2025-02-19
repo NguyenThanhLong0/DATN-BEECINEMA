@@ -17,11 +17,9 @@ class FoodController extends Controller
     {
         try {
             $foods = Food::query()->latest('id')->paginate(10);
-            return response()->json([
-                'message' => 'Hiển thị thành công',
-                'satus' => true,
-                'data' => $foods
-            ]);
+            return response()->json(
+                 $foods
+            );
         } catch (\Throwable $th) {
             return response()->json([
                 'message' => 'lỗi',

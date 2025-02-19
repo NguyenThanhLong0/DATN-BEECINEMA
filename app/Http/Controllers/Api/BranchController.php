@@ -123,4 +123,22 @@ class BranchController extends Controller
             return response()->json(['message' => 'Xóa thất bại!', 'error' => $th->getMessage()], 500);
         }
     }
+
+    public function branchesWithCinemasActive()
+{
+    try {
+        // Lấy danh sách branch đang hoạt động và cinemas đang hoạt động của mỗi branch
+        $branches = Branch::where('is_active', 1) // Chỉ lấy branch đang hoạt động
+            ->with(['cinemas' => function ($query) {
+                $query->where('is_active', 1); // Chỉ lấy cinema đang hoạt động
+            }])
+            ->get(); // Lấy danh sách
+
+        return response()->json([
+            'branches' => $branches,
+        ]);
+    } catch (\Throwable $th) {
+        return response()->json(['message' => 'Không thể lấy danh sách chi nhánh!'], 500);
+    }
+}
 }

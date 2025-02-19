@@ -22,7 +22,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->boolean('is_active')->default(1)->comment('0: expired , 1: available');
             $table->integer('limit')->nullable();
-            $table->boolean('type')->default(0)->comment('0: Fixed Amount, 1: Percentage');
+            $table->boolean('type')->default(0)->comment('0: normal, 1: birthday');
             $table->timestamps();
         });
     }

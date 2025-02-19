@@ -9,6 +9,9 @@ use Illuminate\Http\Response;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
 use Carbon\Carbon;
+use App\Models\User;
+use App\Models\UserVoucher;
+use Illuminate\Support\Facades\DB;
 
 class VoucherApiController extends Controller
 {
@@ -24,6 +27,7 @@ class VoucherApiController extends Controller
 
     public function store(Request $request)
     {
+        DB::beginTransaction();
         try {
             $validated = $request->validate([
                 'code' => 'required|string|max:255|unique:vouchers,code',
@@ -44,8 +48,27 @@ class VoucherApiController extends Controller
             // Không cần kiểm tra is_active vì MySQL đã xử lý bằng trigger
             $voucher = Voucher::create($validated);
 
+            // Gán voucher cho tất cả các user có trong hệ thống
+            $users = User::where('role','member')->get();
+            $userVouchers = [];
+            foreach ($users as $user) {
+                $userVouchers[] = [
+                    'user_id' => $user->id,
+                    'voucher_id' => $voucher->id,
+                    'usage_count' => 0,
+                ];
+            }
+            UserVoucher::insert($userVouchers);
+
+            // // Chèn dữ liệu vào bảng UserVoucher
+            // if ($voucher['is_active']==true) {
+            // }
+
+            // Commit transaction nếu không có lỗi
+            DB::commit();
             return response()->json($voucher, Response::HTTP_CREATED);
         } catch (Exception $e) {
+            DB::rollback();
             return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }
