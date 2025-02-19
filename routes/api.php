@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
+use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\RankController;
 use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
@@ -296,3 +297,5 @@ Route::patch('showtimes/{showtime}', [ShowtimeController::class, 'update']);
 
 Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
 
+//Ticket
+Route::apiResource('tickets', TicketController::class);

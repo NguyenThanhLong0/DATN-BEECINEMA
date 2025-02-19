@@ -38,7 +38,6 @@ class DatabaseSeeder extends Seeder
             ShowtimeSeeder::class,
             SeatShowtimeSeeder::class,
             RankSeeder::class
-
         ]);
     }
 }
