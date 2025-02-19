@@ -57,7 +57,7 @@ class MovieClientHomeController extends Controller
                 ->limit(8)
                 ->get();
 
-            // Trả về 3 danh sách phim dưới dạng JSON
+            // Trả về 3 danh sách phim dưới dạng JSON.
             return response()->json([
                 'message' => 'hiển thị thành công!',
                 'status' => true,
