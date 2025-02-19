@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\ComboFoodController;
+use App\Http\Controllers\Api\MovieReviewController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
@@ -297,5 +298,22 @@ Route::patch('showtimes/{showtime}', [ShowtimeController::class, 'update']);
 
 Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
 
+
 //Ticket
 Route::apiResource('tickets', TicketController::class);
+
+//MovieReview
+
+Route::get('movie-reviews', [MovieReviewController::class, 'index']);
+
+Route::post('movie-reviews', [MovieReviewController::class, 'store']);
+
+Route::get('movie-reviews/{movieReview}', [MovieReviewController::class, 'show']);
+
+Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
+
+Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
+
+Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
+
+
