@@ -168,6 +168,8 @@ Route::put('combos/{combo}',      [ComboController::class, 'update'])->name('com
 Route::patch('combos/{combo}',    [ComboController::class, 'update'])->name('combos.update.partial');
 
 Route::delete('combos/{combo}',   [ComboController::class, 'destroy'])->name('combos.destroy');
+// Combos active
+Route::get('combosActive', [ComboController::class, 'indexActive']);
 
 //Type Room
 
