@@ -25,24 +25,20 @@ class MovieController extends Controller
     public function index(Request $request)
     {
         try {
-//             $selectedTab = $request->get('tab', 'publish');
-//             $moviesQuery = Movie::query();
+            //             $selectedTab = $request->get('tab', 'publish');
+            //             $moviesQuery = Movie::query();
 
-//             if ($selectedTab === 'publish') {
-//                 $moviesQuery->where('is_publish', 1);
-//             } elseif ($selectedTab === 'unpublish') {
-//                 $moviesQuery->where('is_publish', 0);
-//             }
+            //             if ($selectedTab === 'publish') {
+            //                 $moviesQuery->where('is_publish', 1);
+            //             } elseif ($selectedTab === 'unpublish') {
+            //                 $moviesQuery->where('is_publish', 0);
+            //             }
 
-//             $movies = $moviesQuery->latest()->paginate(10);
+            //             $movies = $moviesQuery->latest()->paginate(10);
 
             // Sử dụng vòng lặp 
-          
-            $movies = Movie::latest()->paginate(10);
 
-            foreach ($movies as $movie) {
-                $movie->movieVersions = $movie->movieVersions()->pluck('name')->toArray();
-            }
+            $movies = Movie::latest()->with('movieVersions')->paginate(10);
 
             return response()->json($movies);
         } catch (\Throwable $th) {
@@ -119,22 +115,20 @@ class MovieController extends Controller
     public function show(Movie $movie)
     {
         try {
-            // Lấy các phiên bản phim (lấy tất thì dùng cái dưới)
-            $movieVersions = $movie->movieVersions()->pluck('name')->all();
-            // $movieVersions = $movie->load('movieVersions');
-
+            // Lấy toàn bộ thông tin của các phiên bản phim
+            $movie->load('movieVersions');
+    
             // Lấy các đánh giá của bộ phim
             $movieReviews = $movie->movieReview()->get();
             $totalReviews = $movieReviews->count();
-            $averageRating = $totalReviews > 0 ? $movieReviews->avg('rating') : 0; //Tính điểm đánh giá trung bình
-
+            $averageRating = $totalReviews > 0 ? $movieReviews->avg('rating') : 0; // Tính điểm đánh giá trung bình
+    
             // Đếm số lượng đánh giá theo từng mức sao
             $starCounts = [];
             for ($i = 1; $i <= 10; $i++) {
                 $starCounts[$i] = $movieReviews->where('rating', $i)->count();
             }
-
-            $movie->movieVersions = $movieVersions;
+    
             // Trả về thông tin chi tiết bộ phim
             return response()->json([
                 'movie' => $movie,
@@ -147,6 +141,7 @@ class MovieController extends Controller
             return response()->json(['message' => 'Không thể lấy thông tin phim!'], 500);
         }
     }
+    
 
     /**
      * Cập nhật thông tin của một bộ phim.
