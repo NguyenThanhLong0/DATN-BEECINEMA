@@ -173,6 +173,7 @@ use Carbon\Carbon;
 // }
 
 
+
 class StoreShowtimeRequest extends FormRequest
 {
     /**
@@ -190,7 +191,7 @@ class StoreShowtimeRequest extends FormRequest
      */
     public function rules(): array
     {
-        if ($this->input('auto_generate_showtimes') === 'on') {
+        if (filter_var($this->input('auto_generate_showtimes'), FILTER_VALIDATE_BOOLEAN)) {
             return [
                 'room_id' => ['required', 'exists:rooms,id'],
                 'movie_id' => ['required', 'exists:movies,id'],
@@ -256,7 +257,20 @@ class StoreShowtimeRequest extends FormRequest
                 'movie_id' => 'required|exists:movies,id',
                 'movie_version_id' => 'required|exists:movie_versions,id',
                 'date' => 'required|date|after_or_equal:today',
-                'start_time' => 'required|date_format:H:i',
+                'start_time' => 'nullable|date_format:H:i',
+
+                // Xử lý cả trường hợp `showtimes` là một object hoặc array JSON
+                'showtimes' => [
+                    'required',
+                    function ($attribute, $value, $fail) {
+                        $decoded = json_decode($value, true);
+
+                        if (!is_array($decoded)) {
+                            $fail("Danh sách suất chiếu phải là một mảng hợp lệ.");
+                        }
+                    },
+                ],
+                'showtimes.*.start_time' => 'required|date_format:H:i',
             ];
         }
     }
@@ -284,6 +298,17 @@ class StoreShowtimeRequest extends FormRequest
             'end_hour.after' => 'Giờ đóng cửa phải sau giờ mở cửa.',
             'start_time.required' => 'Vui lòng nhập giờ chiếu.',
             'start_time.date_format' => 'Giờ chiếu không hợp lệ (định dạng phải là HH:MM).',
+            // Danh sách suất chiếu
+            'showtimes.required' => 'Vui lòng nhập danh sách suất chiếu.',
+            'showtimes.array' => 'Danh sách suất chiếu phải là một mảng hợp lệ.',
+            'showtimes.min' => 'Phải có ít nhất một suất chiếu.',
+
+            // Giờ suất chiếu trong danh sách
+            'showtimes.*.start_time.required' => 'Vui lòng nhập giờ bắt đầu suất chiếu.',
+            'showtimes.*.start_time.date_format' => 'Giờ bắt đầu suất chiếu không hợp lệ (định dạng phải là HH:MM).',
+
+            // Tránh lỗi JSON khi gửi dữ liệu từ form-data
+            'showtimes.string' => 'Danh sách suất chiếu phải là một chuỗi JSON hợp lệ.',
         ];
     }
 
