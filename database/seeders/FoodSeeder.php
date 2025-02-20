@@ -14,20 +14,24 @@ class FoodSeeder extends Seeder
     public function run(): void
     {
         //
-        Food::create([
-            'name' => "Cocacola",
-            'img_thumbnail' => "https://example.com/combo.jpg",
-            'price' => 500,
-            'type' => "Nước",
-            'description' => "Nước giải khát quà tằng từ thiên nhiên",
-            'is_active' => true
-        ], [
-            'name' => "Bắp",
-            'img_thumbnail' => "https://example.com/combo.jpg",
-            'price' => 600,
-            'type' => "luộc",
-            'description' => "Ăn luôn",
-            'is_active' => true
+        Food::insert([
+            [
+                'name' => "Cocacola",
+                'img_thumbnail' => "https://example.com/combo.jpg",
+                'price' => 500,
+                'type' => "Nước",
+                'description' => "Nước giải khát quà tặng từ thiên nhiên",
+                'is_active' => true
+            ],
+            [
+                'name' => "Bắp",
+                'img_thumbnail' => "https://example.com/combo.jpg",
+                'price' => 600,
+                'type' => "Luộc",
+                'description' => "Ăn luôn",
+                'is_active' => true
+            ]
         ]);
+        
     }
 }
