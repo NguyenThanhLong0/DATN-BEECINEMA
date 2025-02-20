@@ -29,9 +29,7 @@ class ShowtimeController extends Controller
         $this->middleware('auth:sanctum');
     }
 
-    /**
-     * Display a listing of the resource.
-     */
+
 
 
 
@@ -85,6 +83,7 @@ class ShowtimeController extends Controller
     //         ], 500);
     //     }
     // }
+
 
     public function index(Request $request)
     {
@@ -219,12 +218,14 @@ class ShowtimeController extends Controller
                         $currentStartTime = $currentEndTime;
                     }
                 } else {
-                    $showtimesInput = $request->input('showtimes');
-                    $showtimes = json_decode($showtimesInput, true);
 
-                    if (!is_array($showtimes)) {
-                        throw new \Exception("Danh sách suất chiếu không hợp lệ.");
-                    }
+                    $showtimes = $request->input('showtimes');
+
+                    // $showtimes = json_decode($showtimesInput, true);
+
+                    // if (!is_array($showtimes)) {
+                    //     throw new \Exception("Danh sách suất chiếu không hợp lệ.");
+                    // }
 
                     foreach ($showtimes as $showtimeData) {
                         $startTime = Carbon::parse($date . ' ' . $showtimeData['start_time']);
