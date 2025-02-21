@@ -130,7 +130,7 @@ Route::get('getAll-matrix', [SeatTemplateController::class, 'getAllMatrix']);
 
 
 //Post
-Route::prefix('posts')->group(function () {
+Route::middleware('auth:sanctum')->prefix('posts')->group(function () {
     Route::get('/', [PostApiController::class, 'index']); // Lấy danh sách bài viết
     Route::post('/', [PostApiController::class, 'store']); // Thêm bài viết
     Route::get('{id}', [PostApiController::class, 'show']); // Xem chi tiết bài viết
