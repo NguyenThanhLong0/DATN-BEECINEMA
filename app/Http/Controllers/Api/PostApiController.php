@@ -7,6 +7,8 @@ use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 
 class PostApiController extends Controller
 {
@@ -16,7 +18,7 @@ class PostApiController extends Controller
     public function index()
     {
         try {
-            $posts = Post::orderBy('created_at', 'desc')->get();
+            $posts = Post::with('user:id,name,email,phone,gender,birthday,address')->orderBy('created_at', 'desc')->get();
             return response()->json($posts, 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Không thể lấy danh sách bài viết!', 'message' => $e->getMessage()], 500);
@@ -28,6 +30,7 @@ class PostApiController extends Controller
      */
     public function store(Request $request)
     {
+        
         try {
             $request->validate([
                 'title'       => 'required|string|max:255',
@@ -35,12 +38,12 @@ class PostApiController extends Controller
                 'content'     => 'required|string',
                 'img_post'    => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
-
+            
             // Xử lý upload ảnh
             $imagePath = $request->hasFile('img_post') ? $request->file('img_post')->store('posts', 'public') : null;
-
+            // $user=Auth::value('id');
             $post = Post::create([
-                'user_id'     => auth()->id() ?? 1, // Giả sử user_id = 1 nếu không đăng nhập
+                'user_id'     =>  Auth::id(), 
                 'title'       => $request->title,
                 'slug'        => Str::slug($request->title),
                 'description' => $request->description,
@@ -66,7 +69,7 @@ class PostApiController extends Controller
     public function show($id)
     {
         try {
-            $post = Post::findOrFail($id);
+            $post = Post::with('user:id,name,email,phone,gender,birthday,address')->findOrFail($id);
 
             if (!session()->has('viewed_post_' . $post->id)) {
                 $post->increment('view_count');
