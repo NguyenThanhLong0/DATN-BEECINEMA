@@ -54,15 +54,16 @@ class Showtime extends Model
             ->withTimestamps();
     }
 
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
     // public function ticketSeats()
     // {
     //     return $this->hasMany(TicketSeat::class);
     // }
 
-    // public function tickets()
-    // {
-    //     return $this->hasMany(Ticket::class);
-    // }
 
     // public static function generateCustomRandomString()
     // {

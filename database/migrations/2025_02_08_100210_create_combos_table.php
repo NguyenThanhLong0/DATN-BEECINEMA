@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name')->nullable();
             $table->string('img_thumbnail')->nullable();
-            $table->string('price')->nullable();
-            $table->string('discount_price')->nullable();
+            $table->decimal('price',8,2)->nullable();
+            $table->decimal('discount_price',8,2)->nullable();
             $table->string('description')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();

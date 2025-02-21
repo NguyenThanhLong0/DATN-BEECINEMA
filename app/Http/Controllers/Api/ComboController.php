@@ -308,4 +308,55 @@ class ComboController extends Controller
             return response()->json(['error' => 'Xóa không thành công.'], 500);
         }
     }
+    public function indexActive(){
+        try {
+            // Truy vấn dữ liệu Combo và liên kết với Food, chỉ lấy các bản ghi có is_active = true
+        $combos = Combo::with(['foods' => function ($query) {
+            $query->where('is_active', true); // Lọc Food có is_active = true
+        }])
+        ->where('is_active', true) // Lọc Combo có is_active = true
+        ->latest('id')
+        ->get();
+
+            // Nếu không có combo nào, trả về thông báo lỗi
+            if ($combos->isEmpty()) {
+                return response()->json(['message' => 'No combos found.'], 404);
+            }
+
+            // Xử lý và định dạng dữ liệu theo yêu cầu
+            $result = $combos->map(function ($combo) {
+                return [
+                    'id' => $combo->id,
+                    'name' => $combo->name,
+                    'price' => $combo->price, // Nếu có discount, dùng discount_price, nếu không dùng price
+                    'discount_price' => $combo->discount_price,
+                    'description' => $combo->description,
+                    'is_active' => $combo->is_active,
+                    'img_thumbnail' => $combo->img_thumbnail,
+                    'combo_foods' => $combo->foods->map(function ($food) {
+                        $total_price = $food->price * $food->pivot->quantity; // Tính tổng giá theo số lượng
+                        return [
+                            'id' => $food->id,
+                            'name' => $food->name,
+                            'img_thumbnail' => $food->img_thumbnail,
+                            'price' => $food->price,
+                            'type' => $food->type,
+                            'description' => $food->description,
+                            'is_active' => $food->is_active,
+                            'quantity' => $food->pivot->quantity, // Lấy quantity từ bảng pivot
+                            'total_price' => $total_price
+                        ];
+                    }),
+                ];
+            });
+
+            return response()->json([
+                'message' => 'Hiển thị thành công!',
+                'data' => $result
+            ], 200);
+        } catch (\Exception $e) {
+            // Xử lý lỗi chung khác
+            return response()->json(['error' => 'hiển thị không thành công.'], 500);
+        }
+    }
 }
