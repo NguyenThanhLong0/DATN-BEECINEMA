@@ -15,7 +15,7 @@ class CinemaController extends Controller
     public function index()
     {
         try {
-            $cinemas = Cinema::with('8')->get();
+            $cinemas = Cinema::with('branch', 'room')->get();
             return response()->json($cinemas);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Không thể lấy danh sách rạp!'], 500);
