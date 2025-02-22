@@ -260,6 +260,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
     Route::get('/users/{id}', [UserController::class, 'show']); // Lấy thông tin user cụ thể
     Route::put('/users/{id}', [UserController::class, 'update']); // Cập nhật user
+    Route::patch('/users/{id}', [UserController::class, 'update']); // Cập nhật user
     Route::delete('/users/{id}', [UserController::class, 'destroy']); // Xóa mềm
     Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Khôi phục
     Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']); // Xóa vĩnh viễn
