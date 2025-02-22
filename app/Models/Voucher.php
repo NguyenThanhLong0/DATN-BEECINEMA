@@ -32,5 +32,9 @@ class Voucher extends Model
             ->withPivot('usage_count')
             ->withTimestamps();
     }
+    public function user_voucher()
+{
+    return $this->hasMany(UserVoucher::class);
+}
 
 }

@@ -18,7 +18,11 @@ class VoucherApiController extends Controller
     public function index()
     {
         try {
-            $vouchers = Voucher::all();
+            $vouchers = Voucher::withCount([
+                'users as total_usage' => function ($query) {
+                    $query->select(DB::raw('SUM(user_vouchers.usage_count)'));
+                }
+            ])->get();
             return response()->json($vouchers, Response::HTTP_OK);
         } catch (Exception $e) {
             return response()->json(['error' => 'Something went wrong'], Response::HTTP_INTERNAL_SERVER_ERROR);
@@ -76,7 +80,11 @@ class VoucherApiController extends Controller
     public function show($id)
     {
         try {
-            $voucher = Voucher::findOrFail($id);
+            $voucher = Voucher::withCount([
+                'users as total_usage' => function ($query) {
+                    $query->select(DB::raw('SUM(user_vouchers.usage_count)'));
+                }
+            ])->find($id);
             return response()->json($voucher, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Voucher not found'], Response::HTTP_NOT_FOUND);
