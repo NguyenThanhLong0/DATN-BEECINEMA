@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->dateTime('start_date_time');
             $table->dateTime('end_date_time');
-            $table->decimal('discount', 10, 2);
+            $table->integer('discount');
             $table->integer('quantity');
             $table->boolean('is_active')->default(1)->comment('0: expired , 1: available');
             $table->integer('limit')->nullable();
