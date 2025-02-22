@@ -88,46 +88,46 @@ class ShowtimeController extends Controller
             $roomId = $request->input('room_id', null);
             $date = $request->input('date', now()->format('Y-m-d'));
             $isActive = $request->input('is_active', null);
-    
+
             // Nếu cinema_id là null, không lọc theo cinema_id
             $showtimesQuery = Showtime::whereDate('date', $date);
-    
+
             if ($cinemaId) {
                 $showtimesQuery->where('cinema_id', $cinemaId);
             }
-    
+
             if ($branchId) {
                 $showtimesQuery->whereHas('cinema', function ($query) use ($branchId) {
                     $query->where('branch_id', $branchId);
                 });
             }
-    
+
             if ($roomId) {
                 $showtimesQuery->where('room_id', $roomId);
             }
-    
+
             if ($isActive !== null) {
                 $showtimesQuery->where('is_active', $isActive);
             }
-    
+
             $showtimes = $showtimesQuery->with(['movie', 'room', 'movieVersion', 'room.seats'])->latest('id')->get();
-    
+
             // Thêm totalSeats và remainingSeats vào từng showtime
             $showtimes->transform(function ($showtime) {
                 $totalSeats = $showtime->room->seats()->where('is_active', 1)->count(); // Tổng ghế hoạt động
-    
+
                 $bookedSeats = SeatShowtime::where('showtime_id', $showtime->id)
                     ->where('status', '!=', 'available')
                     ->count(); // Ghế đã đặt
-    
+
                 $remainingSeats = $totalSeats - $bookedSeats; // Ghế còn trống
-    
+
                 $showtime->totalSeats = $totalSeats;
                 $showtime->remainingSeats = $remainingSeats;
-    
+
                 return $showtime;
             });
-    
+
             return response()->json([
                 'showtimes' => $showtimes,
             ], 200);
@@ -431,27 +431,27 @@ class ShowtimeController extends Controller
         try {
             // Tải thông tin liên quan đến suất chiếu
             $showtime->load(['room.cinema', 'room.seatTemplate', 'movieVersion', 'movie', 'seats']);
-    
+
             // Kiểm tra tổng số ghế trong phòng chiếu
             $totalSeats = $showtime->room->seats()->where('is_active', 1)->count(); // Tính tổng số ghế hoạt động
-    
+
             // Lấy số ghế đã đặt cho suất chiếu này
             $bookedSeats = SeatShowtime::where('showtime_id', $showtime->id)
                 ->where('status', '!=', 'available')
                 ->count();
-    
+
             // Tính số ghế còn lại
             $remainingSeats = $totalSeats - $bookedSeats;
-    
+
             // Lấy matrixSeat cho phòng chiếu
             $matrixSeat = SeatTemplate::getMatrixById($showtime->room->seatTemplate->matrix_id);
-    
+
             // Lấy thông tin các ghế cho suất chiếu
             $seats = $showtime->seats;
-    
+
             // Xây dựng seatMap với cấu trúc mong muốn
             $seatMap = [];
-    
+
             foreach ($seats as $seat) {
                 $row = $seat->coordinates_y; // Lấy hàng (A, B, C, ...)
                 if (!isset($seatMap[$row])) {
@@ -460,7 +460,7 @@ class ShowtimeController extends Controller
                         'seats' => []
                     ];
                 }
-    
+
                 $seatMap[$row]['seats'][] = [
                     'id' => $seat->id,
                     'room_id' => $seat->room_id,
@@ -482,10 +482,10 @@ class ShowtimeController extends Controller
                     ]
                 ];
             }
-    
+
             // Chuyển seatMap từ dạng associative array sang dạng indexed array
             $seatMap = array_values($seatMap);
-    
+
             return response()->json([
                 'showtime' => $showtime,
                 'matrixSeat' => $matrixSeat,
@@ -498,7 +498,7 @@ class ShowtimeController extends Controller
             return response()->json(['error' => $th->getMessage()], 500);
         }
     }
-    
+
 
 
     // public function update(UpdateShowtimeRequest $request, Showtime $showtime)
@@ -634,33 +634,33 @@ class ShowtimeController extends Controller
         }
     }
 
-   
 
-    
+
+
     public function pageShowtime(Request $request)
     {
         try {
             // Lấy cinema_id và branch_id từ query string hoặc session
-            $cinemaId = $request->query('cinema_id', session('cinema_id')); 
+            $cinemaId = $request->query('cinema_id', session('cinema_id'));
             $branchId = $request->query('branch_id', null);
-    
+
             if (!$cinemaId) {
                 return response()->json(['message' => 'Cinema ID is required.'], 400);
             }
-    
+
             // Tìm rạp chiếu phim từ cơ sở dữ liệu
             $cinema = Cinema::where('id', $cinemaId)->firstOrFail();
-    
+
             // Thời gian hiện tại (cộng 10 phút nếu không phải admin)
             $now = now()->addMinutes(10);
             if (Auth::check() && Auth::user()->type == 'admin') {
                 $now = now(); // Admin lấy full dữ liệu
             }
-    
+
             // Lấy suất chiếu trong 7 ngày tới, có phim đang active
             $showtimesQuery = Showtime::with(['movie' => function ($query) {
-                    $query->where('is_active', 1); // Chỉ lấy phim đang hoạt động
-                }, 'room'])
+                $query->where('is_active', 1); // Chỉ lấy phim đang hoạt động
+            }, 'room'])
                 ->where([
                     ['cinema_id', $cinemaId],
                     ['is_active', 1],
@@ -670,17 +670,17 @@ class ShowtimeController extends Controller
                 ->orderBy('date')
                 ->orderBy('start_time')
                 ->get();
-    
-            // Khởi tạo danh sách showtimes (mảng lớn)
+
+            // Khởi tạo danh sách showtimes
             $showtimes = [];
-    
+
             foreach ($showtimesQuery as $showtime) {
                 $movie = $showtime->movie;
                 $room = $showtime->room;
                 $format = $showtime->format; // Ví dụ: "2D Phụ Đề", "3D Lồng Tiếng"
                 $dateKey = $showtime->date;
                 $movieKey = $movie->id;
-    
+
                 // Nếu ngày chưa tồn tại trong danh sách showtimes, khởi tạo
                 if (!isset($showtimes[$dateKey])) {
                     $showtimes[$dateKey] = [
@@ -689,7 +689,7 @@ class ShowtimeController extends Controller
                         "movies" => []
                     ];
                 }
-    
+
                 // Nếu phim chưa tồn tại trong ngày đó, thêm mới
                 if (!isset($showtimes[$dateKey]["movies"][$movieKey])) {
                     $showtimes[$dateKey]["movies"][$movieKey] = [
@@ -715,13 +715,13 @@ class ShowtimeController extends Controller
                         "showtimes" => []
                     ];
                 }
-    
+
                 // Thêm suất chiếu vào `showtimes` theo format
                 $showtimes[$dateKey]["movies"][$movieKey]["showtimes"][$format][] = [
                     "id" => $showtime->id,
                     "start_time" => Carbon::parse($showtime->start_time)->format('H:i'),
                     "end_time" => Carbon::parse($showtime->end_time)->format('H:i'),
-                    "price" => null, 
+                    "price" => null,
                     "created_at" => $showtime->created_at,
                     "updated_at" => $showtime->updated_at,
                     "room" => [
@@ -738,13 +738,13 @@ class ShowtimeController extends Controller
                     ]
                 ];
             }
-    
+
             // Chuyển danh sách phim và suất chiếu thành mảng
             $formattedShowtimes = array_values($showtimes);
             foreach ($formattedShowtimes as &$date) {
                 $date["movies"] = array_values($date["movies"]);
             }
-    
+
             return response()->json([
                 "dates" => [
                     [
@@ -771,6 +771,169 @@ class ShowtimeController extends Controller
             ], 500);
         }
     }
+
+    // public function showtimeMovie(Request $request)
+    // {
+    //     try {
+    //         // Lấy movie_id từ query string hoặc session
+    //         $movieId = $request->query('movie_id', session('movie_id'));
+    
+    //         if (!$movieId) {
+    //             return response()->json(['message' => 'Movie ID is required.'], 400);
+    //         }
+    
+    //         $now = Carbon::now();
+    
+    //         // Lấy danh sách suất chiếu của phim theo ngày, có áp dụng điều kiện hiển thị
+    //         $showtimesQuery = Showtime::with(['room.cinema'])
+    //             ->where('movie_id', $movieId)
+    //             ->where('is_active', 1) // Chỉ lấy suất chiếu đang hoạt động
+    //             ->whereHas('movie', function ($query) {
+    //                 $query->where('is_publish', 1); // Chỉ lấy phim đã được phát hành
+    //             })
+    //             ->where('start_time', '>', $now) // Chỉ lấy suất chiếu trong tương lai
+    //             ->orderBy('date')
+    //             ->orderBy('start_time')
+    //             ->get();
+    
+    //         // Khởi tạo danh sách showtimes theo ngày
+    //         $showtimesByDate = [];
+    
+    //         foreach ($showtimesQuery as $showtime) {
+    //             $dateKey = $showtime->date;
+    //             $dayLabel = Carbon::parse($dateKey)->format('d/m - D');
+    //             $format = $showtime->format;
+    
+    //             // Nếu ngày chưa tồn tại, tạo mới
+    //             if (!isset($showtimesByDate[$dateKey])) {
+    //                 $showtimesByDate[$dateKey] = [
+    //                     "day_id" => "day" . Carbon::parse($dateKey)->dayOfYear,
+    //                     "date_label" => $dayLabel,
+    //                     "showtimes" => []
+    //                 ];
+    //             }
+    
+    //             // Nếu định dạng suất chiếu chưa tồn tại, tạo mới
+    //             if (!isset($showtimesByDate[$dateKey]["showtimes"][$format])) {
+    //                 $showtimesByDate[$dateKey]["showtimes"][$format] = [];
+    //             }
+    
+    //             // Thêm suất chiếu vào danh sách
+    //             $showtimesByDate[$dateKey]["showtimes"][$format][] = [
+    //                 "id" => $showtime->id,
+    //                 "cinema_id" => $showtime->room->cinema_id,
+    //                 "room_id" => $showtime->room_id,
+    //                 "slug" => $showtime->slug,
+    //                 "format" => $showtime->format,
+    //                 "movie_version_id" => $showtime->movie_version_id,
+    //                 "movie_id" => $showtime->movie_id,
+    //                 "date" => $showtime->date,
+    //                 "start_time" => $showtime->start_time,
+    //                 "end_time" => $showtime->end_time,
+    //                 "is_active" => $showtime->is_active,
+    //                 "created_at" => $showtime->created_at,
+    //                 "updated_at" => $showtime->updated_at
+    //             ];
+    //         }
+    
+    //         // Chuyển danh sách showtimes thành array
+    //         $formattedShowtimes = array_values($showtimesByDate);
+    
+    //         return response()->json(["showtimes" => $formattedShowtimes], 200);
+    //     } catch (\Throwable $th) {
+    //         return response()->json([
+    //             "error" => "Unable to fetch showtime data",
+    //             "message" => $th->getMessage()
+    //         ], 500);
+    //     }
+    // }
     
     
+    public function showtimeMovie(Request $request)
+{
+    try {
+        // Lấy movie_id từ query string hoặc session
+        $movieId = $request->query('movie_id', session('movie_id'));
+
+        if (!$movieId) {
+            return response()->json(['message' => 'Movie ID is required.'], 400);
+        }
+
+        $now = Carbon::now();
+
+        // Kiểm tra xem người dùng có phải admin không
+        $isAdmin = auth()->user() && auth()->user()->role;
+
+        // Lấy danh sách suất chiếu của phim theo ngày, có áp dụng điều kiện hiển thị
+        $showtimesQuery = Showtime::with(['room.cinema'])
+            ->where('movie_id', $movieId)
+            ->where('is_active', 1) // Chỉ lấy suất chiếu đang hoạt động
+            ->whereHas('movie', function ($query) {
+                $query->where('is_publish', 1); // Chỉ lấy phim đã được phát hành
+            })
+            ->when(!$isAdmin, function ($query) use ($now) {
+                // Nếu không phải admin, chỉ lấy các suất chiếu trong vòng 7 ngày tới
+                $query->where('start_time', '>', $now)
+                    ->where('start_time', '<', $now->copy()->addDays(7));
+            })
+            ->when($isAdmin, function ($query) use ($now) {
+                // Nếu là admin, lấy tất cả suất chiếu trong quá khứ và tương lai
+                $query->where('start_time', '>=', $now->copy()->subDays(365)); // Lấy các suất chiếu trong vòng 1 năm 
+            })
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get();
+
+        // Khởi tạo danh sách showtimes theo ngày
+        $showtimesByDate = [];
+
+        foreach ($showtimesQuery as $showtime) {
+            $dateKey = $showtime->date;
+            $dayLabel = Carbon::parse($dateKey)->format('d/m - D');
+            $format = $showtime->format;
+
+            // Nếu ngày chưa tồn tại, tạo mới
+            if (!isset($showtimesByDate[$dateKey])) {
+                $showtimesByDate[$dateKey] = [
+                    "day_id" => "day" . Carbon::parse($dateKey)->dayOfYear,
+                    "date_label" => $dayLabel,
+                    "showtimes" => []
+                ];
+            }
+
+            // Nếu định dạng suất chiếu chưa tồn tại, tạo mới
+            if (!isset($showtimesByDate[$dateKey]["showtimes"][$format])) {
+                $showtimesByDate[$dateKey]["showtimes"][$format] = [];
+            }
+
+            // Thêm suất chiếu vào danh sách
+            $showtimesByDate[$dateKey]["showtimes"][$format][] = [
+                "id" => $showtime->id,
+                "cinema_id" => $showtime->room->cinema_id,
+                "room_id" => $showtime->room_id,
+                "slug" => $showtime->slug,
+                "format" => $showtime->format,
+                "movie_version_id" => $showtime->movie_version_id,
+                "movie_id" => $showtime->movie_id,
+                "date" => $showtime->date,
+                "start_time" => $showtime->start_time,
+                "end_time" => $showtime->end_time,
+                "is_active" => $showtime->is_active,
+                "created_at" => $showtime->created_at,
+                "updated_at" => $showtime->updated_at
+            ];
+        }
+
+        // Chuyển danh sách showtimes thành array
+        $formattedShowtimes = array_values($showtimesByDate);
+
+        return response()->json(["showtimes" => $formattedShowtimes], 200);
+    } catch (\Throwable $th) {
+        return response()->json([
+            "error" => "Unable to fetch showtime data",
+            "message" => $th->getMessage()
+        ], 500);
+    }
+}
+
 }
