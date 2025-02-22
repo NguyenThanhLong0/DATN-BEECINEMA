@@ -292,6 +292,9 @@ Route::delete('banners/{banner}',   [BannerController::class, 'destroy'])->name(
 
 
 //Showtime
+use Illuminate\Support\Facades\Log;
+
+Log::info('Route /api/showtimes/page is registered.');
 
 Route::get('showtimes', [ShowtimeController::class, 'index']);
 
@@ -304,6 +307,12 @@ Route::put('showtimes/{showtime}', [ShowtimeController::class, 'update']);
 Route::patch('showtimes/{showtime}', [ShowtimeController::class, 'update']);
 
 Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
+
+Route::get('showtimespage', [ShowtimeController::class, 'pageShowtime']);
+
+Route::get('showtimemovie', [ShowtimeController::class, 'showtimeMovie']);
+
+
 
 
 
