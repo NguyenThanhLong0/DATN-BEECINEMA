@@ -88,35 +88,46 @@ class ShowtimeController extends Controller
             $roomId = $request->input('room_id', null);
             $date = $request->input('date', now()->format('Y-m-d'));
             $isActive = $request->input('is_active', null);
-
+    
             // Nếu cinema_id là null, không lọc theo cinema_id
             $showtimesQuery = Showtime::whereDate('date', $date);
-
-            // Nếu có cinema_id thì thêm điều kiện lọc theo cinema_id
+    
             if ($cinemaId) {
                 $showtimesQuery->where('cinema_id', $cinemaId);
             }
-
-            // Nếu có branch_id thì lọc theo branch
+    
             if ($branchId) {
                 $showtimesQuery->whereHas('cinema', function ($query) use ($branchId) {
                     $query->where('branch_id', $branchId);
                 });
             }
-
-            // Nếu có room_id thì lọc theo phòng
+    
             if ($roomId) {
                 $showtimesQuery->where('room_id', $roomId);
             }
-
-            // Nếu có filter theo trạng thái hoạt động
+    
             if ($isActive !== null) {
                 $showtimesQuery->where('is_active', $isActive);
             }
-
-            $showtimes = $showtimesQuery->with(['movie', 'room', 'movieVersion'])
-                ->latest('id')->get();
-
+    
+            $showtimes = $showtimesQuery->with(['movie', 'room', 'movieVersion', 'room.seats'])->latest('id')->get();
+    
+            // Thêm totalSeats và remainingSeats vào từng showtime
+            $showtimes->transform(function ($showtime) {
+                $totalSeats = $showtime->room->seats()->where('is_active', 1)->count(); // Tổng ghế hoạt động
+    
+                $bookedSeats = SeatShowtime::where('showtime_id', $showtime->id)
+                    ->where('status', '!=', 'available')
+                    ->count(); // Ghế đã đặt
+    
+                $remainingSeats = $totalSeats - $bookedSeats; // Ghế còn trống
+    
+                $showtime->totalSeats = $totalSeats;
+                $showtime->remainingSeats = $remainingSeats;
+    
+                return $showtime;
+            });
+    
             return response()->json([
                 'showtimes' => $showtimes,
             ], 200);
@@ -127,6 +138,7 @@ class ShowtimeController extends Controller
             ], 500);
         }
     }
+
 
     // public function store(StoreShowtimeRequest $request)
     // {
@@ -419,30 +431,61 @@ class ShowtimeController extends Controller
         try {
             // Tải thông tin liên quan đến suất chiếu
             $showtime->load(['room.cinema', 'room.seatTemplate', 'movieVersion', 'movie', 'seats']);
-
+    
             // Kiểm tra tổng số ghế trong phòng chiếu
             $totalSeats = $showtime->room->seats()->where('is_active', 1)->count(); // Tính tổng số ghế hoạt động
-
+    
             // Lấy số ghế đã đặt cho suất chiếu này
             $bookedSeats = SeatShowtime::where('showtime_id', $showtime->id)
                 ->where('status', '!=', 'available')
                 ->count();
-
+    
             // Tính số ghế còn lại
             $remainingSeats = $totalSeats - $bookedSeats;
-
+    
             // Lấy matrixSeat cho phòng chiếu
             $matrixSeat = SeatTemplate::getMatrixById($showtime->room->seatTemplate->matrix_id);
-
+    
             // Lấy thông tin các ghế cho suất chiếu
             $seats = $showtime->seats;
+    
+            // Xây dựng seatMap với cấu trúc mong muốn
             $seatMap = [];
-
-            // Xây dựng seatMap dựa trên tọa độ ghế
+    
             foreach ($seats as $seat) {
-                $seatMap[$seat->coordinates_y][$seat->coordinates_x] = $seat;
+                $row = $seat->coordinates_y; // Lấy hàng (A, B, C, ...)
+                if (!isset($seatMap[$row])) {
+                    $seatMap[$row] = [
+                        'row' => $row,
+                        'seats' => []
+                    ];
+                }
+    
+                $seatMap[$row]['seats'][] = [
+                    'id' => $seat->id,
+                    'room_id' => $seat->room_id,
+                    'type_seat_id' => $seat->type_seat_id,
+                    'coordinates_x' => $seat->coordinates_x,
+                    'coordinates_y' => $seat->coordinates_y,
+                    'name' => $seat->name,
+                    'is_active' => (bool) $seat->is_active,
+                    'created_at' => $seat->created_at,
+                    'updated_at' => $seat->updated_at,
+                    'pivot' => [
+                        'showtime_id' => $showtime->id,
+                        'seat_id' => $seat->id,
+                        'status' => $seat->pivot->status ?? 'available',
+                        'price' => $seat->pivot->price ?? null,
+                        'user_id' => $seat->pivot->user_id ?? null,
+                        'created_at' => $seat->pivot->created_at ?? null,
+                        'updated_at' => $seat->pivot->updated_at ?? null
+                    ]
+                ];
             }
-
+    
+            // Chuyển seatMap từ dạng associative array sang dạng indexed array
+            $seatMap = array_values($seatMap);
+    
             return response()->json([
                 'showtime' => $showtime,
                 'matrixSeat' => $matrixSeat,
@@ -455,6 +498,7 @@ class ShowtimeController extends Controller
             return response()->json(['error' => $th->getMessage()], 500);
         }
     }
+    
 
 
     // public function update(UpdateShowtimeRequest $request, Showtime $showtime)

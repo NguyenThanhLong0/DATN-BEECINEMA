@@ -130,7 +130,7 @@ Route::get('getAll-matrix', [SeatTemplateController::class, 'getAllMatrix']);
 
 
 //Post
-Route::prefix('posts')->group(function () {
+Route::middleware('auth:sanctum')->prefix('posts')->group(function () {
     Route::get('/', [PostApiController::class, 'index']); // Lấy danh sách bài viết
     Route::post('/', [PostApiController::class, 'store']); // Thêm bài viết
     Route::get('{id}', [PostApiController::class, 'show']); // Xem chi tiết bài viết
@@ -260,6 +260,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
     Route::get('/users/{id}', [UserController::class, 'show']); // Lấy thông tin user cụ thể
     Route::put('/users/{id}', [UserController::class, 'update']); // Cập nhật user
+    Route::patch('/users/{id}', [UserController::class, 'update']); // Cập nhật user
     Route::delete('/users/{id}', [UserController::class, 'destroy']); // Xóa mềm
     Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Khôi phục
     Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']); // Xóa vĩnh viễn

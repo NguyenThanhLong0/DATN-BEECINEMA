@@ -61,48 +61,49 @@ class ComboController extends Controller
     }
 
     public function show($id)
-{
-    try {
-        // Tìm combo theo ID và load quan hệ với foods
-        $combo = Combo::with('foods')->find($id);
+    {
+        try {
+            // Tìm combo theo ID và load quan hệ với foods
+            $combo = Combo::with('foods')->find($id);
 
-        // Nếu không tìm thấy combo, trả về lỗi 404
-        if (!$combo) {
-            return response()->json(['message' => 'Combo không tồn tại.'], 404);
+            // Nếu không tìm thấy combo, trả về lỗi 404
+            if (!$combo) {
+                return response()->json(['message' => 'Combo không tồn tại.'], 404);
+            }
+
+            // Xử lý dữ liệu
+            $result = [
+                'id' => $combo->id,
+                'name' => $combo->name,
+                'price' => $combo->discount_price ?? $combo->price,
+                'description' => $combo->description,
+                'is_active' => $combo->is_active,
+                'discount_price' => $combo->discount_price,
+                'img_thumbnail' => $combo->img_thumbnail,
+                'combo_foods' => $combo->foods->map(fn($food) => [
+                    'id' => $food->id,
+                    'name' => $food->name,
+                    'img_thumbnail' => $food->img_thumbnail,
+                    'price' => $food->price,
+                    'type' => $food->type,
+                    'description' => $food->description,
+                    'is_active' => $food->is_active,
+                    'quantity' => $food->pivot->quantity,
+                    'total_price' => $food->price * $food->pivot->quantity,
+                ]),
+            ];
+
+            return response()->json(
+                $result,
+                200
+            );
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Không thể lấy thông tin combo.',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        // Xử lý dữ liệu
-        $result = [
-            'id' => $combo->id,
-            'name' => $combo->name,
-            'price' => $combo->discount_price ?? $combo->price,
-            'description' => $combo->description,
-            'is_active' => $combo->is_active,
-            'discount_price' => $combo->discount_price,
-            'img_thumbnail' => $combo->img_thumbnail,
-            'combo_foods' => $combo->foods->map(fn($food) => [
-                'id' => $food->id,
-                'name' => $food->name,
-                'img_thumbnail' => $food->img_thumbnail,
-                'price' => $food->price,
-                'type' => $food->type,
-                'description' => $food->description,
-                'is_active' => $food->is_active,
-                'quantity' => $food->pivot->quantity,
-                'total_price' => $food->price * $food->pivot->quantity,
-            ]),
-        ];
-
-        return response()->json(
-             $result
-        , 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Không thể lấy thông tin combo.',
-            'message' => $e->getMessage()
-        ], 500);
     }
-}
 
 
     public function store(Request $request)
@@ -308,15 +309,16 @@ class ComboController extends Controller
             return response()->json(['error' => 'Xóa không thành công.'], 500);
         }
     }
-    public function indexActive(){
+    public function indexActive()
+    {
         try {
             // Truy vấn dữ liệu Combo và liên kết với Food, chỉ lấy các bản ghi có is_active = true
-        $combos = Combo::with(['foods' => function ($query) {
-            $query->where('is_active', true); // Lọc Food có is_active = true
-        }])
-        ->where('is_active', true) // Lọc Combo có is_active = true
-        ->latest('id')
-        ->get();
+            $combos = Combo::with(['foods' => function ($query) {
+                $query->where('is_active', true); // Lọc Food có is_active = true
+            }])
+                ->where('is_active', true) // Lọc Combo có is_active = true
+                ->latest('id')
+                ->get();
 
             // Nếu không có combo nào, trả về thông báo lỗi
             if ($combos->isEmpty()) {

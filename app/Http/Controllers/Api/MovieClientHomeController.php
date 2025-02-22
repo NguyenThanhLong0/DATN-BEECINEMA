@@ -16,47 +16,57 @@ class MovieClientHomeController extends Controller
 
             $currentNow = now();
 
-            //Phim đang chiếu
+            // Phim đang chiếu
             $moviesShowing = Movie::where([
                 ['is_active', '1'],
                 ['is_publish', '1'],
                 ['release_date', '<=', $currentNow],
                 ['end_date', '>=', $currentNow]
             ])
+                ->withCount(['showtimes' => function ($query) use ($currentNow) {
+                    $query->where('is_active', 1)
+                        ->where('start_time', '>', $currentNow);
+                }])
+                ->having('showtimes_count', '>', 0) // Chỉ lấy phim có suất chiếu hợp lệ
                 ->orderBy('is_hot', 'desc')
                 ->latest('id')
                 ->limit(8)
                 ->get();
-
             // Phim sắp chiếu
             $moviesUpcoming = Movie::where([
                 ['is_active', '1'],
                 ['is_publish', '1'],
                 ['release_date', '>', $currentNow]
             ])
+                ->withCount(['showtimes' => function ($query) use ($currentNow) {
+                    $query->where('is_active', 1)
+                        ->where('start_time', '>', $currentNow);
+                }])
+                ->having('showtimes_count', '>', 0) // Chỉ lấy phim có suất chiếu hợp lệ
                 ->orderBy('is_hot', 'desc')
                 ->latest('id')
                 ->limit(8)
                 ->get();
 
-            // Phim suất chiếu đặc biệt
+            // Phim suất chiếu đặc biệt (Chỉ lấy phim có suất chiếu hợp lệ)
             $moviesSpecial = Movie::where([
                 ['is_active', '1'],
                 ['is_publish', '1'],
-                ['is_special', '1'],
-                ['end_date', '<', $currentNow], // Phim đã hết thời gian chiếu
+                ['is_special', '1']
             ])
-                ->orWhere([
-                    ['is_active', '1'],
-                    ['is_publish', '1'],
-                    ['is_special', '1'], // chỉ lấy được phim đánh dấu đặc biệt
-                    ['release_date', '>', $currentNow]
-                ]) // Phim sắp chiếu
+                ->where(function ($query) use ($currentNow) {
+                    $query->where('end_date', '<', $currentNow) // Phim đã hết thời gian chiếu
+                        ->orWhere('release_date', '>', $currentNow); // Hoặc phim sắp chiếu
+                })
+                ->withCount(['showtimes' => function ($query) use ($currentNow) {
+                    $query->where('is_active', 1)
+                        ->where('start_time', '>', $currentNow);
+                }])
+                ->having('showtimes_count', '>', 0) // Chỉ lấy phim có suất chiếu hợp lệ
                 ->orderBy('is_hot', 'desc')
                 ->latest('id')
                 ->limit(8)
                 ->get();
-
             // Trả về 3 danh sách phim dưới dạng JSON.
             return response()->json([
                 'message' => 'hiển thị thành công!',
@@ -69,7 +79,7 @@ class MovieClientHomeController extends Controller
             return response()->json([
                 'message' => 'hiển thị không thất bại!',
                 'status' => false,
-            ]);
+            ], 500);
         }
     }
 }

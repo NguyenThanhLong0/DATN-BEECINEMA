@@ -14,16 +14,17 @@ class BranchController extends Controller
      * Display a listing of the resource.
      */
     public function index()
-    {
-        try {
-            // Eager load cinemas cho tất cả branches
-            $branches = Branch::with('cinemas')->latest('id')->paginate(10);
+{
+    try {
+        // Lấy danh sách branches, nạp cả cinemas và rooms trong mỗi cinema
+        $branches = Branch::with(['cinemas.rooms'])->latest('id')->paginate(10);
 
-            return response()->json($branches);
-        } catch (\Throwable $th) {
-            return response()->json(['message' => 'Không thể lấy danh sách chi nhánh!'], 500);
-        }
+        return response()->json($branches);
+    } catch (\Throwable $th) {
+        return response()->json(['message' => 'Không thể lấy danh sách chi nhánh!'], 500);
     }
+}
+
 
     /**
      * Store a newly created resource in storage.
@@ -125,20 +126,22 @@ class BranchController extends Controller
     }
 
     public function branchesWithCinemasActive()
-{
-    try {
-        // Lấy danh sách branch đang hoạt động và cinemas đang hoạt động của mỗi branch
-        $branches = Branch::where('is_active', 1) // Chỉ lấy branch đang hoạt động
-            ->with(['cinemas' => function ($query) {
-                $query->where('is_active', 1); // Chỉ lấy cinema đang hoạt động
-            }])
-            ->get(); // Lấy danh sách
-
-        return response()->json([
-            'branches' => $branches,
-        ]);
-    } catch (\Throwable $th) {
-        return response()->json(['message' => 'Không thể lấy danh sách chi nhánh!'], 500);
+    {
+        try {
+            // Lấy danh sách branch đang hoạt động và cinemas + rooms của mỗi branch
+            $branches = Branch::where('is_active', 1) // Chỉ lấy branch đang hoạt động
+                ->with(['cinemas' => function ($query) {
+                    $query->where('is_active', 1) // Chỉ lấy cinema đang hoạt động
+                        ->with('rooms'); // Lấy luôn danh sách rooms
+                }])
+                ->get(); // Lấy danh sách
+    
+            return response()->json([
+                'branches' => $branches,
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json(['message' => 'Không thể lấy danh sách chi nhánh!'], 500);
+        }
     }
-}
+    
 }
