@@ -98,6 +98,7 @@ class StoreShowtimeRequest extends FormRequest
                 'start_time' => 'nullable|date_format:H:i',
                 'showtimes' => ['required', 'array', 'min:1'], // Xác nhận showtimes là mảng
                 'showtimes.*.start_time' => ['required', 'date_format:H:i'],
+
             ];
         }
     }
@@ -132,6 +133,8 @@ class StoreShowtimeRequest extends FormRequest
             // Giờ suất chiếu trong danh sách
             'showtimes.*.start_time.required' => 'Vui lòng nhập giờ bắt đầu suất chiếu.',
             'showtimes.*.start_time.date_format' => 'Giờ bắt đầu suất chiếu không hợp lệ (định dạng phải là HH:MM).',
+
+
         ];
     }
 
