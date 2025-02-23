@@ -40,6 +40,7 @@ class VoucherApiController extends Controller
                 'start_date_time' => 'nullable|date',
                 'end_date_time' => 'nullable|date|after_or_equal:start_date_time',
                 'discount' => 'required|numeric|min:0',
+                'is_active' => 'required|boolean',
                 'quantity' => 'required|integer|min:1',
                 'limit' => 'nullable|integer|min:1',
             ]);
@@ -105,6 +106,7 @@ class VoucherApiController extends Controller
                 'end_date_time' => 'nullable|date|after_or_equal:start_date_time',
                 'discount' => 'sometimes|numeric|min:0',
                 'quantity' => 'sometimes|integer|min:1',
+                'is_active' => 'nullable|boolean',
                 'limit' => 'nullable|integer|min:1',
             ]);
             if($request->start_date_time==null){
