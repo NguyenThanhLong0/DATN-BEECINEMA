@@ -500,6 +500,56 @@ class ShowtimeController extends Controller
     }
 
 
+    public function showBySlug($slug)
+{
+    try {
+        $showtime = Showtime::where('slug', $slug)
+            ->with(['room.cinema', 'room.seatTemplate', 'movieVersion', 'movie', 'seats'])
+            ->firstOrFail(); // Nếu không tìm thấy sẽ tự động trả về 404
+
+        $totalSeats = $showtime->room->seats()->where('is_active', 1)->count();
+        $bookedSeats = SeatShowtime::where('showtime_id', $showtime->id)
+            ->where('status', '!=', 'available')
+            ->count();
+        $remainingSeats = $totalSeats - $bookedSeats;
+        $matrixSeat = SeatTemplate::getMatrixById($showtime->room->seatTemplate->matrix_id);
+
+        $seatMap = [];
+        foreach ($showtime->seats as $seat) {
+            $row = $seat->coordinates_y;
+            if (!isset($seatMap[$row])) {
+                $seatMap[$row] = ['row' => $row, 'seats' => []];
+            }
+            $seatMap[$row]['seats'][] = [
+                'id' => $seat->id,
+                'room_id' => $seat->room_id,
+                'type_seat_id' => $seat->type_seat_id,
+                'coordinates_x' => $seat->coordinates_x,
+                'coordinates_y' => $seat->coordinates_y,
+                'name' => $seat->name,
+                'is_active' => (bool) $seat->is_active,
+                'pivot' => [
+                    'showtime_id' => $showtime->id,
+                    'seat_id' => $seat->id,
+                    'status' => $seat->pivot->status ?? 'available',
+                    'price' => $seat->pivot->price ?? null,
+                ]
+            ];
+        }
+
+        return response()->json([
+            'showtime' => $showtime,
+            'matrixSeat' => $matrixSeat,
+            'seatMap' => array_values($seatMap),
+            'totalSeats' => $totalSeats,
+            'remainingSeats' => $remainingSeats,
+            'bookedSeats' => $bookedSeats,
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Showtime not found'], 404);
+    }
+}
+
 
     // public function update(UpdateShowtimeRequest $request, Showtime $showtime)
     // {
@@ -739,6 +789,7 @@ class ShowtimeController extends Controller
                     "end_time" => Carbon::parse($showtime->end_time)->format('H:i'),
                     "slug" => $showtime->slug,
                     "price" => null,
+                    "slug" => $showtime->slug,
                     "created_at" => $showtime->created_at,
                     "updated_at" => $showtime->updated_at,
                     "room" => [
