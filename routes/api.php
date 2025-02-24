@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\ComboFoodController;
 use App\Http\Controllers\Api\MovieReviewController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
-use App\Http\Controllers\Api\MovieClientHomeController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\TicketController;
@@ -189,10 +188,11 @@ Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
 // Voucher
 Route::prefix('vouchers')->group(function () {
     Route::get('/', [VoucherApiController::class, 'index']); // Lấy danh sách voucher
-    Route::post('/create', [VoucherApiController::class, 'store']); // Tạo mới voucher
+    Route::post('/', [VoucherApiController::class, 'store']); // Tạo mới voucher
     Route::get('{id}', [VoucherApiController::class, 'show']); // Lấy chi tiết voucher
-    Route::put('update/{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
-    Route::delete('destroy/{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
+    Route::put('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
+    Route::patch('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
+    Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
 
 });
 
@@ -215,6 +215,8 @@ Route::delete('/type-seats/{typeSeat}', [TypeSeatController::class, 'destroy']);
 
 Route::get('/movies', [MovieController::class, 'index']);
 
+Route::get('/movies/tab', [MovieController::class, 'moviesTabPageClient']);
+
 Route::post('/movies', [MovieController::class, 'store']);
 
 Route::get('/movies/{movie}', [MovieController::class, 'show']);
@@ -229,8 +231,6 @@ Route::post('movies/update-active',     [MovieController::class, 'updateActive']
 
 Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->name('movies.update-hot');
 
-// Movies client
-Route::get('/moviesClientHome', [MovieClientHomeController::class, 'index']);
 
 
 
@@ -310,6 +310,9 @@ Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
 Route::get('showtimespage', [ShowtimeController::class, 'pageShowtime']);
 
 Route::get('showtimemovie', [ShowtimeController::class, 'showtimeMovie']);
+
+Route::get('/showtimes/slug/{slug}', [ShowtimeController::class, 'showBySlug']);
+
 
 
 

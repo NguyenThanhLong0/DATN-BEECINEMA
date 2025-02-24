@@ -6,6 +6,8 @@ use App\Events\UserRegistered;
 use App\Http\Controllers\Controller;
 use App\Jobs\ResendVerificationEmailJob;
 use App\Jobs\SendPasswordResetEmail;
+use App\Models\Membership;
+use App\Models\Rank;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -18,6 +20,7 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -58,6 +61,7 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        DB::beginTransaction();
         try {
             $request->validate([
                 'name' => 'required|string|max:255',
@@ -80,11 +84,26 @@ class AuthController extends Controller
             event(new UserRegistered($user));
 
 
+            $rank=Rank::where('is_default',true)->first();
+
+            $membership=[
+                'user_id' => $user->id,
+                'rank_id'=>$rank->is_default,
+                'code'=>$request->code,
+                'points'=>0,
+                'total_spent'=>0,
+            ];
+
+            Membership::create($membership);
+
+            DB::commit();
+
             return response()->json([
                 'message' => 'User registered. Please verify your email.',
                 'user' => $user
             ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'error' => 'Registration failed',
                 'message' => $e->getMessage(),
