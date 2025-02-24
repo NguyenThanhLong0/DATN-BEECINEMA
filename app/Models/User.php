@@ -77,4 +77,8 @@ class User extends Authenticatable implements MustVerifyEmail,ShouldQueue
     {
         return $this->belongsTo(Cinema::class);
     }
+    public function userVouchers()
+{
+    return $this->hasMany(UserVoucher::class, 'user_id');
+}
 }
