@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\ShowtimeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\ChooseSeatController;
 
 /*
 |--------------------------------------------------------------------------
@@ -293,9 +294,6 @@ Route::delete('banners/{banner}',   [BannerController::class, 'destroy'])->name(
 
 
 //Showtime
-use Illuminate\Support\Facades\Log;
-
-Log::info('Route /api/showtimes/page is registered.');
 
 Route::get('showtimes', [ShowtimeController::class, 'index']);
 
@@ -337,3 +335,15 @@ Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update
 Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
 
 Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
+
+//choose-seat
+
+Route::middleware('auth:api')->group(function () {
+    //cập nhật trạng thái của một ghế
+    Route::post('/update-seat', [ChooseSeatController::class, 'updateSeat']);
+
+    //Lưu thông tin đặt ghế của user sau khi họ đã giữ ghế
+    Route::post('save-information/{id}', [ChooseSeatController::class, 'saveInformation'])->name('save-information');
+    //Lấy danh sách ghế và trạng thái của chúng cho một suất chiếu
+    Route::get('choose-seat/{slug}', [ChooseSeatController::class, 'show'])->name('choose-seat');
+});
