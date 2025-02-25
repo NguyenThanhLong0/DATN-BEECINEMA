@@ -351,4 +351,6 @@ Route::middleware('auth:api')->group(function () {
     Route::post('save-information/{id}', [ChooseSeatController::class, 'saveInformation'])->name('save-information');
     //Lấy danh sách ghế và trạng thái của chúng cho một suất chiếu
     Route::get('choose-seat/{slug}', [ChooseSeatController::class, 'show'])->name('choose-seat');
+
+    Route::get('userHoldSeats/{slug}', [ChooseSeatController::class, 'getUserHoldSeats']);
 });
