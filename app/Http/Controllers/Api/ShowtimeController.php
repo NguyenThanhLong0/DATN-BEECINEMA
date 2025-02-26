@@ -1059,7 +1059,7 @@ class ShowtimeController extends Controller
                 $dateKey = $showtime->date;
                 $dayOfWeek = Carbon::parse($dateKey)->format('l'); // Lấy tên ngày trong tuần bằng tiếng Anh
                 $dayLabel = Carbon::parse($dateKey)->format('d/m') . ' - ' . $dayNames[$dayOfWeek];
-    $format = $showtime->format;
+                $format = $showtime->format;
     
                 // Nếu ngày chưa tồn tại, tạo mới
                 if (!isset($showtimesByDate[$dateKey])) {

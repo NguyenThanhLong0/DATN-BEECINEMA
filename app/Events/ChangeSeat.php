@@ -27,6 +27,8 @@ class ChangeSeat implements ShouldBroadcastNow
     public function broadcastOn()
     {
         // Sự kiện sẽ được phát trên kênh showtime với id cụ thể
-        return new Channel('showtime.' . $this->showtimeId);
+        return new Channel('showtime.'.$this->showtimeId);
     }
+
+    
 }
