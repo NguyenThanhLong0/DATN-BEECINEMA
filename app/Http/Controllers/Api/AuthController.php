@@ -88,7 +88,7 @@ class AuthController extends Controller
             $membership=[
                 'user_id' => $user->id,
                 'rank_id'=>$rank->is_default,
-                'code'=>$request->code,
+                'code'=>str_pad($user->id, 12, '0', STR_PAD_LEFT),
                 'points'=>0,
                 'total_spent'=>0,
             ];

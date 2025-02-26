@@ -135,7 +135,7 @@ Route::middleware('auth:sanctum')->prefix('posts')->group(function () {
     Route::get('{id}', [PostApiController::class, 'show']); // Xem chi tiết bài viết
     Route::put('{id}', [PostApiController::class, 'update']); // Cập nhật bài viết
     Route::delete('{id}', [PostApiController::class, 'destroy']); // Xóa bài viết
-    Route::put('{id}/toggle', [PostApiController::class, 'toggle']); // Bật/tắt trạng thái
+    // Route::put('{id}/toggle', [PostApiController::class, 'toggle']); // Bật/tắt trạng thái
 });
 
 //Rooms
