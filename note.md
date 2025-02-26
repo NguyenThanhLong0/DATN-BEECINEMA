@@ -15,3 +15,10 @@ Nếu không chạy lệnh trên thì dữ liệu sẽ đẩy lên bảng job
 
 sửa cái này trong env thành cái này :
  QUEUE_CONNECTION=database
+
+ *Cài đặt package websockets
+Chạy lệnh sau để thêm package vào project:
+composer require beyondcode/laravel-websockets
+Chạy lệnh serve:
+Sau khi cài xong, thử chạy lại lệnh:
+php artisan websockets:serve

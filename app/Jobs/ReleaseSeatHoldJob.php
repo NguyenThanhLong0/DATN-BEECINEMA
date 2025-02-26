@@ -72,7 +72,9 @@ class ReleaseSeatHoldJob implements ShouldQueue
                     $expiredSeatIds[] = $seat->seat_id;
 
                     // Phát sự kiện giải phóng ghế
-                    broadcast(new SeatStatusChange($seat->seat_id, $this->showtimeId, 'available'))->toOthers();
+                    // broadcast(new SeatStatusChange($seat->seat_id, $this->showtimeId, 'available'))->toOthers();
+                    broadcast(new SeatStatusChange($seat->seat_id, $this->showtimeId, 'available', auth()->id()))->toOthers();
+
                     // event(new SeatStatusChange($seat->seat_id, $this->showtimeId, 'available'));
                     // event(new SeatRelease($seat->seat_id, $this->showtimeId));
                 }
