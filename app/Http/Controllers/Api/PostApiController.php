@@ -37,6 +37,7 @@ class PostApiController extends Controller
                 'description' => 'required|string',
                 'content'     => 'required|string',
                 'img_post'    => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'is_active'   => 'nullable|boolean',
             ]);
             
             // Xử lý upload ảnh
@@ -49,7 +50,7 @@ class PostApiController extends Controller
                 'description' => $request->description,
                 'content'     => $request->content,
                 'img_post'    => $imagePath,
-                'is_active'   => $request->has('is_active') ? 1 : 0,
+                'is_active'   => $request->has('is_active') ? false : true,
             ]);
 
             return response()->json(['message' => 'Bài viết được tạo thành công!', 'post' => $post], 201);
@@ -98,6 +99,7 @@ class PostApiController extends Controller
                 'description' => 'required|string',
                 'content'     => 'required|string',
                 'img_post'    => 'nullable|image|max:2048',
+                'is_active'   => 'nullable|boolean',
             ]);
 
             // Nếu có ảnh mới, xóa ảnh cũ
@@ -115,6 +117,7 @@ class PostApiController extends Controller
                 'description' => $request->description,
                 'content'     => $request->content,
                 'img_post'    => $post->img_post,
+                'is_active'   => $request->is_active,
             ]);
 
             return response()->json(['message' => 'Bài viết đã được cập nhật!', 'post' => $post], 200);
@@ -152,18 +155,18 @@ class PostApiController extends Controller
     /**
      * Bật / Tắt bài viết (PUT /api/posts/{id}/toggle)
      */
-    public function toggle($id)
-    {
-        try {
-            $post = Post::findOrFail($id);
-            $post->is_active = !$post->is_active;
-            $post->save();
+    // public function toggle($id)
+    // {
+    //     try {
+    //         $post = Post::findOrFail($id);
+    //         $post->is_active = !$post->is_active;
+    //         $post->save();
 
-            return response()->json(['message' => 'Trạng thái bài viết đã được cập nhật!', 'is_active' => $post->is_active], 200);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['error' => 'Bài viết không tồn tại!'], 404);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Lỗi khi cập nhật trạng thái bài viết!', 'message' => $e->getMessage()], 500);
-        }
-    }
+    //         return response()->json(['message' => 'Trạng thái bài viết đã được cập nhật!', 'is_active' => $post->is_active], 200);
+    //     } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+    //         return response()->json(['error' => 'Bài viết không tồn tại!'], 404);
+    //     } catch (\Exception $e) {
+    //         return response()->json(['error' => 'Lỗi khi cập nhật trạng thái bài viết!', 'message' => $e->getMessage()], 500);
+    //     }
+    // }
 }
