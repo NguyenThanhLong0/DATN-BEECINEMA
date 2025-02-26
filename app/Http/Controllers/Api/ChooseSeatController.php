@@ -270,13 +270,122 @@ class ChooseSeatController extends Controller
     //có session
 
 
+    // public function updateSeat(Request $request)
+    // {
+    //     try {
+    //         $seatId = $request->seat_id;                
+    //         $showtimeId = $request->showtime_id;          
+    //         $action = $request->action;                   // 'hold' hoặc 'release'
+    //         $userId = auth()->id();                       
+
+    //         // Kiểm tra xem người dùng có tồn tại không
+    //         if (!$userId) {
+    //             return response()->json(['error' => 'Không xác định được người dùng.'], 400);
+    //         }
+
+    //         // Lấy trạng thái ghế mới nhất từ database
+    //         $seatShowtime = SeatShowtime::join('seats', 'seats.id', '=', 'seat_showtimes.seat_id')
+    //             ->where('seat_showtimes.seat_id', $seatId)
+    //             ->where('seat_showtimes.showtime_id', $showtimeId)
+    //             ->where('seats.is_active', 1)
+    //             ->select('seat_showtimes.*')
+    //             ->lockForUpdate()
+    //             ->first();
+
+    //         // Kiểm tra nếu ghế không tồn tại hoặc bị vô hiệu hóa
+    //         if (!$seatShowtime) {
+    //             return response()->json(['error' => 'Ghế không tồn tại hoặc đã bị vô hiệu hóa.'], 404);
+    //         }
+
+    //         //  Kiểm tra nếu ghế đã hết thời gian giữ
+    //         if ($seatShowtime->status === 'hold' && $seatShowtime->hold_expires_at <= now()) {
+    //             // Cập nhật lại trạng thái của ghế nếu thời gian giữ đã hết
+    //             DB::table('seat_showtimes')
+    //                 ->where('seat_id', $seatId)
+    //                 ->where('showtime_id', $showtimeId)
+    //                 ->update([
+    //                     'status' => 'available',
+    //                     'user_id' => null,
+    //                     'hold_expires_at' => null,
+    //                 ]);
+
+    //             // Gửi sự kiện realtime để frontend cập nhật UI
+    //             broadcast(new SeatStatusChange($seatId, $showtimeId, 'available'))->toOthers();
+
+    //             return response()->json(['message' => 'Ghế đã hết thời gian giữ và chuyển sang trạng thái có sẵn.']);
+    //         }
+
+    //         //  Kiểm tra nếu ghế đã bị giữ bởi người khác
+    //         if ($action === 'hold' && $seatShowtime->status === 'hold' && $seatShowtime->user_id !== $userId) {
+    //             return response()->json([
+    //                 'error' => 'Ghế này đã có người khác giữ. Vui lòng chọn ghế khác.',
+    //                 'seat_status' => $seatShowtime->status,
+    //                 'hold_expires_at' => $seatShowtime->hold_expires_at
+    //             ], 409);
+    //         }
+
+    //         //  Xác định thời gian hết hạn giữ ghế (10 phút)
+    //         $holdExpiresAt = ($action === 'hold') ? now()->addMinutes(10) : null;
+
+    //         //  Thực hiện transaction để đảm bảo tính toàn vẹn dữ liệu
+    //         DB::transaction(function () use ($seatShowtime, $seatId, $showtimeId, $userId, $action, $holdExpiresAt) {
+    //             if ($action === 'hold' && $seatShowtime->status === 'available') {
+    //                 //  Giữ ghế
+    //                 DB::table('seat_showtimes')
+    //                     ->where('seat_id', $seatId)
+    //                     ->where('showtime_id', $showtimeId)
+    //                     ->update([
+    //                         'status' => 'hold',
+    //                         'user_id' => $userId,
+    //                         'hold_expires_at' => $holdExpiresAt,
+    //                     ]);
+
+    //                 // Gửi sự kiện realtime để frontend biết ghế đã được giữ
+    //                 broadcast(new SeatStatusChange($seatId, $showtimeId, 'hold'))->toOthers();
+
+    //                 //  Gọi job tự động giải phóng ghế sau 10 phút
+    //                 ReleaseSeatHoldJob::dispatch([$seatId], $showtimeId)->delay(now()->addMinutes(10));
+    //             } elseif ($action === 'release' && $seatShowtime->status === 'hold' && $seatShowtime->user_id === $userId) {
+    //                 //  Thả ghế
+    //                 DB::table('seat_showtimes')
+    //                     ->where('seat_id', $seatId)
+    //                     ->where('showtime_id', $showtimeId)
+    //                     ->update([
+    //                         'status' => 'available',
+    //                         'user_id' => null,
+    //                         'hold_expires_at' => null,
+    //                     ]);
+
+    //                 // Gửi sự kiện realtime để frontend biết ghế đã được thả
+    //                 broadcast(new SeatStatusChange($seatId, $showtimeId, 'available'))->toOthers();
+    //             }
+    //         });
+
+    //         //  Lấy lại thông tin ghế sau khi cập nhật
+    //         $updatedSeat = SeatShowtime::where('seat_id', $seatId)
+    //             ->where('showtime_id', $showtimeId)
+    //             ->first();
+
+
+    //         return response()->json([
+    //             'message' => 'Cập nhật trạng thái ghế thành công.',
+    //             'seat' => $updatedSeat
+    //         ], 200);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'error' => 'Có lỗi xảy ra khi cập nhật trạng thái ghế.',
+    //             'details' => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
     public function updateSeat(Request $request)
     {
         try {
-            $seatId = $request->seat_id;                
-            $showtimeId = $request->showtime_id;          
+            $seatId = $request->seat_id;
+            $showtimeId = $request->showtime_id;
             $action = $request->action;                   // 'hold' hoặc 'release'
-            $userId = auth()->id();                       
+            $userId = auth()->id();
 
             // Kiểm tra xem người dùng có tồn tại không
             if (!$userId) {
@@ -325,7 +434,7 @@ class ChooseSeatController extends Controller
             }
 
             //  Xác định thời gian hết hạn giữ ghế (10 phút)
-            $holdExpiresAt = ($action === 'hold') ? now()->addMinutes(10) : null;
+            $holdExpiresAt = ($action === 'hold') ? now()->addMinutes(2) : null;
 
             //  Thực hiện transaction để đảm bảo tính toàn vẹn dữ liệu
             DB::transaction(function () use ($seatShowtime, $seatId, $showtimeId, $userId, $action, $holdExpiresAt) {
@@ -344,7 +453,7 @@ class ChooseSeatController extends Controller
                     broadcast(new SeatStatusChange($seatId, $showtimeId, 'hold', auth()->id()))->toOthers();
 
                     //  Gọi job tự động giải phóng ghế sau 10 phút
-                    ReleaseSeatHoldJob::dispatch([$seatId], $showtimeId)->delay(now()->addMinutes(10));
+                    ReleaseSeatHoldJob::dispatch([$seatId], $showtimeId)->delay(now()->addMinutes(2));
                 } elseif ($action === 'release' && $seatShowtime->status === 'hold' && $seatShowtime->user_id === $userId) {
                     //  Thả ghế
                     DB::table('seat_showtimes')
