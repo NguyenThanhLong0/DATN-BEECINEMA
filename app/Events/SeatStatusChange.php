@@ -1,27 +1,20 @@
 <?php
-
 namespace App\Events;
-
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
 
-class SeatStatusChange  implements ShouldBroadcastNow
+class SeatStatusChange implements ShouldBroadcastNow
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, SerializesModels;
 
     public $seatId;
     public $showtimeId;
-    public $status; // Trạng thái ghế (hold, available, sold)
-    public $userId; // Id của người đặt vé
+    public $status;
+    public $userId;
 
-    /**
-     * Tạo event với các tham số cần thiết
-     */
-    public function __construct($seatId, $showtimeId, $status ,$userId )   
+    public function __construct($seatId, $showtimeId, $status, $userId)
     {
         $this->seatId = $seatId;
         $this->showtimeId = $showtimeId;
@@ -29,21 +22,13 @@ class SeatStatusChange  implements ShouldBroadcastNow
         $this->userId = $userId;
     }
 
-
-    /**
-     * Định nghĩa kênh để phát sự kiện.
-     */
     public function broadcastOn()
     {
-        // Sự kiện sẽ được phát trên kênh showtime với id cụ thể
-        return new Channel('showtime.' . $this->showtimeId);
+        return new Channel('showtime.'.$this->showtimeId);
     }
-    
+
     public function broadcastAs()
     {
-        return 'SeatStatusChange';
+        return 'seatStatusChange';
     }
 }
-
-
-
