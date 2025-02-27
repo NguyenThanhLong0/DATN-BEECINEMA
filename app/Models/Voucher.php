@@ -22,7 +22,6 @@ class Voucher extends Model
     ];
 
     protected $casts=[
-        'type'=>'boolean',
         'is_active'=>'boolean',
     ];
 

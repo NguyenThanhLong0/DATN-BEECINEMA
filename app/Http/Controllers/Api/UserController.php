@@ -102,7 +102,7 @@ class UserController extends Controller
          }
      }
      public function getUserVouchers()
-{
+    {
     try {
         $userId = Auth::id(); // Lấy ID của user đăng nhập
     
@@ -134,6 +134,23 @@ class UserController extends Controller
         ], 500);
     }
     
-}
+    }
+    public function membership()
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $user = User::with([
+            'membership.rank',  
+            'membership.pointHistories' => function ($query) {
+                $query->orderBy('created_at', 'desc')->limit(10);
+            }
+        ])->find($user->id);
+
+        return response()->json($user);
+    }
 
 }
