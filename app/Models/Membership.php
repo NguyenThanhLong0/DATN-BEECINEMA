@@ -25,4 +25,8 @@ class Membership extends Model
     {
         return $this->belongsTo(Rank::class);
     }
+    public function pointHistories()
+    {
+        return $this->hasMany(PointHistory::class);
+    }
 }

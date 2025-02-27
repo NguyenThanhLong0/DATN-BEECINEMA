@@ -22,6 +22,7 @@ class VoucherSeeder extends Seeder
                 'discount' => 10000,
                 'quantity'=>200,
                 'limit' => 10,
+                'type' =>'amount',
                 'start_date_time'=>now(),
                 'end_date_time' => Carbon::now()->addDays(10), // Hết hạn sau 10 ngày
                 'is_active' => 1,
@@ -35,6 +36,7 @@ class VoucherSeeder extends Seeder
                 'discount' => 50000,
                 'quantity'=>200,
                 'limit' => 10 ,
+                'type' =>'amount',
                 'start_date_time'=>now(),
                 'end_date_time' => Carbon::now()->addDays(5), // Hết hạn sau 5 ngày
                 'is_active' => 1,
@@ -48,6 +50,7 @@ class VoucherSeeder extends Seeder
                 'discount' => 100000,
                 'quantity'=>200,
                 'limit' => 10,
+                'type' =>'amount',
                 'start_date_time'=>now(),
                 'end_date_time' => Carbon::now()->addDays(15), // Hết hạn sau 15 ngày
                 'is_active' => 1,

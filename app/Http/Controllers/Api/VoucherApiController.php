@@ -43,14 +43,13 @@ class VoucherApiController extends Controller
                 'is_active' => 'required|boolean',
                 'quantity' => 'required|integer|min:1',
                 'limit' => 'nullable|integer|min:1',
+                'type' => 'required|in:amount,percent'
             ]);
 
             // Gán giá trị mặc định nếu không nhập ngày
             $validated['start_date_time'] = $validated['start_date_time'] ?? Carbon::now();
             $validated['end_date_time'] = $validated['end_date_time'] ?? Carbon::now()->addDays(7);
-            $validated['type'] = $request->has('type') ? (bool) $request->type : false;
 
-            // Không cần kiểm tra is_active vì MySQL đã xử lý bằng trigger
             $voucher = Voucher::create($validated);
 
             // Gán voucher cho tất cả các user có trong hệ thống
@@ -108,6 +107,7 @@ class VoucherApiController extends Controller
                 'quantity' => 'sometimes|integer|min:1',
                 'is_active' => 'nullable|boolean',
                 'limit' => 'nullable|integer|min:1',
+                'type' => 'required|in:amount,percent',
             ]);
             if($request->start_date_time==null){
                 $validated['start_date_time']=$voucher->start_date_time;
