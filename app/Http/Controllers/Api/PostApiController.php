@@ -128,14 +128,8 @@ class PostApiController extends Controller
     {
         try {
             $post = Post::findOrFail($id);
-
-            // Xóa ảnh nếu có
-            if (!empty($post->img_post) && Storage::exists('public/' . $post->img_post)) {
-                Storage::delete('public/' . $post->img_post);
-            }
-
             $post->delete();
-            return response()->json(['message' => 'Bài viết và ảnh đã được xóa thành công!'], 200);
+            return response()->json(['message' => 'Bài viết đã được xóa thành công!'], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['error' => 'Bài viết không tồn tại!'], 404);
         } catch (\Exception $e) {
@@ -143,21 +137,5 @@ class PostApiController extends Controller
         }
     }
 
-    /**
-     * Bật / Tắt bài viết (PUT /api/posts/{id}/toggle)
-     */
-    public function toggle($id)
-    {
-        try {
-            $post = Post::findOrFail($id);
-            $post->is_active = !$post->is_active;
-            $post->save();
 
-            return response()->json(['message' => 'Trạng thái bài viết đã được cập nhật!', 'is_active' => $post->is_active], 200);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['error' => 'Bài viết không tồn tại!'], 404);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Lỗi khi cập nhật trạng thái bài viết!', 'message' => $e->getMessage()], 500);
-        }
-    }
 }
