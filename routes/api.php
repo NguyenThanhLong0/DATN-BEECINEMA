@@ -269,9 +269,11 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 
 //user
 Route::middleware('auth:sanctum')->group(function(){
-    Route::get('/profile', [UserController::class, 'profile']); // Lấy thông tin user đang đăng nhập
-    Route::get('/user/voucher',[UserController::class,'getUserVouchers']); //Lấy thông tin voucher còn được sử dụng của người dùng
-    Route::get('/user/membership',[UserController::class,'membership']); //Lấy thông tin voucher còn được sử dụng của người dùng
+    Route::get('/profile', [UserController::class, 'profile']); 
+    // Lấy thông tin user đang đăng nhập
+    Route::get('/user/membership',[UserController::class,'membership']); 
+    //Lấy thông tin voucher còn được sử dụng của người dùng
+    Route::get('/user/vouchers',[UserController::class,'getUserVouchers']); 
 });
 
 

@@ -120,6 +120,7 @@ class UserController extends Controller
                 'vouchers.description',
                 'vouchers.discount',
                 'vouchers.end_date_time',
+                'vouchers.start_date_time',
                 'vouchers.limit',
                 DB::raw('(SELECT SUM(uv.usage_count) FROM user_vouchers uv WHERE uv.voucher_id = user_vouchers.voucher_id) as total_usage'), // Truy vấn con để lấy tổng lượt sử dụng
                 DB::raw('(vouchers.quantity - COALESCE((SELECT SUM(uv.usage_count) FROM user_vouchers uv WHERE uv.voucher_id = user_vouchers.voucher_id), 0)) AS remaining_usage')

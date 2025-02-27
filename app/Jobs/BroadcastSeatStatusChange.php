@@ -26,6 +26,6 @@ class BroadcastSeatStatusChange implements ShouldQueue
 
     public function handle()
     {
-        broadcast(new SeatStatusChange($this->seatId, $this->showtimeId, $this->status, $this->userId))->toOthers();
+            broadcast(new SeatStatusChange($this->seatId, $this->showtimeId, $this->status, $this->userId))->toOthers();
     }
 }
