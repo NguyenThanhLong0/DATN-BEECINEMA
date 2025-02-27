@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\UserVoucher;
+use App\Models\Voucher;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Exception;
+use Illuminate\Support\Facades\DB;
 
 
 class UserController extends Controller
@@ -98,4 +101,56 @@ class UserController extends Controller
              return response()->json(['error' => 'Error fetching profile', 'message' => $e->getMessage()], 500);
          }
      }
+     public function getUserVouchers()
+    {
+    try {
+        $userId = Auth::id(); // Lấy ID của user đăng nhập
+    
+        // Lấy danh sách voucher hợp lệ
+        $vouchers = UserVoucher::join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.id')
+            ->where('user_vouchers.user_id', $userId)
+            ->where('vouchers.end_date_time', '>=', now()) // Chỉ lấy voucher chưa hết hạn
+            ->where('vouchers.is_active', 1) // Chỉ lấy voucher đang hoạt động
+            ->whereColumn('user_vouchers.usage_count', '<', 'vouchers.limit') // So sánh trực tiếp giữa 2 bảng
+            ->whereRaw('(SELECT SUM(uv.usage_count) FROM user_vouchers uv WHERE uv.voucher_id = user_vouchers.voucher_id) < vouchers.quantity') // Kiểm tra tổng usage_count // So sánh trực tiếp giữa 2 bảng
+            ->select(
+                'user_vouchers.*',
+                'vouchers.code',
+                'vouchers.title',
+                'vouchers.description',
+                'vouchers.discount',
+                'vouchers.end_date_time',
+                'vouchers.limit',
+                DB::raw('(SELECT SUM(uv.usage_count) FROM user_vouchers uv WHERE uv.voucher_id = user_vouchers.voucher_id) as total_usage'), // Truy vấn con để lấy tổng lượt sử dụng
+                DB::raw('(vouchers.quantity - COALESCE((SELECT SUM(uv.usage_count) FROM user_vouchers uv WHERE uv.voucher_id = user_vouchers.voucher_id), 0)) AS remaining_usage')
+            )
+            ->get();
+    
+        return response()->json($vouchers);
+    } catch (Exception $e) {
+        return response()->json([
+            'error' => 'Error fetching vouchers',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+    
+    }
+    public function membership()
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $user = User::with([
+            'membership.rank',  
+            'membership.pointHistories' => function ($query) {
+                $query->orderBy('created_at', 'desc')->limit(10);
+            }
+        ])->find($user->id);
+
+        return response()->json($user);
+    }
+
 }

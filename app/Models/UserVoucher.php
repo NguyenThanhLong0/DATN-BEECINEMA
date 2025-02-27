@@ -13,4 +13,13 @@ class UserVoucher extends Model
         'voucher_id',
         'usage_count',
     ];
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class, 'voucher_id');
+    }
 }

@@ -6,6 +6,8 @@ use App\Events\UserRegistered;
 use App\Http\Controllers\Controller;
 use App\Jobs\ResendVerificationEmailJob;
 use App\Jobs\SendPasswordResetEmail;
+use App\Models\Membership;
+use App\Models\Rank;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -18,6 +20,7 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -58,17 +61,15 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
+        DB::beginTransaction();
         try {
             $request->validate([
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
                 'password' => 'required|string|min:8|confirmed',
                 'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
-                'gender' => 'required|in:male,female,other',
-//                 'gender' => 'required|string|in:nam,nữ,khác',
+                'gender' => 'required|string|in:nam,nữ,khác',
                 'birthday' => 'required|date',
-                //mơi thêm
-                // 'cinema_id' => 'nullable|exists:cinemas,id',
             ]);
 
             $user = User::create([
@@ -78,20 +79,31 @@ class AuthController extends Controller
                 'phone' => $request->phone,
                 'gender' => $request->gender,
                 'birthday' => $request->birthday,
-                //moi them
-                // 'cinema_id' => $request->cinema_id,
             ]);
 
-
-//             event(new Registered($user));
-    
             event(new UserRegistered($user));
+
+
+            $rank=Rank::where('is_default',true)->first();
+
+            $membership=[
+                'user_id' => $user->id,
+                'rank_id'=>$rank->is_default,
+                'code'=>str_pad($user->id, 12, '0', STR_PAD_LEFT),
+                'points'=>0,
+                'total_spent'=>0,
+            ];
+
+            Membership::create($membership);
+
+            DB::commit();
 
             return response()->json([
                 'message' => 'User registered. Please verify your email.',
                 'user' => $user
             ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'error' => 'Registration failed',
                 'message' => $e->getMessage(),
@@ -195,33 +207,35 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+
     public function changePassword(Request $request)
-{
-    try {
-        // Validate input
-        $request->validate([
-            'current_password' => 'required|string',
-            'new_password' => 'required|string|min:8|confirmed',
-        ]);
+    {
+        try {
+            // Validate input
+            $request->validate([
+                'current_password' => 'required|string',
+                'new_password' => 'required|string|min:8|confirmed',
+            ]);
 
-        // Get authenticated user
-        $user = $request->user();
+            // Get authenticated user
+            $user = $request->user();
 
-        // Check if current password is correct
-        if (!Hash::check($request->current_password, $user->password)) {
-            return response()->json(['error' => 'Current password is incorrect'], 400);
+            // Check if current password is correct
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json(['error' => 'Current password is incorrect'], 400);
+            }
+
+            // Update the password
+            $user->password = Hash::make($request->new_password);
+            $user->save();
+
+            return response()->json(['message' => 'Password changed successfully']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Password change failed',
+                'message' => $e->getMessage(),
+            ], 500);
         }
-
-        // Update the password
-        $user->password = Hash::make($request->new_password);
-        $user->save();
-
-        return response()->json(['message' => 'Password changed successfully']);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Password change failed',
-            'message' => $e->getMessage(),
-        ], 500);
     }
-}
 }

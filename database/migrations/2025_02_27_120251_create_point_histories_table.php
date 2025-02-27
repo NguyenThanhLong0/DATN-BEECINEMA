@@ -11,14 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('food', function (Blueprint $table) {
+        Schema::create('point_histories', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique();
-            $table->string('img_thumbnail')->nullable();
-            $table->decimal('price',8,2)->nullable();
-            $table->string('type')->nullable();;
-            $table->string('description')->nullable();
-            $table->boolean('is_active')->default(true);
+            $table->foreignId('membership_id')->constrained()->onDelete('cascade');
+            $table->integer('points');
+            $table->enum('type', ['tích điểm', 'đổi điểm']);
             $table->timestamps();
         });
     }
@@ -28,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('foods');
+        Schema::dropIfExists('point_histories');
     }
 };

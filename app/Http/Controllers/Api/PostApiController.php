@@ -35,7 +35,8 @@ class PostApiController extends Controller
                 'title'       => 'required|string|max:255',
                 'description' => 'required|string',
                 'content'     => 'required|string',
-                'img_post'    => 'nullable|url', // Chỉ chấp nhận URL thay vì file ảnh
+                'img_post'    => 'nullable|url',
+                'is_active'   => "require|boolean", // Chỉ chấp nhận URL thay vì file ảnh
             ]);
             
             $post = Post::create([
@@ -45,7 +46,7 @@ class PostApiController extends Controller
                 'description' => $request->description,
                 'content'     => $request->content,
                 'img_post'    => $request->img_post, // Lưu trực tiếp URL của ảnh
-                'is_active'   => $request->has('is_active') ? 1 : 0,
+                'is_active'   => $request->is_active,
             ]);
     
             return response()->json(['message' => 'Bài viết được tạo thành công!', 'post' => $post], 201);
@@ -91,6 +92,7 @@ class PostApiController extends Controller
             'description' => 'required|string',
             'content'     => 'required|string',
             'img_post'    => 'nullable|url', // Chỉ chấp nhận URL thay vì file ảnh
+            'is_active'   => "nullable|boolean",
         ]);
 
         // Cập nhật bài viết
@@ -100,6 +102,7 @@ class PostApiController extends Controller
             'description' => $request->description,
             'content'     => $request->content,
             'img_post'    => $request->img_post, // Cập nhật URL ảnh
+            'is_active'   => $request->is_active,
         ]);
 
         return response()->json(['message' => 'Bài viết đã được cập nhật!', 'post' => $post], 200);

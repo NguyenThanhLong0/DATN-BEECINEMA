@@ -76,6 +76,11 @@ class Movie extends Model
         return $this->hasMany(Showtime::class);
     }
 
+    public function movieReview()
+    {
+        return $this->hasMany(MovieReview::class, 'movie_id');
+    }
+
     public static function getImageTagRating($rating)
     {
         switch ($rating) {

@@ -18,4 +18,8 @@ class Rank extends Model
     protected $casts = [
         'is_default' => 'boolean'
     ];
+    public function memberships()
+    {
+        return $this->hasMany(Membership::class);
+    }
 }

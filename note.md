@@ -9,9 +9,9 @@ Các bạn kéo code về thì làm theo các bước sau rồi mới chạy cod
 -có các seeder dữ liệu có thể chạy các lệnh: "php artisan db:seed" 
 Hoặc chạy từ bảng trong seed với cú pháp: php artisan db:seed --class=TensTableSeeder
 
-
-<!-- 
 chạy lệnh: php artisan make:queue để tạo bảng job
 chạy lệnh php artisan queue:work để chạy 
 Nếu không chạy lệnh trên thì dữ liệu sẽ đẩy lên bảng job
- -->
+
+sửa cái này trong env thành cái này :
+ QUEUE_CONNECTION=database

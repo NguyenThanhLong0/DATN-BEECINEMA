@@ -2,9 +2,12 @@
 
 namespace Database\Seeders;
 
-use App\Models\Showtime;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Carbon\Carbon;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use App\Models\Showtime;
 
 class ShowtimeSeeder extends Seeder
 {

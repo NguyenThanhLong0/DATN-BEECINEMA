@@ -7,10 +7,12 @@ use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\ComboFoodController;
+use App\Http\Controllers\Api\MovieReviewController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
 use App\Http\Controllers\Api\PostApiController;
+use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\RankController;
 use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
@@ -19,6 +21,7 @@ use App\Http\Controllers\Api\ShowtimeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\ChooseSeatController;
 
 /*
 |--------------------------------------------------------------------------
@@ -133,7 +136,7 @@ Route::middleware('auth:sanctum')->prefix('posts')->group(function () {
     Route::get('{id}', [PostApiController::class, 'show']); // Xem chi tiết bài viết
     Route::put('{id}', [PostApiController::class, 'update']); // Cập nhật bài viết
     Route::delete('{id}', [PostApiController::class, 'destroy']); // Xóa bài viết
-    Route::put('{id}/toggle', [PostApiController::class, 'toggle']); // Bật/tắt trạng thái
+    // Route::put('{id}/toggle', [PostApiController::class, 'toggle']); // Bật/tắt trạng thái
 });
 
 //Rooms
@@ -165,6 +168,8 @@ Route::put('combos/{combo}',      [ComboController::class, 'update'])->name('com
 Route::patch('combos/{combo}',    [ComboController::class, 'update'])->name('combos.update.partial');
 
 Route::delete('combos/{combo}',   [ComboController::class, 'destroy'])->name('combos.destroy');
+// Combos active
+Route::get('combosActive', [ComboController::class, 'indexActive']);
 
 //Type Room
 
@@ -183,10 +188,11 @@ Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
 // Voucher
 Route::prefix('vouchers')->group(function () {
     Route::get('/', [VoucherApiController::class, 'index']); // Lấy danh sách voucher
-    Route::post('/create', [VoucherApiController::class, 'store']); // Tạo mới voucher
+    Route::post('/', [VoucherApiController::class, 'store']); // Tạo mới voucher
     Route::get('{id}', [VoucherApiController::class, 'show']); // Lấy chi tiết voucher
-    Route::put('update/{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
-    Route::delete('destroy/{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
+    Route::put('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
+    Route::patch('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
+    Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
 
 });
 
@@ -209,6 +215,8 @@ Route::delete('/type-seats/{typeSeat}', [TypeSeatController::class, 'destroy']);
 
 Route::get('/movies', [MovieController::class, 'index']);
 
+Route::get('/movies/tab', [MovieController::class, 'moviesTabPageClient']);
+
 Route::post('/movies', [MovieController::class, 'store']);
 
 Route::get('/movies/{movie}', [MovieController::class, 'show']);
@@ -222,6 +230,8 @@ Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
 Route::post('movies/update-active',     [MovieController::class, 'updateActive'])->name('movies.update-active');
 
 Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->name('movies.update-hot');
+
+
 
 
 // combofood
@@ -245,24 +255,31 @@ Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->
 
 // Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
 
-//user
-
+//admin
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
     Route::get('/users/{id}', [UserController::class, 'show']); // Lấy thông tin user cụ thể
     Route::put('/users/{id}', [UserController::class, 'update']); // Cập nhật user
+    Route::patch('/users/{id}', [UserController::class, 'update']); // Cập nhật user
     Route::delete('/users/{id}', [UserController::class, 'destroy']); // Xóa mềm
     Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Khôi phục
     Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']); // Xóa vĩnh viễn
-    Route::get('/profile', [UserController::class, 'profile']); // Lấy thông tin user đang đăng nhập
 
 });
+
+//user
+Route::middleware('auth:sanctum')->group(function(){
+    Route::get('/profile', [UserController::class, 'profile']); // Lấy thông tin user đang đăng nhập
+    Route::get('/user/voucher',[UserController::class,'getUserVouchers']); //Lấy thông tin voucher còn được sử dụng của người dùng
+    Route::get('/user/membership',[UserController::class,'membership']); //Lấy thông tin voucher còn được sử dụng của người dùng
+});
+
 
 //Đăng nhập
 
 
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login',[AuthController::class,'login']);
+Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
@@ -296,3 +313,45 @@ Route::patch('showtimes/{showtime}', [ShowtimeController::class, 'update']);
 
 Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
 
+Route::get('showtimespage', [ShowtimeController::class, 'pageShowtime']);
+
+Route::get('showtimemovie', [ShowtimeController::class, 'showtimeMovie']);
+
+Route::get('/showtimes/slug/{slug}', [ShowtimeController::class, 'showBySlug']);
+
+
+
+
+
+
+//Ticket
+Route::apiResource('tickets', TicketController::class);
+
+
+//MovieReview
+
+Route::get('movie-reviews', [MovieReviewController::class, 'index']);
+
+Route::post('movie-reviews', [MovieReviewController::class, 'store']);
+
+Route::get('movie-reviews/{movieReview}', [MovieReviewController::class, 'show']);
+
+Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
+
+Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
+
+Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
+
+//choose-seat
+
+Route::middleware('auth:api')->group(function () {
+    //cập nhật trạng thái của một ghế
+    Route::post('/update-seat', [ChooseSeatController::class, 'updateSeat']);
+
+    //Lưu thông tin đặt ghế của user sau khi họ đã giữ ghế
+    Route::post('save-information/{id}', [ChooseSeatController::class, 'saveInformation'])->name('save-information');
+    //Lấy danh sách ghế và trạng thái của chúng cho một suất chiếu
+    Route::get('choose-seat/{slug}', [ChooseSeatController::class, 'show'])->name('choose-seat');
+
+    Route::get('userHoldSeats/{slug}', [ChooseSeatController::class, 'getUserHoldSeats']);
+});

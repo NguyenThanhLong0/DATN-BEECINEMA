@@ -22,7 +22,6 @@ class Voucher extends Model
     ];
 
     protected $casts=[
-        'type'=>'boolean',
         'is_active'=>'boolean',
     ];
 
@@ -32,7 +31,7 @@ class Voucher extends Model
             ->withPivot('usage_count')
             ->withTimestamps();
     }
-    public function user_voucher()
+    public function user_vouchers()
 {
     return $this->hasMany(UserVoucher::class);
 }

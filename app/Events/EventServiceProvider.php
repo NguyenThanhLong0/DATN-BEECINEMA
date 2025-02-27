@@ -2,9 +2,6 @@
 
 namespace App\Providers;
 
-use App\Events\VerifyEmail;
-use App\Listeners\VerifyEmailNotification;
-use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -18,15 +15,9 @@ class EventServiceProvider extends ServiceProvider
      * @var array<class-string, array<int, class-string>>
      */
     protected $listen = [
-        \App\Events\UserRegistered::class => [
-            \App\Listeners\SendVerificationEmail::class,
+        Registered::class => [
+            SendEmailVerificationNotification::class,
         ],
-        // toi mới thêm ở đây
-        \App\Events\SeatHold::class => [],
-        \App\Events\SeatRelease::class => [],
-        \App\Events\SeatStatusChange::class => [],
-        \App\Events\SeatSold::class => [],
-        \App\Events\ChangeSeat::class => [],
     ];
 
     /**
