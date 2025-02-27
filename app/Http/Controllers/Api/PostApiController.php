@@ -36,7 +36,7 @@ class PostApiController extends Controller
                 'description' => 'required|string',
                 'content'     => 'required|string',
                 'img_post'    => 'nullable|url',
-                'is_active'   => "require|boolean", // Chỉ chấp nhận URL thay vì file ảnh
+                'is_active'   => 'required|boolean', // Chỉ chấp nhận URL thay vì file ảnh
             ]);
             
             $post = Post::create([
@@ -86,23 +86,29 @@ class PostApiController extends Controller
     try {
         $post = Post::findOrFail($id);
 
-        $request->validate([
-            'title'       => 'required|string|max:255',
-            'slug'        => 'required|string|max:255|unique:posts,slug,' . $id,
-            'description' => 'required|string',
-            'content'     => 'required|string',
-            'img_post'    => 'nullable|url', // Chỉ chấp nhận URL thay vì file ảnh
-            'is_active'   => "nullable|boolean",
+        // Xác thực dữ liệu
+        $validated = $request->validate([
+            'title'       => 'sometimes|string|max:255',
+            'slug'        => 'nullable|string|max:255' . $id,
+            'description' => 'sometimes|string',
+            'content'     => 'sometimes|string',
+            'img_post'    => 'nullable|url',
+            'is_active'   => 'sometimes|boolean',
         ]);
+
+        // Nếu có title mới, tạo slug mới
+
+            $slug = Str::slug($validated['title']) ?? $post->slug;
+        
 
         // Cập nhật bài viết
         $post->update([
-            'title'       => $request->title,
-            'slug'        => Str::slug($request->title),
-            'description' => $request->description,
-            'content'     => $request->content,
-            'img_post'    => $request->img_post, // Cập nhật URL ảnh
-            'is_active'   => $request->is_active,
+            'title'       => $validated['title'] ?? $post->title,
+            'slug'        => $slug,
+            'description' => $validated['description'] ?? $post->description,
+            'content'     => $validated['content'] ?? $post->content,
+            'img_post'    => $validated['img_post'] ?? $post->img_post,
+            'is_active'   => $validated['is_active'] ?? $post->is_active,
         ]);
 
         return response()->json(['message' => 'Bài viết đã được cập nhật!', 'post' => $post], 200);
