@@ -26,11 +26,12 @@ class ChooseSeatController extends Controller
     public function show(string $slug)
     {
         // Lấy thông tin suất chiếu
-        $showtime = Showtime::with(['room.cinema', 'room', 'movieVersion', 'movie', 'seats'])
-            ->where('slug', $slug)
-            ->where('is_active', 1)
-            ->first();
-
+        $showtime = Showtime::with(['room.cinema', 'room', 'movieVersion', 'movie', 'seats' => function ($query) {
+            $query->withPivot(['status', 'price', 'user_id', 'hold_expires_at']);
+        }])->where('slug', $slug)
+          ->where('is_active', 1)
+          ->first();
+        
         // Kiểm tra nếu không tìm thấy suất chiếu
         if (!$showtime) {
             return response()->json(['error' => 'Suất chiếu không tồn tại.'], 404);
@@ -77,6 +78,7 @@ class ChooseSeatController extends Controller
                     'status' => $seat->pivot->status,  
                     'price' => $seat->pivot->price, 
                     'user_id' => $seat->pivot->user_id,  
+                    'hold_expires_at' => $seat->pivot->hold_expires_at,
                     'created_at' => $seat->pivot->created_at,  
                     'updated_at' => $seat->pivot->updated_at,
                 ]
@@ -436,45 +438,35 @@ class ChooseSeatController extends Controller
             //  Xác định thời gian hết hạn giữ ghế (10 phút)
             $holdExpiresAt = ($action === 'hold') ? now()->addMinutes(2) : null;
 
-            //  Thực hiện transaction để đảm bảo tính toàn vẹn dữ liệu
-            DB::transaction(function () use ($seatShowtime, $seatId, $showtimeId, $userId, $action, $holdExpiresAt) {
-                if ($action === 'hold' && $seatShowtime->status === 'available') {
-                    //  Giữ ghế
-                    DB::table('seat_showtimes')
-                        ->where('seat_id', $seatId)
-                        ->where('showtime_id', $showtimeId)
-                        ->update([
-                            'status' => 'hold',
-                            'user_id' => $userId,
-                            'hold_expires_at' => $holdExpiresAt,
-                        ]);
-
-                    // Gửi sự kiện realtime để frontend biết ghế đã được giữ
-                    broadcast(new SeatStatusChange($seatId, $showtimeId, 'hold', auth()->id()))->toOthers();
-
-                    //  Gọi job tự động giải phóng ghế sau 10 phút
-                    ReleaseSeatHoldJob::dispatch([$seatId], $showtimeId)->delay(now()->addMinutes(2));
-                } elseif ($action === 'release' && $seatShowtime->status === 'hold' && $seatShowtime->user_id === $userId) {
-                    //  Thả ghế
-                    DB::table('seat_showtimes')
-                        ->where('seat_id', $seatId)
-                        ->where('showtime_id', $showtimeId)
-                        ->update([
-                            'status' => 'available',
-                            'user_id' => null,
-                            'hold_expires_at' => null,
-                        ]);
-
-                    // Gửi sự kiện realtime để frontend biết ghế đã được thả
-                    broadcast(new SeatStatusChange($seatId, $showtimeId, 'available', auth()->id()))->toOthers();
-                }
-            });
-
-            //  Lấy lại thông tin ghế sau khi cập nhật
-            $updatedSeat = SeatShowtime::where('seat_id', $seatId)
-                ->where('showtime_id', $showtimeId)
-                ->first();
-
+        DB::transaction(function () use ($seatShowtime, $seatId, $showtimeId, $userId, $action, $holdExpiresAt) {
+            if ($action === 'hold' && $seatShowtime->status === 'available') {
+                DB::table('seat_showtimes')
+                    ->where('seat_id', $seatId)
+                    ->where('showtime_id', $showtimeId)
+                    ->update([
+                        'status' => 'hold',
+                        'user_id' => $userId,
+                        'hold_expires_at' => $holdExpiresAt,
+                    ]);
+                    dispatch(new BroadcastSeatStatusChange($seatId, $showtimeId,"hold", $userId));
+                    dispatch(new ReleaseSeatHoldJob($seatId, $showtimeId))->delay(now()->addMinutes(10));
+                   
+            } elseif ($action === 'release' && $seatShowtime->status === 'hold' && $seatShowtime->user_id === $userId) {
+                DB::table('seat_showtimes')
+                    ->where('seat_id', $seatId)
+                    ->where('showtime_id', $showtimeId)
+                    ->update([
+                        'status' => 'available',
+                        'user_id' => null,
+                        'hold_expires_at' => null,
+                    ]);
+                    dispatch(new BroadcastSeatStatusChange($seatId, $showtimeId,"available", $userId));
+            }
+        });
+    
+        $updatedSeat = SeatShowtime::where('seat_id', $seatId)
+            ->where('showtime_id', $showtimeId)
+            ->first();
 
             return response()->json([
                 'message' => 'Cập nhật trạng thái ghế thành công.',
