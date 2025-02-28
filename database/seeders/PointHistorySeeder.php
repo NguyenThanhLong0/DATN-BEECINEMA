@@ -21,14 +21,14 @@ class PointHistorySeeder extends Seeder
             PointHistory::create([
                 'membership_id' => $membership->id,
                 'points' => rand(10, 500),
-                'type' => 'tích điểm',
+                'type' => 'Nhận điểm',
             ]);
 
             // Tạo bản ghi "đổi điểm"
             PointHistory::create([
                 'membership_id' => $membership->id,
                 'points' => -rand(5, 100),
-                'type' => 'đổi điểm',
+                'type' => 'Dùng điểm',
             ]);
         }
     }

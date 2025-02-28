@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('membership_id')->constrained()->onDelete('cascade');
             $table->integer('points');
-            $table->enum('type', ['tích điểm', 'đổi điểm']);
+            $table->enum('type', ['Nhận điểm', 'Dùng điểm']);
             $table->timestamps();
         });
     }
