@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
 use App\Http\Controllers\Api\ShowtimeController;
+use App\Http\Controllers\Api\VNPayController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
@@ -357,3 +358,8 @@ Route::middleware('auth:api')->group(function () {
 
     Route::get('userHoldSeats/{slug}', [ChooseSeatController::class, 'getUserHoldSeats']);
 });
+
+//VNPAY
+
+// Route::post('/vnpay/payment', [VNPayController::class, 'createPayment']);
+// Route::get('/vnpay/callback', [VNPayController::class, 'paymentCallback']);
