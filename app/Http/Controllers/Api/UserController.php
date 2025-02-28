@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Membership;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\UserVoucher;
@@ -136,21 +137,35 @@ class UserController extends Controller
     
     }
     public function membership()
-    {
-        $user = Auth::user();
+{
+    $user = Auth::user();
 
-        if (!$user) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
-        $user = User::with([
-            'membership.rank',  
-            'membership.pointHistories' => function ($query) {
-                $query->orderBy('created_at', 'desc')->limit(10);
-            }
-        ])->find($user->id);
-
-        return response()->json($user);
+    if (!$user) {
+        return response()->json(['message' => 'Unauthorized'], 401);
     }
+
+    // Lấy membership kèm theo rank và lịch sử điểm
+    $membership = Membership::with([
+        'rank',
+        'pointHistories' => function ($query) {
+            $query->orderBy('created_at', 'desc')->limit(10);
+        }
+    ])->where('user_id', $user->id)->first();
+
+    if (!$membership) {
+        return response()->json(['message' => 'Membership not found'], 404);
+    }
+
+    // Tính tổng điểm tích lũy và tổng điểm đã tiêu
+    $totalEarnedPoints = $membership->pointHistories->where('type', 'Nhận điểm')->sum('points');
+    $totalSpentPoints = $membership->pointHistories->where('type', 'Dùng điểm')->sum('points');
+
+    // Thêm tổng điểm vào mảng membership
+    $membership->totalEarnedPoints = $totalEarnedPoints;
+    $membership->totalSpentPoints = $totalSpentPoints;
+
+    return response()->json($membership);
+}
+
 
 }
