@@ -78,9 +78,6 @@ class PostApiController extends Controller
         }
     }
 
-    /**
-     * Cập nhật bài viết (PUT/PATCH /api/posts/{id})
-     */
     public function update(Request $request, $id)
 {
     try {
