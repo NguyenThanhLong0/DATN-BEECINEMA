@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\UserVoucher;
 use App\Models\Voucher;
+use App\Models\Membership;
+
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -121,6 +123,7 @@ class UserController extends Controller
                 'vouchers.description',
                 'vouchers.discount',
                 'vouchers.end_date_time',
+                'vouchers.start_date_time',
                 'vouchers.limit',
                 DB::raw('(SELECT SUM(uv.usage_count) FROM user_vouchers uv WHERE uv.voucher_id = user_vouchers.voucher_id) as total_usage'), // Truy vấn con để lấy tổng lượt sử dụng
                 DB::raw('(vouchers.quantity - COALESCE((SELECT SUM(uv.usage_count) FROM user_vouchers uv WHERE uv.voucher_id = user_vouchers.voucher_id), 0)) AS remaining_usage')
@@ -137,6 +140,7 @@ class UserController extends Controller
     
     }
     public function membership()
+
 {
     $user = Auth::user();
 
@@ -154,7 +158,9 @@ class UserController extends Controller
 
     if (!$membership) {
         return response()->json(['message' => 'Membership not found'], 404);
+
     }
+    
 
     // Tính tổng điểm tích lũy và tổng điểm đã tiêu
     $totalEarnedPoints = $membership->pointHistories->where('type', 'Nhận điểm')->sum('points');

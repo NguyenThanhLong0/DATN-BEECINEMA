@@ -26,11 +26,12 @@ class ChooseSeatController extends Controller
     public function show(string $slug)
     {
         // Lấy thông tin suất chiếu
-        $showtime = Showtime::with(['room.cinema', 'room', 'movieVersion', 'movie', 'seats'])
-            ->where('slug', $slug)
-            ->where('is_active', 1)
-            ->first();
-
+        $showtime = Showtime::with(['room.cinema', 'room', 'movieVersion', 'movie', 'seats' => function ($query) {
+            $query->withPivot(['status', 'price', 'user_id', 'hold_expires_at']);
+        }])->where('slug', $slug)
+          ->where('is_active', 1)
+          ->first();
+        
         // Kiểm tra nếu không tìm thấy suất chiếu
         if (!$showtime) {
             return response()->json(['error' => 'Suất chiếu không tồn tại.'], 404);
@@ -77,6 +78,7 @@ class ChooseSeatController extends Controller
                     'status' => $seat->pivot->status,  
                     'price' => $seat->pivot->price, 
                     'user_id' => $seat->pivot->user_id,  
+                    'hold_expires_at' => $seat->pivot->hold_expires_at,
                     'created_at' => $seat->pivot->created_at,  
                     'updated_at' => $seat->pivot->updated_at,
                 ]
@@ -317,6 +319,8 @@ class ChooseSeatController extends Controller
                         'hold_expires_at' => $holdExpiresAt,
                     ]);
                     dispatch(new BroadcastSeatStatusChange($seatId, $showtimeId,"hold", $userId));
+                    dispatch(new ReleaseSeatHoldJob($seatId, $showtimeId))->delay(now()->addMinutes(10));
+                   
             } elseif ($action === 'release' && $seatShowtime->status === 'hold' && $seatShowtime->user_id === $userId) {
                 DB::table('seat_showtimes')
                     ->where('seat_id', $seatId)
