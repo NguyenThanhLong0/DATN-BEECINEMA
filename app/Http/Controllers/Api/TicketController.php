@@ -125,10 +125,14 @@ class TicketController extends Controller
             if ($request->voucher_id) {
                 $voucher = Voucher::find($request->voucher_id);
                 if ($voucher) {
-                    $discount = ($voucher->type == '1')
+                    $discount = ($voucher->type == 'percent')
                         ? ($total_price * $voucher->discount) / 100
                         : min($voucher->discount, $total_price);
                     $total_price -= $discount;
+                    //lưu giá trị discount vào ticket
+                    $ticket->update([
+                        'voucher_discount' => $discount,
+                    ]);
                     $userVoucher = UserVoucher::firstOrCreate(
                         ['user_id' => $user_id, 'voucher_id' => $request->voucher_id],
                         ['usage_count' => 0]
@@ -303,6 +307,11 @@ class TicketController extends Controller
                         ? ($total_price * $voucher->discount) / 100
                         : min($voucher->discount, $total_price);
                     $total_price -= $discount;
+                    //lưu giá trị discount vào ticket
+                    $ticket->update([
+                        'voucher_discount' => $discount,
+                        'voucher_code'=>$voucher->code
+                    ]);
                     $userVoucher = UserVoucher::firstOrCreate(
                         ['user_id' => $request->user_id, 'voucher_id' => $request->voucher_id],
                         ['usage_count' => 0]
