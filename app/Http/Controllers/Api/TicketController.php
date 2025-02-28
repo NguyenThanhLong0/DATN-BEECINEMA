@@ -132,6 +132,7 @@ class TicketController extends Controller
                     //lưu giá trị discount vào ticket
                     $ticket->update([
                         'voucher_discount' => $discount,
+                        'voucher_code'=>$voucher->code
                     ]);
                     $userVoucher = UserVoucher::firstOrCreate(
                         ['user_id' => $user_id, 'voucher_id' => $request->voucher_id],
