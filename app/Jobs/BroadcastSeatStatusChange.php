@@ -9,7 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-
+use Illuminate\Support\Facades\Log;
 class BroadcastSeatStatusChange implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -24,8 +24,11 @@ class BroadcastSeatStatusChange implements ShouldQueue
         $this->userId = $userId;
     }
 
+ 
+
     public function handle()
     {
             broadcast(new SeatStatusChange($this->seatId, $this->showtimeId, $this->status, $this->userId))->toOthers();
     }
+    
 }

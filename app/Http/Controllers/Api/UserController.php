@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\UserVoucher;
 use App\Models\Voucher;
+use App\Models\Membership;
+
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Exception;
@@ -139,19 +141,29 @@ class UserController extends Controller
     public function membership()
     {
         $user = Auth::user();
-
+    
         if (!$user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
-
-        $user = User::with([
-            'membership.rank',  
-            'membership.pointHistories' => function ($query) {
+    
+        // Lấy Membership trước
+        $membership = Membership::with([
+            'rank',
+            'pointHistories' => function ($query) {
                 $query->orderBy('created_at', 'desc')->limit(10);
             }
-        ])->find($user->id);
-
-        return response()->json($user);
+        ])->where('user_id', $user->id)->first();
+    
+        if (!$membership) {
+            return response()->json(['message' => 'Membership not found'], 404);
+        }
+    
+       
+        return response()->json(
+           $membership,
+           
+        );
     }
+    
 
 }
