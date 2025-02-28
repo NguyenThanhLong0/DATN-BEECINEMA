@@ -328,7 +328,7 @@ Route::get('/showtimes/slug/{slug}', [ShowtimeController::class, 'showBySlug']);
 
 //Ticket
 Route::apiResource('tickets', TicketController::class);
-
+Route::middleware('auth:api')->post('/tickets', [TicketController::class, 'store']);
 
 //MovieReview
 
