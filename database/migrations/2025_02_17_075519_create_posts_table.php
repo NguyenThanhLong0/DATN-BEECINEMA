@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('img_post')->nullable(); // Ảnh bài viết, có thể null
             $table->text('description'); // Mô tả ngắn
             $table->longText('content'); // Nội dung bài viết
-            $table->boolean('is_active')->default(1); // Trạng thái bài viết
+            $table->boolean('is_active'); // Trạng thái bài viết
             $table->integer('view_count')->default(0); // Lượt xem
             $table->timestamps(); // Tạo 2 cột created_at và updated_at
 

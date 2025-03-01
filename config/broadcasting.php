@@ -37,11 +37,11 @@ return [
         'app_id' => env('PUSHER_APP_ID'),
         'options' => [
             'cluster' => env('PUSHER_CLUSTER', 'mt1'), // Có thể bỏ nếu dùng Laravel WebSockets
-            'useTLS' => env('PUSHER_SCHEME') === 'https',
+            'useTLS' => env('PUSHER_SCHEME', 'http') === 'https',
             'host' => env('PUSHER_HOST', '127.0.0.1'),
             'port' => env('PUSHER_PORT', 6001),
             'scheme' => env('PUSHER_SCHEME', 'http'),
-            'encrypted' => false,
+            'encrypted' => env('PUSHER_SCHEME', 'http') === 'https',
         ],
     ],
 

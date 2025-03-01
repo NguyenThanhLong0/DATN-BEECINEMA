@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Combo;
+use App\Models\Ticket;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -11,11 +13,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('point_histories', function (Blueprint $table) {
+        Schema::create('ticket_combos', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('membership_id')->constrained()->onDelete('cascade');
-            $table->integer('points');
-            $table->enum('type', ['Nhận điểm', 'Dùng điểm']);
+            $table->foreignIdFor(Ticket::class)->constrained();
+            $table->foreignIdFor(Combo::class)->constrained();
+            $table->unsignedInteger('price');
+            $table->unsignedInteger('quantity');
             $table->timestamps();
         });
     }
@@ -25,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('point_histories');
+        Schema::dropIfExists('ticket_combos');
     }
 };
