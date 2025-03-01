@@ -357,3 +357,6 @@ Route::middleware('auth:api')->group(function () {
 
     Route::get('userHoldSeats/{slug}', [ChooseSeatController::class, 'getUserHoldSeats']);
 });
+
+//update-seatHold
+Route::middleware('auth:sanctum')->post('/updateSeatHoldtime', [ShowtimeController::class, 'updateSeatHoldTime']);
