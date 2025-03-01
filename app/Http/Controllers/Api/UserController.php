@@ -8,8 +8,6 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\UserVoucher;
 use App\Models\Voucher;
-use App\Models\Membership;
-
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Exception;
