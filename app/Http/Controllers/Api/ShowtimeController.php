@@ -1113,7 +1113,6 @@ class ShowtimeController extends Controller
                 return response()->json(['error' => 'Bạn chưa đăng nhập'], 401);
             }
 
-            // Lấy dữ liệu từ request
             $showtimeId = $request->input('showtime_id');
             $additionalMinutes = (int) $request->input('minutes', 0);
 
@@ -1121,26 +1120,45 @@ class ShowtimeController extends Controller
                 return response()->json(['error' => 'Dữ liệu không hợp lệ'], 400);
             }
 
-            // Lấy danh sách ghế mà user đang giữ
             $seats = SeatShowtime::where('showtime_id', $showtimeId)
                 ->where('user_id', $user->id)
                 ->where('status', 'hold')
+                ->lockForUpdate() // Tránh xung đột cập nhật
                 ->get();
 
             if ($seats->isEmpty()) {
                 return response()->json(['message' => 'Không tìm thấy ghế nào đang giữ'], 404);
             }
 
-            // Cập nhật thời gian giữ ghế
-            $now = now();
-            foreach ($seats as $seat) {
-                $newHoldTime = Carbon::parse($seat->hold_until)->addMinutes($additionalMinutes);
-                $seat->update(['hold_until' => $newHoldTime]);
-            }
+            $updatedSeats = [];
+            DB::transaction(function () use ($seats, $additionalMinutes, &$updatedSeats) {
+                foreach ($seats as $seat) {
+                    // Lấy giá trị cũ trước khi cập nhật
+                    $oldHoldTime = $seat->hold_expires_at ? Carbon::parse($seat->hold_expires_at) : now();
+                    $newHoldTime = $oldHoldTime->copy()->addMinutes($additionalMinutes);
+
+                    // Cập nhật trong database
+                    $updated = DB::table('seat_showtimes')
+                        ->where('seat_id', $seat->seat_id)
+                        ->where('showtime_id', $seat->showtime_id)
+                        ->update([
+                            'hold_expires_at' => $newHoldTime,
+                            'updated_at' => now(),
+                        ]);
+
+                    if ($updated) {
+                        $updatedSeats[] = [
+                            'seat_id' => $seat->seat_id,
+                            'old_hold_expires_at' => $oldHoldTime->format('Y-m-d H:i:s'),
+                            'new_hold_expires_at' => $newHoldTime->format('Y-m-d H:i:s')
+                        ];
+                    }
+                }
+            });
 
             return response()->json([
                 'message' => 'Cập nhật thời gian giữ ghế thành công',
-                'new_hold_time' => $newHoldTime->format('Y-m-d H:i:s')
+                'updated_seats' => $updatedSeats
             ], 200);
         } catch (\Throwable $th) {
             return response()->json(['error' => 'Lỗi khi cập nhật thời gian giữ ghế', 'message' => $th->getMessage()], 500);
