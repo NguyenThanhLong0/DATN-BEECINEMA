@@ -132,7 +132,7 @@ class TicketController extends Controller
                     //lưu giá trị discount vào ticket
                     $ticket->update([
                         'voucher_discount' => $discount,
-                        'voucher_code'=>$voucher->code
+                        'voucher_code' => $voucher->code
                     ]);
                     $userVoucher = UserVoucher::firstOrCreate(
                         ['user_id' => $user_id, 'voucher_id' => $request->voucher_id],
@@ -311,7 +311,7 @@ class TicketController extends Controller
                     //lưu giá trị discount vào ticket
                     $ticket->update([
                         'voucher_discount' => $discount,
-                        'voucher_code'=>$voucher->code
+                        'voucher_code' => $voucher->code
                     ]);
                     $userVoucher = UserVoucher::firstOrCreate(
                         ['user_id' => $request->user_id, 'voucher_id' => $request->voucher_id],
@@ -341,8 +341,8 @@ class TicketController extends Controller
                 ]);
             }
 
-            $ticket->update(['total_price' => $total_price]);//cập nhật lại tổng tiền vé
-            $membership->increment('total_spent', $total_price);//cập nhật lại số tiền mà khách đa chi tiêu
+            $ticket->update(['total_price' => $total_price]); //cập nhật lại tổng tiền vé
+            $membership->increment('total_spent', $total_price); //cập nhật lại số tiền mà khách đa chi tiêu
             // cập nhật rank của thành viên dựa trên số tiền khách đã chi tiêu
             $rank = Rank::where('total_spent', '<=', $membership->total_spent)
                 ->orderBy('total_spent', 'desc')
@@ -377,5 +377,60 @@ class TicketController extends Controller
             ], 500);
         }
     }
-}
+    // lịch sử đặt vé của người dùng
+    public function getBookingHistory(Request $request)
+    {
+        try {
+            // Lấy user_id từ token
+            $user = auth()->user();
+            if (!$user) {
+                return response()->json(['message' => 'Unauthorized'], 401);
+            }
 
+            $user_id = $user->id;
+
+            // Lấy danh sách vé của người dùng
+            $tickets = Ticket::where('user_id', $user_id)
+                ->with([
+                    'seats' => function ($query) {
+                        $query->select('ticket_id', 'seat_id', 'price')
+                            ->with('seat:id,name');
+                    },
+                    'combos' => function ($query) {
+                        $query->select('ticket_id', 'combo_id', 'price', 'quantity')
+                            ->with('combo:id,name');
+                    },
+                    'movie:id,name,duration,img_thumbnail', //lấy ra tên và thời lượng phim
+                    'room:id,name',
+                    'showtime:id,start_time,end_time',
+                    'voucher:id,code,type,discount',
+                ])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($ticket) {
+                // Tính tổng tiền ghế
+                $ticket->total_seat_price = $ticket->seats->sum('price');
+
+                // Tính tổng tiền combo
+                $totalComboPrice = 0;
+                foreach ($ticket->combos as $combo) {
+                    $totalComboPrice += $combo->price * $combo->quantity;
+                }
+                
+                $ticket->total_combo_price = $totalComboPrice;
+
+                return $ticket;
+            });
+
+            return response()->json([
+                'message' => 'Lịch sử đặt vé',
+                'data' => $tickets,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Lỗi khi lấy lịch sử đặt vé!',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+}
