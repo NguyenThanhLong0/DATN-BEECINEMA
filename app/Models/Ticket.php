@@ -25,6 +25,16 @@ class Ticket extends Model {
             }
         });
     }
+    //quan hệ với ticket_seat
+    public function seats()
+    {
+        return $this->hasMany(Ticket_Seat::class, 'ticket_id');
+    }
+     //  Quan hệ với bảng `ticket_combos`
+     public function combos()
+     {
+         return $this->hasMany(Ticket_Combo::class, 'ticket_id');
+     }
 
     // Quan hệ với User
     public function user() {
@@ -45,6 +55,12 @@ class Ticket extends Model {
 
     public function showtime() {
         return $this->belongsTo(Showtime::class);
+    }
+
+    //  Quan hệ với bảng `vouchers`
+    public function voucher()
+    {
+        return $this->belongsTo(Voucher::class, 'voucher_code', 'code');
     }
 }
 ?>

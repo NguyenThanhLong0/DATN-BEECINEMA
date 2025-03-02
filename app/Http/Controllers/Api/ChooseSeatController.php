@@ -403,10 +403,30 @@ class ChooseSeatController extends Controller
                 ->lockForUpdate()
                 ->first();
 
+            // Kiểm tra nếu ghế không tồn tại hoặc bị vô hiệu hóa
             if (!$seatShowtime) {
                 return response()->json(['error' => 'Ghế không tồn tại hoặc đã bị vô hiệu hóa.'], 404);
             }
 
+            //  Kiểm tra nếu ghế đã hết thời gian giữ
+            if ($seatShowtime->status === 'hold' && $seatShowtime->hold_expires_at <= now()) {
+                // Cập nhật lại trạng thái của ghế nếu thời gian giữ đã hết
+                DB::table('seat_showtimes')
+                    ->where('seat_id', $seatId)
+                    ->where('showtime_id', $showtimeId)
+                    ->update([
+                        'status' => 'available',
+                        'user_id' => null,
+                        'hold_expires_at' => null,
+                    ]);
+
+                // Gửi sự kiện realtime để frontend cập nhật UI
+                broadcast(new SeatStatusChange($seatId, $showtimeId, 'available', auth()->id()))->toOthers();
+
+                return response()->json(['message' => 'Ghế đã hết thời gian giữ và chuyển sang trạng thái có sẵn.']);
+            }
+
+            //  Kiểm tra nếu ghế đã bị giữ bởi người khác
             if ($action === 'hold' && $seatShowtime->status === 'hold' && $seatShowtime->user_id !== $userId) {
                 return response()->json([
                     'error' => 'Ghế này đã có người khác giữ. Vui lòng chọn ghế khác.',
@@ -415,7 +435,8 @@ class ChooseSeatController extends Controller
                 ], 409);
             }
 
-            $holdExpiresAt = ($action === 'hold') ? now()->addMinutes(10) : null;
+            //  Xác định thời gian hết hạn giữ ghế (10 phút)
+            $holdExpiresAt = ($action === 'hold') ? now()->addMinutes(2) : null;
 
         DB::transaction(function () use ($seatShowtime, $seatId, $showtimeId, $userId, $action, $holdExpiresAt) {
             if ($action === 'hold' && $seatShowtime->status === 'available') {

@@ -330,7 +330,8 @@ Route::get('/showtimes/slug/{slug}', [ShowtimeController::class, 'showBySlug']);
 //Ticket
 Route::apiResource('tickets', TicketController::class);
 Route::middleware('auth:api')->post('/tickets', [TicketController::class, 'store']);
-
+//
+Route::middleware('auth:sanctum')->get('/booking-history', [TicketController::class, 'getBookingHistory']);
 //MovieReview
 
 Route::get('movie-reviews', [MovieReviewController::class, 'index']);
@@ -359,7 +360,5 @@ Route::middleware('auth:api')->group(function () {
     Route::get('userHoldSeats/{slug}', [ChooseSeatController::class, 'getUserHoldSeats']);
 });
 
-//VNPAY
-
-// Route::post('/vnpay/payment', [VNPayController::class, 'createPayment']);
-// Route::get('/vnpay/callback', [VNPayController::class, 'paymentCallback']);
+//update-seatHold
+Route::middleware('auth:sanctum')->post('/updateSeatHoldtime', [ShowtimeController::class, 'updateSeatHoldTime']);
