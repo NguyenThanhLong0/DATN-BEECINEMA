@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ChooseSeatController;
+use App\Http\Controllers\Api\PaymentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -362,3 +363,11 @@ Route::middleware('auth:api')->group(function () {
 
 //update-seatHold
 Route::middleware('auth:sanctum')->post('/updateSeatHoldtime', [ShowtimeController::class, 'updateSeatHoldTime']);
+//VNPAY
+route::post('payment', [PaymentController::class, 'payment'])->name('payment');
+route::post('payment-admin', [PaymentController::class, 'paymentAdmin'])->name('payment-admin');
+
+// Cổng thanh toán
+//1 VNPAY
+Route::get('vnpay-payment', [PaymentController::class, 'vnPayPayment'])->name('vnpay.payment');
+Route::get('vnpay-return', [PaymentController::class, 'returnVnpay'])->name('vnpay.return');
