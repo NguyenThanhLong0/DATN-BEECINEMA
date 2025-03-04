@@ -49,7 +49,7 @@ return [
     */
 
     'encrypt' => false,
-'expiration' => 1,
+    'expiration' => 1,
     /*
     |--------------------------------------------------------------------------
     | Session File Location
