@@ -18,7 +18,6 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
@@ -47,13 +46,12 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         // Lưu token vào cookie (24 giờ)
-        $cookie = cookie('auth_token', $token, 60, '/', null, true, true);
+        $cookie = cookie('auth_token', $token, 1, '/', null, true, true);
 
         return response()->json([
             'message' => 'Đăng nhập thành công',
             'user' => $user
-        ])->cookie($cookie)
-        ->cookie(cookie('expires_at', $token, 60, '/', null, true, false));
+        ])->cookie($cookie);
     } catch (\Exception $e) {
         return response()->json([
             'error' => 'Login failed',
@@ -127,8 +125,6 @@ class AuthController extends Controller
             // Xóa cookie trên trình duyệt
             return response()->json(['message' => 'Successfully logged out'], 200)
                              ->withCookie(cookie()->forget('laravel_session'))
-                             ->withCookie(cookie()->forget('auth_token'))
-                             ->withCookie(cookie()->forget('expires_at'))
                              ->withCookie(cookie()->forget('XSRF-TOKEN'));
         } catch (\Exception $e) {
             return response()->json([
@@ -307,17 +303,14 @@ class AuthController extends Controller
     
             // Tạo token với Sanctum
             $token = $user->createToken('auth_token')->plainTextToken;
-            Log::info($user);
+    
             // Lưu token vào cookie (24 giờ)
             $cookie = cookie('auth_token', $token, 1440, '/', null, true, true);
-
+    
             return response()->json([
-                'cookie'=>$cookie,
-                'token'=>$token,
                 'message' => 'Đăng nhập thành công',
                 'user' => $user
-            ])->cookie($cookie)
-            ->cookie(cookie('expires_at', $token, 60, '/', null, true, false));
+            ])->cookie($cookie);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
