@@ -291,7 +291,7 @@ Route::post('/change-password', [AuthController::class, 'changePassword'])->midd
 
 //Đăng nhập bằng GG 
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
-Route::get('/auth/callback', [AuthController::class, 'handleGoogleCallback']);
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
 
 // banners
 Route::get('banners',               [BannerController::class, 'index'])->name('banners.index');
