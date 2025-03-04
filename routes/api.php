@@ -270,12 +270,12 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 });
 
 //user
-Route::middleware('auth:sanctum')->group(function(){
-    Route::get('/profile', [UserController::class, 'profile']); 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/profile', [UserController::class, 'profile']);
     // Lấy thông tin user đang đăng nhập
-    Route::get('/user/membership',[UserController::class,'membership']); 
+    Route::get('/user/membership', [UserController::class, 'membership']);
     //Lấy thông tin voucher còn được sử dụng của người dùng
-    Route::get('/user/vouchers',[UserController::class,'getUserVouchers']); 
+    Route::get('/user/vouchers', [UserController::class, 'getUserVouchers']);
 });
 
 
@@ -364,10 +364,17 @@ Route::middleware('auth:api')->group(function () {
 //update-seatHold
 Route::middleware('auth:sanctum')->post('/updateSeatHoldtime', [ShowtimeController::class, 'updateSeatHoldTime']);
 //VNPAY
-route::post('payment', [PaymentController::class, 'payment'])->name('payment');
-route::post('payment-admin', [PaymentController::class, 'paymentAdmin'])->name('payment-admin');
 
-// Cổng thanh toán
-//1 VNPAY
-Route::get('vnpay-payment', [PaymentController::class, 'vnPayPayment'])->name('vnpay.payment');
+
+Route::middleware('auth:sanctum')->group(function () {
+    route::post('payment', [PaymentController::class, 'payment'])->name('payment');
+
+    // Cổng thanh toán VNPAY (yêu cầu auth)
+    Route::get('vnpay-payment', [PaymentController::class, 'vnPayPayment'])->name('vnpay.payment');
+});
+
+Route::post('/zalopay/callback', [PaymentController::class, 'zalopayCallback']);
+
+Route::post('/zalopay/payment', [PaymentController::class, 'createPayment']);
+
 Route::get('vnpay-return', [PaymentController::class, 'returnVnpay'])->name('vnpay.return');
