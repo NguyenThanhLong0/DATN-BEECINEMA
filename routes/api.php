@@ -18,10 +18,12 @@ use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
 use App\Http\Controllers\Api\ShowtimeController;
+use App\Http\Controllers\Api\VNPayController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ChooseSeatController;
+use App\Http\Controllers\Api\PaymentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -268,12 +270,12 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 });
 
 //user
-Route::middleware('auth:sanctum')->group(function(){
-    Route::get('/profile', [UserController::class, 'profile']); 
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/profile', [UserController::class, 'profile']);
     // Lấy thông tin user đang đăng nhập
-    Route::get('/user/membership',[UserController::class,'membership']); 
+    Route::get('/user/membership', [UserController::class, 'membership']);
     //Lấy thông tin voucher còn được sử dụng của người dùng
-    Route::get('/user/vouchers',[UserController::class,'getUserVouchers']); 
+    Route::get('/user/vouchers', [UserController::class, 'getUserVouchers']);
 });
 
 
@@ -364,3 +366,18 @@ Route::middleware('auth:api')->group(function () {
 
 //update-seatHold
 Route::middleware('auth:sanctum')->post('/updateSeatHoldtime', [ShowtimeController::class, 'updateSeatHoldTime']);
+//VNPAY
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    route::post('payment', [PaymentController::class, 'payment'])->name('payment');
+
+    // Cổng thanh toán VNPAY (yêu cầu auth)
+    Route::get('vnpay-payment', [PaymentController::class, 'vnPayPayment'])->name('vnpay.payment');
+});
+
+Route::post('/zalopay/callback', [PaymentController::class, 'zalopayCallback']);
+
+Route::post('/zalopay/payment', [PaymentController::class, 'createPayment']);
+
+Route::get('vnpay-return', [PaymentController::class, 'returnVnpay'])->name('vnpay.return');
