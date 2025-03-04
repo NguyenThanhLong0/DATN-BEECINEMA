@@ -18,45 +18,49 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
     public function login(Request $request)
-    {
-        try {
-            // Validate input
-            $request->validate([
-                'email' => 'required|email',
-                'password' => 'required'
-            ]);
+{
+    try {
+        // Validate input
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required'
+        ]);
 
-            // Find user by email
-            $user = User::where('email', $request->email)->first();
-
-            // Check if user exists and password matches
-            if (!$user || !Hash::check($request->password, $user->password)) {
-                return response()->json(['error' => 'Unauthorized'], 401);
-            }
-
-            // Delete old tokens if necessary
-            $user->tokens()->delete();
-
-            // Create a new token
-            $token = $user->createToken('authToken')->plainTextToken;
-
-            return response()->json([
-                'user' => $user,
-                'token' => $token
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Login failed',
-                'message' => $e->getMessage(),
-            ], 500);
+        // Kiểm tra đăng nhập
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            return response()->json(['error' => 'Unauthorized'], 401);
         }
-    }
 
+        // Lấy user sau khi đăng nhập thành công
+        $user = Auth::user();
+
+        // Xóa token cũ nếu cần
+        $user->tokens()->delete();
+
+        // Tạo token mới
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Lưu token vào cookie (24 giờ)
+        $cookie = cookie('auth_token', $token, 60, '/', null, true, true);
+
+        return response()->json([
+            'message' => 'Đăng nhập thành công',
+            'user' => $user
+        ])->cookie($cookie)
+        ->cookie(cookie('expires_at', $token, 60, '/', null, true, false));
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Login failed',
+            'message' => $e->getMessage(),
+        ], 500);
+    }
+}
     public function register(Request $request)
     {
         DB::beginTransaction();
@@ -112,8 +116,20 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         try {
+            // Xóa token nếu dùng Sanctum
             $request->user()->tokens()->delete();
-            return response()->json(['message' => 'Successfully logged out']);
+    
+            // Xóa session
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+    
+            // Xóa cookie trên trình duyệt
+            return response()->json(['message' => 'Successfully logged out'], 200)
+                             ->withCookie(cookie()->forget('laravel_session'))
+                             ->withCookie(cookie()->forget('auth_token'))
+                             ->withCookie(cookie()->forget('expires_at'))
+                             ->withCookie(cookie()->forget('XSRF-TOKEN'));
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Logout failed',
@@ -121,6 +137,9 @@ class AuthController extends Controller
             ], 500);
         }
     }
+    
+    
+    
 
     public function forgotPassword(Request $request)
     {
@@ -250,44 +269,57 @@ class AuthController extends Controller
     
 
     public function handleGoogleCallback()
-{
-    try {
-        // Lấy thông tin người dùng từ Google
-        $googleUser = Socialite::driver('google')->stateless()->user();
+    {
+        try {
+            if (!request()->has('code')) {
+                return response()->json(['error' => 'Missing Google auth code'], 400);
+            }
+            // Lấy thông tin người dùng từ Google
+            $googleUser = Socialite::driver('google')->stateless()->user();
+    
+            // Kiểm tra xem user đã tồn tại chưa
+            $user = User::where('email', $googleUser->getEmail())->first();
+    
+            // Nếu chưa có thì tạo mới
+            $rank = Rank::where('is_default', true)->first();
+            if (!$user) {
+                $user = User::create([
+                    'name' => $googleUser->getName(),
+                    'email' => $googleUser->getEmail(),
+                    'google_id' => $googleUser->getId(),
+                    'avatar' => $googleUser->getAvatar(),
+                    'password' => bcrypt('randompassword'), // Mật khẩu ngẫu nhiên
+                    'email_verified_at' => Carbon::now()
+                ]);
+    
+                Membership::create([
+                    'user_id' => $user->id,
+                    'rank_id' => $rank->id,
+                    'code' => str_pad($user->id, 12, '0', STR_PAD_LEFT),
+                    'points' => 0,
+                    'total_spent' => 0,
+                ]);
+            }
+    
+            // Đăng nhập user
+            Auth::login($user);
+            request()->session()->regenerate(); // Tạo session mới
+    
+            // Tạo token với Sanctum
+            $token = $user->createToken('auth_token')->plainTextToken;
+            Log::info($user);
+            // Lưu token vào cookie (24 giờ)
+            $cookie = cookie('auth_token', $token, 1440, '/', null, true, true);
 
-        // Kiểm tra xem user đã tồn tại chưa
-        $user = User::where('email', $googleUser->getEmail())->first();
-
-        // Nếu chưa có thì tạo mới
-        $rank=Rank::where('is_default',true)->first();
-        if (!$user) {
-            $user = User::create([
-                'name' => $googleUser->getName(),
-                'email' => $googleUser->getEmail(),
-                'google_id' => $googleUser->getId(),
-                'avatar' =>$googleUser->getAvatar(),
-                'password' => bcrypt('randompassword'), // Mật khẩu ngẫu nhiên
-                'email_verified_at'=> Carbon::now()
-            ]);
-            Membership::create([
-                'user_id' => $user->id,
-                'rank_id'=>$rank->is_default,
-                'code'=>str_pad($user->id, 12, '0', STR_PAD_LEFT),
-                'points'=>0,
-                'total_spent'=>0,
-            ]);
+            return response()->json([
+                'cookie'=>$cookie,
+                'token'=>$token,
+                'message' => 'Đăng nhập thành công',
+                'user' => $user
+            ])->cookie($cookie)
+            ->cookie(cookie('expires_at', $token, 60, '/', null, true, false));
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        // Tạo token đăng nhập
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => $user
-        ]);
-    } catch (\Exception $e) {
-        return response()->json(['error' => $e->getMessage()], 500);
     }
-}
 }

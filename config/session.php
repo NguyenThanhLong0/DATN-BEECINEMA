@@ -18,7 +18,9 @@ return [
     |
     */
 
-    'driver' => env('SESSION_DRIVER', 'file'),
+'driver' => env('SESSION_DRIVER', 'cookie'),
+
+    
 
     /*
     |--------------------------------------------------------------------------
@@ -47,7 +49,7 @@ return [
     */
 
     'encrypt' => false,
-
+    'expiration' => 1,
     /*
     |--------------------------------------------------------------------------
     | Session File Location
@@ -155,7 +157,7 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    'domain' => env('SESSION_DOMAIN',null),
 
     /*
     |--------------------------------------------------------------------------
@@ -168,7 +170,7 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    'secure' => env('SESSION_SECURE_COOKIE',false),
 
     /*
     |--------------------------------------------------------------------------
