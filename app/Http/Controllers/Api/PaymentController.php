@@ -173,6 +173,8 @@ class PaymentController extends Controller
     // thêm total_price
     public function payment(Request $request)
     {
+        
+
         // Xác thực dữ liệu đầu vào
         $request->validate([
             'seat_id' => 'required|array',
@@ -185,11 +187,11 @@ class PaymentController extends Controller
             'use_points' => 'nullable|integer|min:0',
             'total_price' => 'required|numeric|min:10000', // Tổng tiền còn lại
         ]);
-
+        Log::info('Dữ liệu seatIds:', $request->seat_id);
         $userId = auth()->id();
         $showtime = Showtime::findOrFail($request->showtime_id);
         $seatIds = $request->seat_id;
-
+       
         // Kiểm tra trạng thái ghế
         $seatShowtimes = DB::table('seat_showtimes')
             ->whereIn('seat_id', $seatIds)
@@ -199,6 +201,45 @@ class PaymentController extends Controller
         foreach ($seatShowtimes as $seat) {
             if ($seat->hold_expires_at < now() || $seat->user_id != $userId || $seat->status != 'hold') {
                 return response()->json(['error' => 'Một hoặc nhiều ghế không hợp lệ.'], 400);
+            }
+        }
+
+         // Xác định thời gian giữ ghế theo phương thức thanh toán
+         $holdTime = now();
+         if ($request->payment_name == 'VNPAY' || $request->payment_name == 'ZALOPAY') {
+             $holdTime = now()->addMinutes(15); // Giữ ghế 15 phút cho VNPAY và ZALOPAY
+         } elseif ($request->payment_name == 'MOMO') {
+             $holdTime = now()->addMinutes(10); // Giữ ghế 10 phút cho MOMO
+         } else {
+             // Thêm các phương thức thanh toán khác
+             $holdTime = now()->addMinutes(15); // Mặc định là 15 phút
+         }
+ 
+         // Cập nhật trạng thái ghế và thời gian giữ ghế cho tất cả ghế trong yêu cầu thanh toán
+         DB::table('seat_showtimes')
+             ->whereIn('seat_id', $seatIds)
+             ->where('showtime_id', $showtime->id)
+             ->update([
+                 'status' => 'hold',
+                 'hold_expires_at' => $holdTime, // Cập nhật thời gian giữ ghế
+                 'user_id' => $userId,
+             ]);
+ 
+
+        //  Thêm job để tự động giải phóng ghế sau 15 phút nếu chưa thanh toán
+        foreach ($seatIds as $seatId) {
+            ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay(now()->addMinutes(15));
+        }
+
+        // Tính toán giá vé và combo
+        $priceSeat = $seatShowtimes->sum('price');
+        $priceCombo = 0;
+        if ($request->combo) {
+            foreach ($request->combo as $comboId => $quantity) {
+                if ($quantity > 0) {
+                    $combo = Combo::findOrFail($comboId);
+                    $priceCombo += ($combo->price_sale ?? $combo->price) * $quantity;
+                }
             }
         }
 
@@ -220,34 +261,31 @@ class PaymentController extends Controller
         Log::info("Tổng tiền thanh toán đã gửi từ frontend: $totalPayment");
 
         // Tạo mã đơn hàng
-        $orderCode = date("ymd") . "_" . uniqid();
+        $orderCode = date("ymd") . "_" . uniqid();       
 
-        // Xác định thời gian giữ ghế theo phương thức thanh toán
-        $holdTime = now();
-        if ($request->payment_name == 'VNPAY' || $request->payment_name == 'ZALOPAY') {
-            $holdTime = now()->addMinutes(15); // Giữ ghế 15 phút cho VNPAY và ZALOPAY
-        } elseif ($request->payment_name == 'MOMO') {
-            $holdTime = now()->addMinutes(10); // Giữ ghế 10 phút cho MOMO
-        } else {
-            $holdTime = now()->addMinutes(15); // Mặc định là 15 phút
-        }
-
-        // Cập nhật trạng thái ghế và thời gian giữ ghế cho tất cả ghế trong yêu cầu thanh toán
-        DB::table('seat_showtimes')
-            ->whereIn('seat_id', $seatIds)
-            ->where('showtime_id', $showtime->id)
-            ->update([
-                'status' => 'hold',
-                'hold_expires_at' => $holdTime,
+        //log
+        Log::info("Lưu đơn hàng vào Cache: payment_{$orderCode}", [
+            'data' => [
                 'user_id' => $userId,
-            ]);
+                'cinema_id' => $showtime->cinema_id,
+                'room_id' => $showtime->room_id,
+                'movie_id' => $showtime->movie_id,
+                'showtime_id' => $showtime->id,
+                'voucher_code' => $voucher->code ?? null,
+                'voucher_discount' => $voucherDiscount,
+                'point_use' => $pointUsed,
+                'point_discount' => $pointDiscount,
+                'payment_name' => $request->payment_name,
+                'code' => $orderCode,
+                'total_price' => $totalPayment,
+                'expiry' => $showtime->end_time,
+                'seats' => $seatIds,
+                'combos' => $request->combo ?? [],
+            ]
+        ]);
 
-        // Thêm job để tự động giải phóng ghế sau 15 phút nếu chưa thanh toán
-        foreach ($seatIds as $seatId) {
-            ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay(now()->addMinutes(15));
-        }
+        // Lưu vào cache
 
-        // Log vào cache
         Cache::put("payment_{$orderCode}", [
             'user_id' => $userId,
             'cinema_id' => $showtime->cinema_id,
@@ -329,7 +367,7 @@ class PaymentController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'paymentUrl' => $paymentUrl
+            'payment_url' => $paymentUrl
         ]);
     }
 
@@ -394,12 +432,12 @@ class PaymentController extends Controller
                     }
                 }
 
-                //  Cập nhật trạng thái ghế thành "booker"
+                //  Cập nhật trạng thái ghế thành "booked"
                 DB::table('seat_showtimes')
                     ->whereIn('seat_id', $paymentData['seats'])
                     ->where('showtime_id', $paymentData['showtime_id'])
                     ->update([
-                        'status' => 'booker',
+                        'status' => 'booked',
                         'user_id' => $paymentData['user_id'],
                         'updated_at' => now()
                     ]);
@@ -440,9 +478,9 @@ class PaymentController extends Controller
             });
 
             Cache::forget("payment_{$vnp_TxnRef}");
-
-            return response()->json(['message' => 'Thanh toán thành công!', 'order_code' => $paymentData['code']]);
-        }
+            
+            return redirect(env('FRONTEND_URL') . "/thanks/{$paymentData['code']}?status=success");
+        };
 
         return response()->json(['error' => 'Thanh toán thất bại.'], 400);
     }
@@ -478,7 +516,7 @@ class PaymentController extends Controller
         // Embed data (tùy chỉnh)
         $embeddata = [
             "merchantinfo" => "embeddata123",
-            "redirecturl" => "http://127.0.0.1:8000"
+            "redirecturl" => "http://localhost:5173/thanks/{$paymentData['code']}?status=success"
         ];
 
         // Danh sách sản phẩm
@@ -532,9 +570,7 @@ class PaymentController extends Controller
         return response()->json([
             "status" => "success",
             "zp_trans_token" => $responseData["zp_trans_token"],
-            "order_url" => $responseData["order_url"],
-            "cashier_order_url" => $responseData["cashier_order_url"],
-            "qr_code" => $responseData["qr_code"]
+            "payment_url" => $responseData["order_url"],
         ]);
     }
 
@@ -626,12 +662,13 @@ class PaymentController extends Controller
                                 }
                             }
 
-                            //  Cập nhật trạng thái ghế thành "booker"
+                            //  **Cập nhật trạng thái ghế thành "booked"**
+
                             DB::table('seat_showtimes')
                                 ->whereIn('seat_id', $paymentData['seats'])
                                 ->where('showtime_id', $paymentData['showtime_id'])
                                 ->update([
-                                    'status' => 'booker',
+                                    'status' => 'booked',
                                     'user_id' => $paymentData['user_id'],
                                     'updated_at' => now()
                                 ]);
@@ -681,16 +718,17 @@ class PaymentController extends Controller
 
                 $result["return_code"] = 1;
                 $result["return_message"] = "success";
-            }
+
+                
+            };
         } catch (\Exception $e) {
             Log::error('ZaloPay callback error: ' . $e->getMessage());
             $result["return_code"] = 0;
             $result["return_message"] = $e->getMessage();
         }
 
-        Log::info("Phản hồi callback gửi lại ZaloPay:", ['response' => $result]);
-
         return response()->json($result);
+     
     }
 
 
