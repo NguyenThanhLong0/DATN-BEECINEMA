@@ -96,6 +96,27 @@ class PaymentController extends Controller
         // Tạo mã đơn hàng
         $orderCode = date("ymd") . "_" . uniqid();
 
+        // Xác định thời gian giữ ghế theo phương thức thanh toán
+        $holdTime = now();
+        if ($request->payment_name == 'VNPAY' || $request->payment_name == 'ZALOPAY') {
+            $holdTime = now()->addMinutes(15); // Giữ ghế 15 phút cho VNPAY và ZALOPAY
+        } elseif ($request->payment_name == 'MOMO') {
+            $holdTime = now()->addMinutes(10); // Giữ ghế 10 phút cho MOMO
+        } else {
+            // Thêm các phương thức thanh toán khác
+            $holdTime = now()->addMinutes(15); // Mặc định là 15 phút
+        }
+
+        // Cập nhật trạng thái ghế và thời gian giữ ghế cho tất cả ghế trong yêu cầu thanh toán
+        DB::table('seat_showtimes')
+            ->whereIn('seat_id', $seatIds)
+            ->where('showtime_id', $showtime->id)
+            ->update([
+                'status' => 'hold',
+                'hold_expires_at' => $holdTime, // Cập nhật thời gian giữ ghế
+                'user_id' => $userId,
+            ]);
+
 
         //log
         Log::info("Lưu đơn hàng vào Cache: payment_{$orderCode}", [
