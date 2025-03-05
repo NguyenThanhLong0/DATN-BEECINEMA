@@ -394,12 +394,12 @@ class PaymentController extends Controller
                     }
                 }
 
-                //  Cập nhật trạng thái ghế thành "booker"
+                //  Cập nhật trạng thái ghế thành "booked"
                 DB::table('seat_showtimes')
                     ->whereIn('seat_id', $paymentData['seats'])
                     ->where('showtime_id', $paymentData['showtime_id'])
                     ->update([
-                        'status' => 'booker',
+                        'status' => 'booked',
                         'user_id' => $paymentData['user_id'],
                         'updated_at' => now()
                     ]);
@@ -436,6 +436,16 @@ class PaymentController extends Controller
                         'points' => $pointsEarned,
                         'type' => 'Nhận điểm',
                     ]);
+                }
+
+                // Xác định rank mới
+                $rank = Rank::where('total_spent', '<=', $membership->total_spent)
+                    ->orderBy('total_spent', 'desc')
+                    ->first() ?? Rank::orderBy('total_spent', 'asc')->first();
+
+                if ($rank) {
+                    $membership->rank_id = $rank->id;
+                    $membership->save();
                 }
             });
 
@@ -631,7 +641,7 @@ class PaymentController extends Controller
                                 ->whereIn('seat_id', $paymentData['seats'])
                                 ->where('showtime_id', $paymentData['showtime_id'])
                                 ->update([
-                                    'status' => 'booker',
+                                    'status' => 'booked',
                                     'user_id' => $paymentData['user_id'],
                                     'updated_at' => now()
                                 ]);
@@ -666,6 +676,16 @@ class PaymentController extends Controller
                                     'points' => $pointsEarned,
                                     'type' => 'Nhận điểm',
                                 ]);
+                            }
+
+                            // Xác định rank mới
+                            $rank = Rank::where('total_spent', '<=', $membership->total_spent)
+                                ->orderBy('total_spent', 'desc')
+                                ->first() ?? Rank::orderBy('total_spent', 'asc')->first();
+
+                            if ($rank) {
+                                $membership->rank_id = $rank->id;
+                                $membership->save();
                             }
                         });
                     }
