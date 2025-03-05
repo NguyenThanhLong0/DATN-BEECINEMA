@@ -57,11 +57,6 @@ class PaymentController extends Controller
             }
         }
 
-        //  Thêm job để tự động giải phóng ghế sau 15 phút nếu chưa thanh toán
-        foreach ($seatIds as $seatId) {
-            ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay(now()->addMinutes(15));
-        }
-
         // Tính toán giá vé và combo
         $priceSeat = $seatShowtimes->sum('price');
         $priceCombo = 0;
@@ -116,6 +111,11 @@ class PaymentController extends Controller
                 'hold_expires_at' => $holdTime, // Cập nhật thời gian giữ ghế
                 'user_id' => $userId,
             ]);
+
+        //  Thêm job để tự động giải phóng ghế sau 15 phút nếu chưa thanh toán
+        foreach ($seatIds as $seatId) {
+            ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay(now()->addMinutes(15));
+        }
 
 
         //log
@@ -265,6 +265,27 @@ class PaymentController extends Controller
                     'status' => 'Đã thanh toán',
                     'expiry' => $paymentData['expiry'],
                 ]);
+
+                // **Lưu thông tin ghế vào bảng ticket_seats**
+                foreach ($paymentData['seats'] as $seatId) {
+                    Ticket_Seat::create([
+                        'ticket_id' => $ticket->id,
+                        'seat_id' => $seatId,
+                        'price' => DB::table('seat_showtimes')->where('seat_id', $seatId)->value('price'),
+                    ]);
+                }
+
+                // **Lưu combo vào bảng ticket_combos**
+                if (!empty($paymentData['combos'])) {
+                    foreach ($paymentData['combos'] as $comboId => $quantity) {
+                        Ticket_Combo::create([
+                            'ticket_id' => $ticket->id,
+                            'combo_id' => $comboId,
+                            'quantity' => $quantity,
+                            'price' => Combo::find($comboId)->price * $quantity,
+                        ]);
+                    }
+                }
 
                 //  Cập nhật trạng thái ghế thành "booker"
                 DB::table('seat_showtimes')
@@ -454,7 +475,7 @@ class PaymentController extends Controller
                     } else {
                         DB::transaction(function () use ($paymentData) {
                             // Tạo vé
-                            Ticket::create([
+                            $ticket = Ticket::create([
                                 'user_id' => $paymentData['user_id'],
                                 'cinema_id' => $paymentData['cinema_id'],
                                 'room_id' => $paymentData['room_id'],
@@ -473,7 +494,28 @@ class PaymentController extends Controller
 
                             Log::info("Đã tạo vé thành công cho đơn hàng: {$paymentData['code']}");
 
-                            //  Cập nhật trạng thái ghế thành "booker"
+                            // **Lưu thông tin ghế vào bảng ticket_seats**
+                            foreach ($paymentData['seats'] as $seatId) {
+                                Ticket_Seat::create([
+                                    'ticket_id' => $ticket->id,
+                                    'seat_id' => $seatId,
+                                    'price' => DB::table('seat_showtimes')->where('seat_id', $seatId)->value('price'),
+                                ]);
+                            }
+
+                            // **Lưu combo vào bảng ticket_combos**
+                            if (!empty($paymentData['combos'])) {
+                                foreach ($paymentData['combos'] as $comboId => $quantity) {
+                                    Ticket_Combo::create([
+                                        'ticket_id' => $ticket->id,
+                                        'combo_id' => $comboId,
+                                        'quantity' => $quantity,
+                                        'price' => Combo::find($comboId)->price * $quantity,
+                                    ]);
+                                }
+                            }
+
+                            //  **Cập nhật trạng thái ghế thành "booker"**
                             DB::table('seat_showtimes')
                                 ->whereIn('seat_id', $paymentData['seats'])
                                 ->where('showtime_id', $paymentData['showtime_id'])
@@ -483,13 +525,25 @@ class PaymentController extends Controller
                                     'updated_at' => now()
                                 ]);
 
-                            // **XÓA JOB GIỮ GHẾ** 
+                            // **XÓA JOB GIỮ GHẾ**
                             foreach ($paymentData['seats'] as $seatId) {
                                 Cache::forget("seat_hold_{$seatId}_{$paymentData['showtime_id']}");
                             }
 
+                            // **Trừ điểm của người dùng**
+                            if ($paymentData['point_use'] > 0) {
+                                $membership = Membership::where('user_id', $paymentData['user_id'])->first();
+                                if ($membership) {
+                                    $membership->decrement('points', $paymentData['point_use']);
+                                    PointHistory::create([
+                                        'membership_id' => $membership->id,
+                                        'points' => -$paymentData['point_use'],
+                                        'type' => 'Dùng điểm',
+                                    ]);
+                                }
+                            }
 
-                            // Cập nhật điểm thưởng cho người dùng
+                            // **Tích điểm mới cho người dùng**
                             $membership = Membership::where('user_id', $paymentData['user_id'])->first();
                             if ($membership) {
                                 $pointsEarned = $paymentData['total_price'] * 0.1; // 10% giá trị thanh toán
@@ -525,6 +579,7 @@ class PaymentController extends Controller
 
         return response()->json($result);
     }
+
 
     // ====================END THANH TOÁN ZALOPAY==================== //
 }
