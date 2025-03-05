@@ -18,9 +18,12 @@ use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
 use App\Http\Controllers\Api\ShowtimeController;
+use App\Http\Controllers\Api\VNPayController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\ChooseSeatController;
+use App\Http\Controllers\Api\PaymentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -135,7 +138,7 @@ Route::middleware('auth:sanctum')->prefix('posts')->group(function () {
     Route::get('{id}', [PostApiController::class, 'show']); // Xem chi tiết bài viết
     Route::put('{id}', [PostApiController::class, 'update']); // Cập nhật bài viết
     Route::delete('{id}', [PostApiController::class, 'destroy']); // Xóa bài viết
-    Route::put('{id}/toggle', [PostApiController::class, 'toggle']); // Bật/tắt trạng thái
+    // Route::put('{id}/toggle', [PostApiController::class, 'toggle']); // Bật/tắt trạng thái
 });
 
 //Rooms
@@ -254,8 +257,7 @@ Route::post('movies/update-hot',        [MovieController::class, 'updateHot'])->
 
 // Route::delete('combofoods/{combofood}',   [combofoodController::class, 'destroy'])->name('combofoods.destroy');
 
-//user
-
+//admin
 Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Lấy danh sách user
     Route::get('/users/{id}', [UserController::class, 'show']); // Lấy thông tin user cụ thể
@@ -264,9 +266,18 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::delete('/users/{id}', [UserController::class, 'destroy']); // Xóa mềm
     Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Khôi phục
     Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']); // Xóa vĩnh viễn
-    Route::get('/profile', [UserController::class, 'profile']); // Lấy thông tin user đang đăng nhập
 
 });
+
+//user
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/profile', [UserController::class, 'profile']);
+    // Lấy thông tin user đang đăng nhập
+    Route::get('/user/membership', [UserController::class, 'membership']);
+    //Lấy thông tin voucher còn được sử dụng của người dùng
+    Route::get('/user/vouchers', [UserController::class, 'getUserVouchers']);
+});
+
 
 //Đăng nhập
 
@@ -293,9 +304,6 @@ Route::delete('banners/{banner}',   [BannerController::class, 'destroy'])->name(
 
 
 //Showtime
-use Illuminate\Support\Facades\Log;
-
-Log::info('Route /api/showtimes/page is registered.');
 
 Route::get('showtimes', [ShowtimeController::class, 'index']);
 
@@ -322,8 +330,9 @@ Route::get('/showtimes/slug/{slug}', [ShowtimeController::class, 'showBySlug']);
 
 //Ticket
 Route::apiResource('tickets', TicketController::class);
-
-
+Route::middleware('auth:api')->post('/tickets', [TicketController::class, 'store']);
+//
+Route::middleware('auth:sanctum')->get('/booking-history', [TicketController::class, 'getBookingHistory']);
 //MovieReview
 
 Route::get('movie-reviews', [MovieReviewController::class, 'index']);
@@ -337,3 +346,35 @@ Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update
 Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
 
 Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
+
+//choose-seat
+
+Route::middleware('auth:api')->group(function () {
+    //cập nhật trạng thái của một ghế
+    Route::post('/update-seat', [ChooseSeatController::class, 'updateSeat']);
+
+    //Lưu thông tin đặt ghế của user sau khi họ đã giữ ghế
+    Route::post('save-information/{id}', [ChooseSeatController::class, 'saveInformation'])->name('save-information');
+    //Lấy danh sách ghế và trạng thái của chúng cho một suất chiếu
+    Route::get('choose-seat/{slug}', [ChooseSeatController::class, 'show'])->name('choose-seat');
+
+    Route::get('userHoldSeats/{slug}', [ChooseSeatController::class, 'getUserHoldSeats']);
+});
+
+//update-seatHold
+Route::middleware('auth:sanctum')->post('/updateSeatHoldtime', [ShowtimeController::class, 'updateSeatHoldTime']);
+//VNPAY
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    route::post('payment', [PaymentController::class, 'payment'])->name('payment');
+
+    // Cổng thanh toán VNPAY (yêu cầu auth)
+    Route::get('vnpay-payment', [PaymentController::class, 'vnPayPayment'])->name('vnpay.payment');
+});
+
+Route::post('/zalopay/callback', [PaymentController::class, 'zalopayCallback']);
+
+Route::post('/zalopay/payment', [PaymentController::class, 'createPayment']);
+
+Route::get('vnpay-return', [PaymentController::class, 'returnVnpay'])->name('vnpay.return');

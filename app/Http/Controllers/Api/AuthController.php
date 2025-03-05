@@ -6,6 +6,8 @@ use App\Events\UserRegistered;
 use App\Http\Controllers\Controller;
 use App\Jobs\ResendVerificationEmailJob;
 use App\Jobs\SendPasswordResetEmail;
+use App\Models\Membership;
+use App\Models\Rank;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -18,6 +20,7 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -29,21 +32,21 @@ class AuthController extends Controller
                 'email' => 'required|email',
                 'password' => 'required'
             ]);
-    
+
             // Find user by email
             $user = User::where('email', $request->email)->first();
-    
+
             // Check if user exists and password matches
             if (!$user || !Hash::check($request->password, $user->password)) {
                 return response()->json(['error' => 'Unauthorized'], 401);
             }
-    
+
             // Delete old tokens if necessary
             $user->tokens()->delete();
-    
+
             // Create a new token
             $token = $user->createToken('authToken')->plainTextToken;
-    
+
             return response()->json([
                 'user' => $user,
                 'token' => $token
@@ -55,9 +58,10 @@ class AuthController extends Controller
             ], 500);
         }
     }
-    
+
     public function register(Request $request)
     {
+        DB::beginTransaction();
         try {
             $request->validate([
                 'name' => 'required|string|max:255',
@@ -67,7 +71,7 @@ class AuthController extends Controller
                 'gender' => 'required|string|in:nam,nữ,khác',
                 'birthday' => 'required|date',
             ]);
-    
+
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
@@ -76,15 +80,30 @@ class AuthController extends Controller
                 'gender' => $request->gender,
                 'birthday' => $request->birthday,
             ]);
-    
+
             event(new UserRegistered($user));
 
-    
+
+            $rank=Rank::where('is_default',true)->first();
+
+            $membership=[
+                'user_id' => $user->id,
+                'rank_id'=>$rank->is_default,
+                'code'=>str_pad($user->id, 12, '0', STR_PAD_LEFT),
+                'points'=>0,
+                'total_spent'=>0,
+            ];
+
+            Membership::create($membership);
+
+            DB::commit();
+
             return response()->json([
                 'message' => 'User registered. Please verify your email.',
                 'user' => $user
             ], 200);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'error' => 'Registration failed',
                 'message' => $e->getMessage(),
@@ -127,18 +146,18 @@ class AuthController extends Controller
                 'token' => 'required',
                 'password' => 'required|string|min:8|confirmed',
             ]);
-    
+
             $status = Password::reset(
                 $request->only('email', 'password', 'password_confirmation', 'token'),
                 function ($user, $password) {
                     $user->forceFill([
                         'password' => Hash::make($password)
                     ])->save();
-    
+
                     event(new PasswordReset($user));
                 }
             );
-    
+
             return $status === Password::PASSWORD_RESET
                 ? response()->json(['message' => 'Password reset successful.'])
                 : response()->json(['message' => 'Invalid token or email.'], 400);
@@ -151,25 +170,25 @@ class AuthController extends Controller
     }
 
     public function verifyEmail(Request $request, $id, $hash)
-{
-    // Tìm user theo id
-    $user = User::findOrFail($id);
+    {
+        // Tìm user theo id
+        $user = User::findOrFail($id);
 
-    // Kiểm tra hash của email
-    if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
-        return response()->json(['message' => 'Invalid verification link.'], 403);
+        // Kiểm tra hash của email
+        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            return response()->json(['message' => 'Invalid verification link.'], 403);
+        }
+
+        // Kiểm tra nếu email đã được xác minh
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email already verified.']);
+        }
+
+        // Mark email as verified
+        $user->markEmailAsVerified();
+
+        return response()->json(['message' => 'Email verified successfully.']);
     }
-
-    // Kiểm tra nếu email đã được xác minh
-    if ($user->hasVerifiedEmail()) {
-        return response()->json(['message' => 'Email already verified.']);
-    }
-
-    // Mark email as verified
-    $user->markEmailAsVerified();
-
-    return response()->json(['message' => 'Email verified successfully.']);
-}
 
 
     public function resendVerificationEmail(Request $request)
@@ -188,35 +207,35 @@ class AuthController extends Controller
             ], 500);
         }
     }
-   
-   
+
+
     public function changePassword(Request $request)
-{
-    try {
-        // Validate input
-        $request->validate([
-            'current_password' => 'required|string',
-            'new_password' => 'required|string|min:8|confirmed',
-        ]);
+    {
+        try {
+            // Validate input
+            $request->validate([
+                'current_password' => 'required|string',
+                'new_password' => 'required|string|min:8|confirmed',
+            ]);
 
-        // Get authenticated user
-        $user = $request->user();
+            // Get authenticated user
+            $user = $request->user();
 
-        // Check if current password is correct
-        if (!Hash::check($request->current_password, $user->password)) {
-            return response()->json(['error' => 'Current password is incorrect'], 400);
+            // Check if current password is correct
+            if (!Hash::check($request->current_password, $user->password)) {
+                return response()->json(['error' => 'Current password is incorrect'], 400);
+            }
+
+            // Update the password
+            $user->password = Hash::make($request->new_password);
+            $user->save();
+
+            return response()->json(['message' => 'Password changed successfully']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Password change failed',
+                'message' => $e->getMessage(),
+            ], 500);
         }
-
-        // Update the password
-        $user->password = Hash::make($request->new_password);
-        $user->save();
-
-        return response()->json(['message' => 'Password changed successfully']);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Password change failed',
-            'message' => $e->getMessage(),
-        ], 500);
     }
-}
 }

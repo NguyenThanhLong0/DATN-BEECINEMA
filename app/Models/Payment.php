@@ -5,21 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Rank extends Model
+class Payment extends Model
 {
     use HasFactory;
     protected $fillable = [
         'name',
-        'total_spent',
-        'ticket_percentage',
-        'combo_percentage',
-        'is_default'
+        'description',
+        'is_active',
     ];
     protected $casts = [
-        'is_default' => 'boolean'
+        'is_active'=>'boolean'
     ];
-    public function memberships()
+    public function tickets()
     {
-        return $this->hasMany(Membership::class);
+        return $this->hasMany(Ticket::class);
     }
 }
