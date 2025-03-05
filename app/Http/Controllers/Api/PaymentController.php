@@ -437,6 +437,16 @@ class PaymentController extends Controller
                         'type' => 'Nhận điểm',
                     ]);
                 }
+
+                // Xác định rank mới
+                $rank = Rank::where('total_spent', '<=', $membership->total_spent)
+                    ->orderBy('total_spent', 'desc')
+                    ->first() ?? Rank::orderBy('total_spent', 'asc')->first();
+
+                if ($rank) {
+                    $membership->rank_id = $rank->id;
+                    $membership->save();
+                }
             });
 
             Cache::forget("payment_{$vnp_TxnRef}");
@@ -666,6 +676,16 @@ class PaymentController extends Controller
                                     'points' => $pointsEarned,
                                     'type' => 'Nhận điểm',
                                 ]);
+                            }
+
+                            // Xác định rank mới
+                            $rank = Rank::where('total_spent', '<=', $membership->total_spent)
+                                ->orderBy('total_spent', 'desc')
+                                ->first() ?? Rank::orderBy('total_spent', 'asc')->first();
+
+                            if ($rank) {
+                                $membership->rank_id = $rank->id;
+                                $membership->save();
                             }
                         });
                     }
