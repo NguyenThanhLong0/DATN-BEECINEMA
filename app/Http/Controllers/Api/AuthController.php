@@ -15,12 +15,10 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
+use Carbon\Carbon;
 use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Support\Str;
-use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Support\Facades\DB;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -238,4 +236,57 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    //Đăng nhập bằng gg 
+    public function redirectToGoogle()
+    {
+        try {
+            $url = Socialite::driver('google')->stateless()->redirect()->getTargetUrl();
+            return response()->json(['url' => $url]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+
+    public function handleGoogleCallback()
+{
+    try {
+        // Lấy thông tin người dùng từ Google
+        $googleUser = Socialite::driver('google')->stateless()->user();
+
+        // Kiểm tra xem user đã tồn tại chưa
+        $user = User::where('email', $googleUser->getEmail())->first();
+
+        // Nếu chưa có thì tạo mới
+        $rank=Rank::where('is_default',true)->first();
+        if (!$user) {
+            $user = User::create([
+                'name' => $googleUser->getName(),
+                'email' => $googleUser->getEmail(),
+                'google_id' => $googleUser->getId(),
+                'avatar' =>$googleUser->getAvatar(),
+                'password' => bcrypt('randompassword'), // Mật khẩu ngẫu nhiên
+                'email_verified_at'=> Carbon::now()
+            ]);
+            Membership::create([
+                'user_id' => $user->id,
+                'rank_id'=>$rank->is_default,
+                'code'=>str_pad($user->id, 12, '0', STR_PAD_LEFT),
+                'points'=>0,
+                'total_spent'=>0,
+            ]);
+        }
+
+        // Tạo token đăng nhập
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+           'user' => $user,
+           'token' => $token
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+}
 }

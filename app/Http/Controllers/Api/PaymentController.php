@@ -245,7 +245,7 @@ class PaymentController extends Controller
 
         // Thêm job để tự động giải phóng ghế sau 15 phút nếu chưa thanh toán
         foreach ($seatIds as $seatId) {
-            ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay(now()->addMinutes(15));
+            ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay($holdTime);
         }
 
         // Log vào cache
@@ -330,7 +330,7 @@ class PaymentController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'paymentUrl' => $paymentUrl
+            'payment_url' => $paymentUrl
         ]);
     }
 
@@ -468,7 +468,7 @@ class PaymentController extends Controller
 
             Cache::forget("payment_{$vnp_TxnRef}");
 
-            return response()->json(['message' => 'Thanh toán thành công!', 'order_code' => $paymentData['code']]);
+            return redirect(env('FRONTEND_URL') . "/thanks/{$paymentData['code']}?status=success");
         }
 
         return response()->json(['error' => 'Thanh toán thất bại.'], 400);
@@ -505,7 +505,11 @@ class PaymentController extends Controller
         // Embed data (tùy chỉnh)
         $embeddata = [
             "merchantinfo" => "embeddata123",
+
             "redirecturl" => route('handleZaloPayRedirect')
+
+            //"redirecturl" => "http://localhost:5173/thanks/{$paymentData['code']}?status=success"
+
         ];
 
         // Danh sách sản phẩm
@@ -558,10 +562,10 @@ class PaymentController extends Controller
 
         return response()->json([
             "status" => "success",
-            "zp_trans_token" => $responseData["zp_trans_token"],
-            "order_url" => $responseData["order_url"],
-            "cashier_order_url" => $responseData["cashier_order_url"],
-            "qr_code" => $responseData["qr_code"]
+            // "zp_trans_token" => $responseData["zp_trans_token"],
+            "payment_url" => $responseData["order_url"],
+            // "cashier_order_url" => $responseData["cashier_order_url"],
+            // "qr_code" => $responseData["qr_code"]
         ]);
     }
 
