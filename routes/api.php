@@ -378,3 +378,6 @@ Route::post('/zalopay/callback', [PaymentController::class, 'zalopayCallback']);
 Route::post('/zalopay/payment', [PaymentController::class, 'createPayment']);
 
 Route::get('vnpay-return', [PaymentController::class, 'returnVnpay'])->name('vnpay.return');
+
+
+Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRedirect'])->name('handleZaloPayRedirect');
