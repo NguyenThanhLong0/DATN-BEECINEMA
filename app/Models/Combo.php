@@ -19,11 +19,13 @@ class Combo extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+    // Quan hệ với bảng ComboFood, mỗi Combo có nhiều món ăn (Food) thông qua bảng pivot
     public function comboFood()
     {
         return $this->hasMany(ComboFood::class);
     }
-    public function food()
+    // Quan hệ với Food, nhiều món ăn có thể thuộc nhiều combo
+    public function foods()
     {
         return $this->belongsToMany(Food::class, 'combo_food')->withPivot('quantity');
     }

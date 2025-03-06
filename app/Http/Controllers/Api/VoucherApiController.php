@@ -9,13 +9,20 @@ use Illuminate\Http\Response;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
 use Carbon\Carbon;
+use App\Models\User;
+use App\Models\UserVoucher;
+use Illuminate\Support\Facades\DB;
 
 class VoucherApiController extends Controller
 {
     public function index()
     {
         try {
-            $vouchers = Voucher::all();
+            $vouchers = Voucher::withCount([
+                'users as total_usage' => function ($query) {
+                    $query->select(DB::raw('SUM(user_vouchers.usage_count)'));
+                }
+            ])->get();
             return response()->json($vouchers, Response::HTTP_OK);
         } catch (Exception $e) {
             return response()->json(['error' => 'Something went wrong'], Response::HTTP_INTERNAL_SERVER_ERROR);
@@ -24,6 +31,7 @@ class VoucherApiController extends Controller
 
     public function store(Request $request)
     {
+        DB::beginTransaction();
         try {
             $validated = $request->validate([
                 'code' => 'required|string|max:255|unique:vouchers,code',
@@ -32,20 +40,39 @@ class VoucherApiController extends Controller
                 'start_date_time' => 'nullable|date',
                 'end_date_time' => 'nullable|date|after_or_equal:start_date_time',
                 'discount' => 'required|numeric|min:0',
+                'is_active' => 'required|boolean',
                 'quantity' => 'required|integer|min:1',
                 'limit' => 'nullable|integer|min:1',
+                'type' => 'required|in:amount,percent'
             ]);
 
             // Gán giá trị mặc định nếu không nhập ngày
             $validated['start_date_time'] = $validated['start_date_time'] ?? Carbon::now();
             $validated['end_date_time'] = $validated['end_date_time'] ?? Carbon::now()->addDays(7);
-            $validated['type'] = $request->has('type') ? (bool) $request->type : false;
 
-            // Không cần kiểm tra is_active vì MySQL đã xử lý bằng trigger
             $voucher = Voucher::create($validated);
 
+            // Gán voucher cho tất cả các user có trong hệ thống
+            $users = User::where('role','member')->get();
+            $userVouchers = [];
+            foreach ($users as $user) {
+                $userVouchers[] = [
+                    'user_id' => $user->id,
+                    'voucher_id' => $voucher->id,
+                    'usage_count' => 0,
+                ];
+            }
+            UserVoucher::insert($userVouchers);
+
+            // // Chèn dữ liệu vào bảng UserVoucher
+            // if ($voucher['is_active']==true) {
+            // }
+
+            // Commit transaction nếu không có lỗi
+            DB::commit();
             return response()->json($voucher, Response::HTTP_CREATED);
         } catch (Exception $e) {
+            DB::rollback();
             return response()->json(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }
@@ -53,7 +80,11 @@ class VoucherApiController extends Controller
     public function show($id)
     {
         try {
-            $voucher = Voucher::findOrFail($id);
+            $voucher = Voucher::withCount([
+                'users as total_usage' => function ($query) {
+                    $query->select(DB::raw('SUM(user_vouchers.usage_count)'));
+                }
+            ])->find($id);
             return response()->json($voucher, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Voucher not found'], Response::HTTP_NOT_FOUND);
@@ -74,7 +105,9 @@ class VoucherApiController extends Controller
                 'end_date_time' => 'nullable|date|after_or_equal:start_date_time',
                 'discount' => 'sometimes|numeric|min:0',
                 'quantity' => 'sometimes|integer|min:1',
+                'is_active' => 'nullable|boolean',
                 'limit' => 'nullable|integer|min:1',
+                'type' => 'required|in:amount,percent',
             ]);
             if($request->start_date_time==null){
                 $validated['start_date_time']=$voucher->start_date_time;

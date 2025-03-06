@@ -16,14 +16,15 @@ class BranchController extends Controller
     public function index()
 {
     try {
-        // Eager load cinemas cho tất cả branches
-        $branches = Branch::with('cinemas')->latest('id')->paginate(10);
-        
+        // Lấy danh sách branches, nạp cả cinemas và rooms trong mỗi cinema
+        $branches = Branch::with(['cinemas.rooms'])->latest('id')->paginate(10);
+
         return response()->json($branches);
     } catch (\Throwable $th) {
         return response()->json(['message' => 'Không thể lấy danh sách chi nhánh!'], 500);
     }
 }
+
 
     /**
      * Store a newly created resource in storage.
@@ -123,4 +124,24 @@ class BranchController extends Controller
             return response()->json(['message' => 'Xóa thất bại!', 'error' => $th->getMessage()], 500);
         }
     }
+
+    public function branchesWithCinemasActive()
+    {
+        try {
+            // Lấy danh sách branch đang hoạt động và cinemas + rooms của mỗi branch
+            $branches = Branch::where('is_active', 1) // Chỉ lấy branch đang hoạt động
+                ->with(['cinemas' => function ($query) {
+                    $query->where('is_active', 1) // Chỉ lấy cinema đang hoạt động
+                        ->with('rooms'); // Lấy luôn danh sách rooms
+                }])
+                ->get(); // Lấy danh sách
+    
+            return response()->json([
+                'branches' => $branches,
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json(['message' => 'Không thể lấy danh sách chi nhánh!'], 500);
+        }
+    }
+    
 }

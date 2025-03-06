@@ -22,8 +22,18 @@ class Voucher extends Model
     ];
 
     protected $casts=[
-        'type'=>'boolean',
         'is_active'=>'boolean',
     ];
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'user_vouchers')
+            ->withPivot('usage_count')
+            ->withTimestamps();
+    }
+    public function user_vouchers()
+{
+    return $this->hasMany(UserVoucher::class);
+}
 
 }

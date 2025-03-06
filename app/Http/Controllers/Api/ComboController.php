@@ -12,151 +12,353 @@ use Illuminate\Support\Facades\Validator;
 class ComboController extends Controller
 {
     //
-    public function index(){
+    public function index()
+    {
         try {
-            $combos = Combo::query()->latest('id')->paginate(10);
+            // Truy vấn dữ liệu Combo và liên kết với Food
+            $combos = Combo::with('foods')->latest('id')->get();
+
+            // Nếu không có combo nào, trả về thông báo lỗi
+            if ($combos->isEmpty()) {
+                return response()->json(['message' => 'No combos found.'], 404);
+            }
+
+            // Xử lý và định dạng dữ liệu theo yêu cầu
+            $result = $combos->map(function ($combo) {
+                return [
+                    'id' => $combo->id,
+                    'name' => $combo->name,
+                    'price' => $combo->price, // Nếu có discount, dùng discount_price, nếu không dùng price
+                    'discount_price' => $combo->discount_price,
+                    'description' => $combo->description,
+                    'is_active' => $combo->is_active,
+                    'img_thumbnail' => $combo->img_thumbnail,
+                    'combo_foods' => $combo->foods->map(function ($food) {
+                        $total_price = $food->price * $food->pivot->quantity; // Tính tổng giá theo số lượng
+                        return [
+                            'id' => $food->id,
+                            'name' => $food->name,
+                            'img_thumbnail' => $food->img_thumbnail,
+                            'price' => $food->price,
+                            'type' => $food->type,
+                            'description' => $food->description,
+                            'is_active' => $food->is_active,
+                            'quantity' => $food->pivot->quantity, // Lấy quantity từ bảng pivot
+                            'total_price' => $total_price
+                        ];
+                    }),
+                ];
+            });
+
             return response()->json([
-                'message' => 'Hiển thị thành công',
-                'satus' => true,
-                'data' => $combos
-            ]);
-        } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'lỗi, hiển thị không thành công',
-                'satus' => false,
-            ]);
+                'message' => 'Hiển thị thành công!',
+                'data' => $result
+            ], 200);
+        } catch (\Exception $e) {
+            // Xử lý lỗi chung khác
+            return response()->json(['error' => 'hiển thị không thành công.'], 500);
         }
     }
+
     public function show($id)
     {
         try {
-            $combos = Combo::query()->findOrFail($id);
+            // Tìm combo theo ID và load quan hệ với foods
+            $combo = Combo::with('foods')->find($id);
+
+            // Nếu không tìm thấy combo, trả về lỗi 404
+            if (!$combo) {
+                return response()->json(['message' => 'Combo không tồn tại.'], 404);
+            }
+
+            // Xử lý dữ liệu
+            $result = [
+                'id' => $combo->id,
+                'name' => $combo->name,
+                'price' => $combo->discount_price ?? $combo->price,
+                'description' => $combo->description,
+                'is_active' => $combo->is_active,
+                'discount_price' => $combo->discount_price,
+                'img_thumbnail' => $combo->img_thumbnail,
+                'combo_foods' => $combo->foods->map(fn($food) => [
+                    'id' => $food->id,
+                    'name' => $food->name,
+                    'img_thumbnail' => $food->img_thumbnail,
+                    'price' => $food->price,
+                    'type' => $food->type,
+                    'description' => $food->description,
+                    'is_active' => $food->is_active,
+                    'quantity' => $food->pivot->quantity,
+                    'total_price' => $food->price * $food->pivot->quantity,
+                ]),
+            ];
+
+            return response()->json(
+                $result,
+                200
+            );
+        } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Chi tiết',
-                'status' => true,
-                'data' => $combos
-            ]);
-        } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Không tìm thấy bản ghi nào',
-                'status' => false
-            ]);
+                'error' => 'Không thể lấy thông tin combo.',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
+
+
     public function store(Request $request)
     {
-        $data = $request->all();
-        
-        // Validate input fields
-        $validator = Validator::make($data, [
-            'name' => 'required|string|max:255|unique:combos',
-            'img_thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'price' => 'required|numeric|min:0',
-            'discount_price' => 'required|numeric|min:0',
-            'description' => 'nullable|string',
-            'is_active' => 'nullable|boolean',
-        ]);
-        
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-        
         try {
-           
-            // Kiểm tra xem có file hình ảnh không
-        if ($request->hasFile('img_thumbnail')) {
-            // Lưu file hình ảnh vào thư mục 'combos' và lưu đường dẫn vào mảng $data
-            $files_img_thumbnails = $request->file('img_thumbnail')->store('combos', 'public');
-            $data['img_thumbnail'] = $files_img_thumbnails;
-        }
-            $combo = Combo::create($data);
-            
-            return response()->json([
-                'message' => 'Thêm mới thành công!',
-                'status' => true,
-                'data' => $combo
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:combos,name',
+                'price' => 'required|numeric',
+                'discount_price' => 'nullable|numeric',
+                'description' => 'nullable|string',
+                'is_active' => 'required|boolean',
+                'img_thumbnail' => 'nullable|url|max:255',
+                'combo_foods' => 'required|array', // Mảng chứa thông tin các món ăn
+                'combo_foods.*.id' => 'required|exists:food,id', // Kiểm tra id của food có tồn tại trong bảng foods
+                'combo_foods.*.quantity' => 'required|numeric|min:1', // Kiểm tra quantity
+            ], [
+                'required' => ':attribute không được để trống.',
+                'string' => ':attribute phải là một chuỗi ký tự.',
+                'max' => ':attribute không được vượt quá :max ký tự.',
+                'boolean' => ':attribute phải là đúng hoặc sai.',
+                'array' => ':attribute phải là một mảng.',
+                'url' => ':attribute phải là một URL hợp lệ.',
+                'numeric' => ':attribute phải là một số.',
+                'exists' => ':attribute không tồn tại trong hệ thống.',
+                'min' => ':attribute phải có giá trị ít nhất là :min.',
+                'unique' => ':attribute đã tồn tại trong hệ thống.'
+            ], [
+                'name' => 'Tên combo',
+                'price' => 'Giá combo',
+                'discount_price' => 'Giá giảm',
+                'description' => 'Mô tả',
+                'is_active' => 'Trạng thái kích hoạt',
+                'img_thumbnail' => 'Hình ảnh đại diện',
+                'combo_foods' => 'Danh sách món ăn',
+                'combo_foods.*.id' => 'Món ăn',
+                'combo_foods.*.quantity' => 'Số lượng món ăn',
             ]);
-        } catch (\Throwable $th) {
+
+            // Tạo mới combo
+            $combo = Combo::create([
+                'name' => $validated['name'],
+                'price' => $validated['price'],
+                'discount_price' => $validated['discount_price'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'is_active' => $validated['is_active'],
+                'img_thumbnail' => $validated['img_thumbnail'] ?? null,
+            ]);
+
+            // Liên kết các món ăn với combo thông qua bảng pivot
+            $combo->foods()->attach(
+                collect($validated['combo_foods'])->mapWithKeys(function ($food) {
+                    return [$food['id'] => ['quantity' => $food['quantity']]]; // Thêm quantity vào bảng pivot
+                })
+            );
+
+            // Lấy danh sách món ăn có trong combo kèm theo quantity và total_price
+            $comboFoods = $combo->foods()->get()->map(function ($food) use ($validated) {
+                $quantity = collect($validated['combo_foods'])->firstWhere('id', $food->id)['quantity'];
+                return [
+                    'id' => $food->id,
+                    'name' => $food->name,
+                    'img_thumbnail' => $food->img_thumbnail,
+                    'price' => $food->price,
+                    'type' => $food->type,
+                    'description' => $food->description,
+                    'is_active' => $food->is_active,
+                    'quantity' => $quantity,
+                    'total_price' => $food->price * $quantity,
+                ];
+            });
+
+            // Trả về phản hồi JSON đầy đủ
             return response()->json([
-                'message' => 'Thêm mới thất bại',
-                'status' => false,
-                'error' => $th->getMessage()
+                'message' => 'Combo được tạo thành công!',
+                'data' => [
+                    'id' => $combo->id,
+                    'name' => $combo->name,
+                    'price' => $combo->price,
+                    'discount_price' => $combo->discount_price,
+                    'description' => $combo->description,
+                    'is_active' => $combo->is_active,
+                    'img_thumbnail' => $combo->img_thumbnail,
+                    'combo_foods' => $comboFoods,
+                ]
+            ], 201);
+        } catch (\Exception $e) {
+            // Xử lý lỗi chung
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi không mong muốn.',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
     public function update(Request $request, Combo $combo)
     {
-        $data = $request->all();
-        $validator = Validator::make($data, [
-            'name' => 'required|string|max:255|unique:combos,name,' . $combo->id,
-            'img_thumbnail' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'price' => 'required|numeric|min:0',
-            'discount_price' => 'required|numeric|min:0',
-            'description' => 'nullable|string',
-            'is_active' => 'nullable|boolean',
-        ]);
-    
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-    
         try {
-            $data = $request->except('img_thumbnail');
-            $img_thumbnail_old = $combo->img_thumbnail;
-            $data['img_thumbnail'] = $img_thumbnail_old;
-        
-            // Kiểm tra nếu có file ảnh mới
-            if ($request->hasFile('img_thumbnail')) {
-                // Xóa ảnh cũ nếu tồn tại
-            if ($img_thumbnail_old && Storage::disk('public')->exists($img_thumbnail_old)) {
-                Storage::disk('public')->delete($img_thumbnail_old);
-            }
-        
-                // Lưu ảnh mới vào thư mục 'combos'
-                $files_img_thumbnails = $request->file('img_thumbnail')->store('combos', 'public');
-
-                $data['img_thumbnail'] = $files_img_thumbnails;
-            }
-    
-            $combo->update($data);
-    
-            return response()->json([
-                'message' => 'Sửa thành công!',
-                'status' => true,
-                'data' => $combo
+            // Xác thực dữ liệu đầu vào
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:combos,name,' . $combo->id,
+                'price' => 'required|numeric',
+                'discount_price' => 'nullable|numeric',
+                'description' => 'nullable|string',
+                'is_active' => 'required|boolean',
+                'img_thumbnail' => 'nullable|url|max:255',
+                'combo_foods' => 'required|array', // Mảng chứa thông tin các món ăn
+                'combo_foods.*.id' => 'required|exists:food,id', // Kiểm tra id của food có tồn tại trong bảng foods
+                'combo_foods.*.quantity' => 'required|numeric|min:1', // Kiểm tra quantity
+            ], [
+                'required' => ':attribute không được để trống.',
+                'string' => ':attribute phải là một chuỗi ký tự.',
+                'max' => ':attribute không được vượt quá :max ký tự.',
+                'boolean' => ':attribute phải là đúng hoặc sai.',
+                'array' => ':attribute phải là một mảng.',
+                'url' => ':attribute phải là một URL hợp lệ.',
+                'numeric' => ':attribute phải là một số.',
+                'exists' => ':attribute không tồn tại trong hệ thống.',
+                'min' => ':attribute phải có giá trị ít nhất là :min.',
+                'filled' => ':attribute không được để trống hoặc rỗng.',
+                'unique' => ':attribute đã tồn tại trong hệ thống.',
+            ], [
+                'name' => 'Tên combo',
+                'price' => 'Giá combo',
+                'discount_price' => 'Giá giảm',
+                'description' => 'Mô tả',
+                'is_active' => 'Trạng thái kích hoạt',
+                'img_thumbnail' => 'Hình ảnh đại diện',
+                'combo_foods' => 'Danh sách món ăn',
+                'combo_foods.*.id' => 'Món ăn',
+                'combo_foods.*.quantity' => 'Số lượng món ăn',
             ]);
-        } catch (\Throwable $th) {
+
+            // Cập nhật thông tin combo
+            $combo->update([
+                'name' => $validated['name'],
+                'price' => $validated['price'],
+                'discount_price' => $validated['discount_price'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'is_active' => $validated['is_active'],
+                'img_thumbnail' => $validated['img_thumbnail'] ?? null,
+            ]);
+
+            // Cập nhật danh sách món ăn trong combo
+            $combo->foods()->sync(
+                collect($validated['combo_foods'])->mapWithKeys(function ($food) {
+                    return [$food['id'] => ['quantity' => $food['quantity']]]; // Cập nhật quantity vào bảng pivot
+                })
+            );
+
+            // Lấy danh sách combo_foods sau khi cập nhật
+            $comboFoods = $combo->foods()->get()->map(function ($food) use ($validated) {
+                $quantity = collect($validated['combo_foods'])->firstWhere('id', $food->id)['quantity'];
+                return [
+                    'id' => $food->id,
+                    'name' => $food->name,
+                    'img_thumbnail' => $food->img_thumbnail,
+                    'price' => $food->price,
+                    'type' => $food->type,
+                    'description' => $food->description,
+                    'is_active' => $food->is_active,
+                    'quantity' => $quantity,
+                    'total_price' => $food->price * $quantity,
+                ];
+            });
+
+            // Trả về phản hồi JSON đầy đủ
             return response()->json([
-                'message' => 'Sửa thất bại!',
-                'status' => false,
-                'error' => $th->getMessage()
+                'message' => 'Combo đã được cập nhật thành công!',
+                'data' => [
+                    'id' => $combo->id,
+                    'name' => $combo->name,
+                    'price' => $combo->price,
+                    'discount_price' => $combo->discount_price,
+                    'description' => $combo->description,
+                    'is_active' => $combo->is_active,
+                    'img_thumbnail' => $combo->img_thumbnail,
+                    'combo_foods' => $comboFoods,
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            // Xử lý lỗi chung
+            return response()->json([
+                'message' => 'Đã xảy ra lỗi không mong muốn.',
+                'error' => $e->getMessage()
             ], 500);
         }
     }
-
     public function destroy(Combo $combo)
     {
         try {
-              // Kiểm tra nếu có ảnh và xóa nó
-        if ($combo->img_thumbnail && Storage::disk('public')->exists($combo->img_thumbnail)) {
-            try {
-                Storage::disk('public')->delete($combo->img_thumbnail);
-            } catch (\Exception $e) {
-                Log::error('Lỗi khi xóa ảnh trong quá trình xóa com$combo: ' . $e->getMessage());
-            }
-        }
-            // Delete the com$combo record
+            // Xóa các liên kết với bảng pivot trước khi xóa combo
+            $combo->foods()->detach();
+
+            // Xóa combo
             $combo->delete();
+
+            // Trả về phản hồi JSON
             return response()->json([
-                'message' => 'Xóa thành công!',
-                'status' => true
-            ]);
-        } catch (\Throwable $th) {
+                'message' => 'Xóa thành công!'
+            ], 200);
+        } catch (\Exception $e) {
+            // Xử lý lỗi chung
+            return response()->json(['error' => 'Xóa không thành công.'], 500);
+        }
+    }
+    public function indexActive()
+    {
+        try {
+            // Truy vấn dữ liệu Combo và liên kết với Food, chỉ lấy các bản ghi có is_active = true
+            $combos = Combo::with(['foods' => function ($query) {
+                $query->where('is_active', true); // Lọc Food có is_active = true
+            }])
+                ->where('is_active', true) // Lọc Combo có is_active = true
+                ->latest('id')
+                ->get();
+
+            // Nếu không có combo nào, trả về thông báo lỗi
+            if ($combos->isEmpty()) {
+                return response()->json(['message' => 'No combos found.'], 404);
+            }
+
+            // Xử lý và định dạng dữ liệu theo yêu cầu
+            $result = $combos->map(function ($combo) {
+                return [
+                    'id' => $combo->id,
+                    'name' => $combo->name,
+                    'price' => $combo->price, // Nếu có discount, dùng discount_price, nếu không dùng price
+                    'discount_price' => $combo->discount_price,
+                    'description' => $combo->description,
+                    'is_active' => $combo->is_active,
+                    'img_thumbnail' => $combo->img_thumbnail,
+                    'combo_foods' => $combo->foods->map(function ($food) {
+                        $total_price = $food->price * $food->pivot->quantity; // Tính tổng giá theo số lượng
+                        return [
+                            'id' => $food->id,
+                            'name' => $food->name,
+                            'img_thumbnail' => $food->img_thumbnail,
+                            'price' => $food->price,
+                            'type' => $food->type,
+                            'description' => $food->description,
+                            'is_active' => $food->is_active,
+                            'quantity' => $food->pivot->quantity, // Lấy quantity từ bảng pivot
+                            'total_price' => $total_price
+                        ];
+                    }),
+                ];
+            });
+
             return response()->json([
-                'message' => 'Xóa thất bại!',
-                'status' => false,
-                // 'error' => $th->getMessage()
-            ], 500);
+                'message' => 'Hiển thị thành công!',
+                'data' => $result
+            ], 200);
+        } catch (\Exception $e) {
+            // Xử lý lỗi chung khác
+            return response()->json(['error' => 'hiển thị không thành công.'], 500);
         }
     }
 }
