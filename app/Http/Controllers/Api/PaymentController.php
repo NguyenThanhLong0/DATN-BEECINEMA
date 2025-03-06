@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Exception;
 use App\Events\SeatStatusChange;
 use App\Http\Controllers\Controller;
 use App\Jobs\ReleaseSeatHoldJob;
@@ -171,11 +172,9 @@ class PaymentController extends Controller
     // ====================THANH TOÁN VNPAY==================== //
 
 
-    // thêm total_price
+
     public function payment(Request $request)
     {
-
-
         // Xác thực dữ liệu đầu vào
         $request->validate([
             'seat_id' => 'required|array',
@@ -188,7 +187,7 @@ class PaymentController extends Controller
             'use_points' => 'nullable|integer|min:0',
             'total_price' => 'required|numeric|min:10000', // Tổng tiền còn lại
         ]);
-        Log::info('Dữ liệu seatIds:', $request->seat_id);
+
         $userId = auth()->id();
         $showtime = Showtime::findOrFail($request->showtime_id);
         $seatIds = $request->seat_id;
@@ -244,6 +243,7 @@ class PaymentController extends Controller
             }
         }
 
+
         // Kiểm tra và áp dụng voucher
         $voucherDiscount = 0;
         $voucher = Voucher::where('code', $request->voucher_code)->first();
@@ -264,29 +264,34 @@ class PaymentController extends Controller
         // Tạo mã đơn hàng
         $orderCode = date("ymd") . "_" . uniqid();
 
-        //log
-        Log::info("Lưu đơn hàng vào Cache: payment_{$orderCode}", [
-            'data' => [
+
+        // Xác định thời gian giữ ghế theo phương thức thanh toán
+        $holdTime = now();
+        if ($request->payment_name == 'VNPAY' || $request->payment_name == 'ZALOPAY') {
+            $holdTime = now()->addMinutes(15); // Giữ ghế 15 phút cho VNPAY và ZALOPAY
+        } elseif ($request->payment_name == 'MOMO') {
+            $holdTime = now()->addMinutes(10); // Giữ ghế 10 phút cho MOMO
+        } else {
+            $holdTime = now()->addMinutes(15); // Mặc định là 15 phút
+        }
+
+
+        // Cập nhật trạng thái ghế và thời gian giữ ghế cho tất cả ghế trong yêu cầu thanh toán
+        DB::table('seat_showtimes')
+            ->whereIn('seat_id', $seatIds)
+            ->where('showtime_id', $showtime->id)
+            ->update([
+                'status' => 'hold',
+                'hold_expires_at' => $holdTime,
                 'user_id' => $userId,
-                'cinema_id' => $showtime->cinema_id,
-                'room_id' => $showtime->room_id,
-                'movie_id' => $showtime->movie_id,
-                'showtime_id' => $showtime->id,
-                'voucher_code' => $voucher->code ?? null,
-                'voucher_discount' => $voucherDiscount,
-                'point_use' => $pointUsed,
-                'point_discount' => $pointDiscount,
-                'payment_name' => $request->payment_name,
-                'code' => $orderCode,
-                'total_price' => $totalPayment,
-                'expiry' => $showtime->end_time,
-                'seats' => $seatIds,
-                'combos' => $request->combo ?? [],
-            ]
-        ]);
+            ]);
 
-        // Lưu vào cache
+        // Thêm job để tự động giải phóng ghế sau 15 phút nếu chưa thanh toán
+        foreach ($seatIds as $seatId) {
+            ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay($holdTime);
+        }
 
+        // Log vào cache
         Cache::put("payment_{$orderCode}", [
             'user_id' => $userId,
             'cinema_id' => $showtime->cinema_id,
@@ -389,8 +394,24 @@ class PaymentController extends Controller
         // Lấy dữ liệu từ Cache
         $paymentData = Cache::get("payment_{$vnp_TxnRef}");
 
-        if (!$paymentData) {
-            return response()->json(['error' => 'Không tìm thấy đơn hàng hoặc dữ liệu không hợp lệ.'], 400);
+        // Nếu thanh toán thất bại, giải phóng ghế
+        if ($inputData['vnp_ResponseCode'] != '00') {
+            Log::warning("Thanh toán thất bại, giải phóng ghế.");
+
+            // Giải phóng ghế nếu thanh toán thất bại
+            DB::table('seat_showtimes')
+                ->whereIn('seat_id', $paymentData['seats'])
+                ->where('showtime_id', $paymentData['showtime_id'])
+                ->update([
+                    'status' => 'available',
+                    'user_id' => null,
+                    'hold_expires_at' => null,
+                ]);
+
+            // Xóa cache để tránh lỗi khi xử lý lại
+            Cache::forget("payment_{$vnp_TxnRef}");
+
+            return response()->json(['error' => 'Thanh toán thất bại'], 400);
         }
 
         // Nếu thanh toán thành công, tạo vé và cập nhật điểm
@@ -478,12 +499,22 @@ class PaymentController extends Controller
                         'type' => 'Nhận điểm',
                     ]);
                 }
+
+                // Xác định rank mới
+                $rank = Rank::where('total_spent', '<=', $membership->total_spent)
+                    ->orderBy('total_spent', 'desc')
+                    ->first() ?? Rank::orderBy('total_spent', 'asc')->first();
+
+                if ($rank) {
+                    $membership->rank_id = $rank->id;
+                    $membership->save();
+                }
             });
 
             Cache::forget("payment_{$vnp_TxnRef}");
 
             return redirect(env('FRONTEND_URL') . "/thanks/{$paymentData['code']}?status=success");
-        };
+        }
 
         return response()->json(['error' => 'Thanh toán thất bại.'], 400);
     }
@@ -519,7 +550,11 @@ class PaymentController extends Controller
         // Embed data (tùy chỉnh)
         $embeddata = [
             "merchantinfo" => "embeddata123",
-            "redirecturl" => "http://localhost:5173/thanks/{$paymentData['code']}?status=success"
+
+            "redirecturl" => route('handleZaloPayRedirect')
+
+            //"redirecturl" => "http://localhost:5173/thanks/{$paymentData['code']}?status=success"
+
         ];
 
         // Danh sách sản phẩm
@@ -572,11 +607,12 @@ class PaymentController extends Controller
 
         return response()->json([
             "status" => "success",
-            "zp_trans_token" => $responseData["zp_trans_token"],
+            // "zp_trans_token" => $responseData["zp_trans_token"],
             "payment_url" => $responseData["order_url"],
+            // "cashier_order_url" => $responseData["cashier_order_url"],
+            // "qr_code" => $responseData["qr_code"]
         ]);
     }
-
 
     public function zalopayCallback(Request $request)
     {
@@ -612,6 +648,27 @@ class PaymentController extends Controller
                     'orderCode' => $orderCode,
                     'paymentData' => $paymentData
                 ]);
+
+                if (!$paymentData) {
+                    Log::info("Thanh toán thất bại, giải phóng ghế.");
+
+                    // Giải phóng ghế nếu thanh toán thất bại
+                    DB::table('seat_showtimes')
+                        ->whereIn('seat_id', $paymentData['seats'])
+                        ->where('showtime_id', $paymentData['showtime_id'])
+                        ->update([
+                            'status' => 'available',
+                            'user_id' => null,
+                            'hold_expires_at' => null,
+                        ]);
+                    // Xóa cache cho đơn hàng sau khi xử lý
+                    Cache::forget("payment_{$orderCode}");
+                    Log::info("Đã xóa Cache cho đơn hàng: payment_{$orderCode}");
+
+                    $result["return_code"] = 1;
+                    $result["return_message"] = "success";
+                }
+
 
                 if (!$paymentData) {
                     Log::warning("Không tìm thấy đơn hàng trong Cache, tìm trong Database: {$orderCode}");
@@ -665,8 +722,7 @@ class PaymentController extends Controller
                                 }
                             }
 
-                            //  **Cập nhật trạng thái ghế thành "booked"**
-
+                            //  Cập nhật trạng thái ghế thành "booked"
                             DB::table('seat_showtimes')
                                 ->whereIn('seat_id', $paymentData['seats'])
                                 ->where('showtime_id', $paymentData['showtime_id'])
@@ -707,6 +763,16 @@ class PaymentController extends Controller
                                     'type' => 'Nhận điểm',
                                 ]);
                             }
+
+                            // Xác định rank mới
+                            $rank = Rank::where('total_spent', '<=', $membership->total_spent)
+                                ->orderBy('total_spent', 'desc')
+                                ->first() ?? Rank::orderBy('total_spent', 'asc')->first();
+
+                            if ($rank) {
+                                $membership->rank_id = $rank->id;
+                                $membership->save();
+                            }
                         });
                     }
 
@@ -723,14 +789,54 @@ class PaymentController extends Controller
                 $result["return_message"] = "success";
             };
         } catch (\Exception $e) {
+
             Log::error('ZaloPay callback error: ' . $e->getMessage());
             $result["return_code"] = 0;
             $result["return_message"] = $e->getMessage();
         }
 
+        Log::info("Phản hồi callback gửi lại ZaloPay:", ['response' => $result]);
+
         return response()->json($result);
     }
 
+    public function handleZaloPayRedirect(Request $request)
+    {
+        $status = $request->input('status'); // Lấy trạng thái thanh toán từ params
+        $orderCode = $request->input('orderCode'); // Lấy mã đơn hàng từ params
+
+        // Kiểm tra nếu thanh toán thành công
+        if ($status == 1) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Thanh toán thành công',
+            ]); // Trả về JSON thông báo thành công
+        }
+
+        // Nếu thanh toán thất bại, giải phóng ghế
+        $paymentData = Cache::get("payment_{$orderCode}");
+
+        if ($paymentData) {
+            // Giải phóng ghế
+            DB::table('seat_showtimes')
+                ->whereIn('seat_id', $paymentData['seats'])
+                ->where('showtime_id', $paymentData['showtime_id'])
+                ->update([
+                    'status' => 'available',
+                    'user_id' => null,
+                    'hold_expires_at' => null,
+                ]);
+
+            // Xóa cache đơn hàng
+            Cache::forget("payment_{$orderCode}");
+        }
+
+        return response()->json([
+            'orderCode' => $orderCode,
+            'status' => 'failure',
+            'message' => 'Thanh toán thất bại, ghế đã được giải phóng',
+        ]); // Trả về JSON thông báo thất bại
+    }
 
     // ====================END THANH TOÁN ZALOPAY==================== //
 
