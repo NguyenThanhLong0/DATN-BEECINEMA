@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\ComboFoodController;
+use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\MovieReviewController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
@@ -349,6 +350,20 @@ Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update
 Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
 
 Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
+
+
+//Contact
+Route::get('contact',               [ContactController::class, 'index'])->name('contact.index');
+
+Route::post('contact',              [ContactController::class, 'store'])->name('contact.store');
+
+Route::get('contact/{contact}',      [ContactController::class, 'show'])->name('contact.show');
+
+Route::put('contact/{contact}',      [ContactController::class, 'update'])->name('contact.update');
+
+Route::patch('contact/{contact}',    [ContactController::class, 'update'])->name('contact.update.partial');
+
+Route::delete('contact/{contact}',   [ContactController::class, 'destroy'])->name('contact.destroy');
 
 //choose-seat
 
