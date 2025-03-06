@@ -17,6 +17,7 @@ use App\Models\Ticket_Combo;
 use App\Models\Ticket_Seat;
 use App\Models\UserVoucher;
 use App\Models\Voucher;
+use Exception;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -203,6 +204,46 @@ class PaymentController extends Controller
             }
         }
 
+        // Xác định thời gian giữ ghế theo phương thức thanh toán
+        $holdTime = now();
+        if ($request->payment_name == 'VNPAY' || $request->payment_name == 'ZALOPAY') {
+            $holdTime = now()->addMinutes(15); // Giữ ghế 15 phút cho VNPAY và ZALOPAY
+        } elseif ($request->payment_name == 'MOMO') {
+            $holdTime = now()->addMinutes(10); // Giữ ghế 10 phút cho MOMO
+        } else {
+            // Thêm các phương thức thanh toán khác
+            $holdTime = now()->addMinutes(15); // Mặc định là 15 phút
+        }
+
+        // Cập nhật trạng thái ghế và thời gian giữ ghế cho tất cả ghế trong yêu cầu thanh toán
+        DB::table('seat_showtimes')
+            ->whereIn('seat_id', $seatIds)
+            ->where('showtime_id', $showtime->id)
+            ->update([
+                'status' => 'hold',
+                'hold_expires_at' => $holdTime, // Cập nhật thời gian giữ ghế
+                'user_id' => $userId,
+            ]);
+
+
+        //  Thêm job để tự động giải phóng ghế sau 15 phút nếu chưa thanh toán
+        foreach ($seatIds as $seatId) {
+            ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay(now()->addMinutes(15));
+        }
+
+        // Tính toán giá vé và combo
+        $priceSeat = $seatShowtimes->sum('price');
+        $priceCombo = 0;
+        if ($request->combo) {
+            foreach ($request->combo as $comboId => $quantity) {
+                if ($quantity > 0) {
+                    $combo = Combo::findOrFail($comboId);
+                    $priceCombo += ($combo->price_sale ?? $combo->price) * $quantity;
+                }
+            }
+        }
+
+
         // Kiểm tra và áp dụng voucher
         $voucherDiscount = 0;
         $voucher = Voucher::where('code', $request->voucher_code)->first();
@@ -223,6 +264,7 @@ class PaymentController extends Controller
         // Tạo mã đơn hàng
         $orderCode = date("ymd") . "_" . uniqid();
 
+
         // Xác định thời gian giữ ghế theo phương thức thanh toán
         $holdTime = now();
         if ($request->payment_name == 'VNPAY' || $request->payment_name == 'ZALOPAY') {
@@ -232,6 +274,7 @@ class PaymentController extends Controller
         } else {
             $holdTime = now()->addMinutes(15); // Mặc định là 15 phút
         }
+
 
         // Cập nhật trạng thái ghế và thời gian giữ ghế cho tất cả ghế trong yêu cầu thanh toán
         DB::table('seat_showtimes')
@@ -272,6 +315,8 @@ class PaymentController extends Controller
             return $this->vnPayPayment($orderCode);
         } elseif ($request->payment_name == 'ZALOPAY') {
             return $this->zalopayPayment($orderCode);
+        } else if ($request->payment_name == 'MOMO') {
+            return $this->MomoPayment($orderCode);
         } else {
             return response()->json(['error' => 'Phương thức thanh toán không được hỗ trợ'], 400);
         }
@@ -742,8 +787,9 @@ class PaymentController extends Controller
 
                 $result["return_code"] = 1;
                 $result["return_message"] = "success";
-            }
-        } catch (Exception $e) {
+            };
+        } catch (\Exception $e) {
+
             Log::error('ZaloPay callback error: ' . $e->getMessage());
             $result["return_code"] = 0;
             $result["return_message"] = $e->getMessage();
@@ -793,4 +839,221 @@ class PaymentController extends Controller
     }
 
     // ====================END THANH TOÁN ZALOPAY==================== //
+
+    // ====================THANH TOÁN MOMO==================== //
+    public function MomoPayment($orderCode)
+    {
+        // Lấy dữ liệu đơn hàng từ cache
+        $paymentData = Cache::get("payment_{$orderCode}");
+
+        if (!$paymentData) {
+            return response()->json(['error' => 'Không tìm thấy đơn hàng.'], 400);
+        }
+        $endpoint = "https://test-payment.momo.vn/v2/gateway/api/create";
+
+        $partnerCode = env('MOMO_PARTNER_CODE');
+        $accessKey = env('MOMO_ACCESS_KEY');
+        $secretKey = env('MOMO_SECRET_KEY');
+
+        // Tạo mã đơn hàng theo định dạng "ymd_uniqid"
+        $orderId = $orderCode;
+        $orderInfo = "Thanh toán đơn hàng #" . $orderId;
+        $amount = $paymentData['total_price']; // Giá trị đơn hàng
+        $redirectUrl = env('MOMO_REDIRECT_URL');
+        $ipnUrl = env('MOMO_IPN_URL');
+        $extraData = "";
+        $expiredTime = time() + 600;
+
+        // Tạo signature (chữ ký số) payWithATM
+        $rawData = "accessKey={$accessKey}&amount={$amount}&extraData={$extraData}&ipnUrl={$ipnUrl}&orderId={$orderId}&orderInfo={$orderInfo}&partnerCode={$partnerCode}&redirectUrl={$redirectUrl}&requestId={$orderId}&requestType=payWithMethod";
+        $signature = hash_hmac("sha256", $rawData, $secretKey);
+
+        // Dữ liệu gửi đến MoMo
+        $data = [
+            "partnerCode" => $partnerCode,
+            "requestId" => $orderId,
+            "amount" => $amount,
+            "orderId" => $orderId,
+            "orderInfo" => $orderInfo,
+            "redirectUrl" => $redirectUrl,
+            "ipnUrl" => $ipnUrl,
+            "lang" => "vi",
+            "extraData" => $extraData,
+            "requestType" => "payWithMethod",
+            "signature" => $signature,
+            "expiredTime" => $expiredTime,
+        ];
+
+        // Gửi request tới MoMo
+        $response = Http::post($endpoint, $data);
+        $result = $response->json();
+
+        return response()->json($result);
+    }
+    public function paymentIpn(Request $request)
+    {
+        $data = $request->all();
+        Log::debug($data);
+        // Log::info('MoMo IPN Received:', ['data' => $data]);
+
+        $secretKey = env('MOMO_SECRET_KEY');
+        $rawData = "accessKey=" . env('MOMO_ACCESS_KEY') .
+            "&amount={$data['amount']}" .
+            "&extraData={$data['extraData']}" .
+            "&message={$data['message']}" .
+            "&orderId={$data['orderId']}" .
+            "&orderInfo={$data['orderInfo']}" .
+            "&orderType={$data['orderType']}" .
+            "&partnerCode={$data['partnerCode']}" .
+            "&payType={$data['payType']}" .
+            "&requestId={$data['requestId']}" .
+            "&responseTime={$data['responseTime']}" .
+            "&resultCode={$data['resultCode']}" .
+            "&transId={$data['transId']}";
+        $signature = hash_hmac("sha256", $rawData, $secretKey);
+
+        Log::info("MoMo IPN Signature:", [
+            'received_signature' => $data['signature'],
+            'generated_signature' => $signature,
+            'match' => $signature === $data['signature']
+        ]);
+
+        if ($signature !== $data['signature']) {
+            Log::error("MoMo IPN: Chữ ký sai!");
+            return response()->json(["message" => "Chữ ký không hợp lệ"], 400);
+        }
+
+        $orderCode = $data['orderId'];
+        Log::info("MoMo IPN OrderCode:", ['orderCode' => $orderCode]);
+
+        $paymentData = Cache::get("payment_{$orderCode}");
+        Log::info("MoMo IPN Cache Data:", ['paymentData' => $paymentData]);
+
+        if (!$paymentData) {
+            Log::error("MoMo IPN: Không tìm thấy dữ liệu cache!");
+            return response()->json(['error' => 'Không tìm thấy dữ liệu thanh toán.'], 400);
+        }
+
+        if ($data['resultCode'] == 0) {
+            try {
+                DB::transaction(function () use ($paymentData, $orderCode) {
+                    $ticket = Ticket::create([
+                        'user_id' => $paymentData['user_id'],
+                        'cinema_id' => $paymentData['cinema_id'],
+                        'room_id' => $paymentData['room_id'],
+                        'movie_id' => $paymentData['movie_id'],
+                        'showtime_id' => $paymentData['showtime_id'],
+                        'voucher_code' => $paymentData['voucher_code'],
+                        'voucher_discount' => $paymentData['voucher_discount'],
+                        'point_use' => $paymentData['point_use'],
+                        'point_discount' => $paymentData['point_discount'],
+                        'payment_name' => 'MOMO',
+                        'code' => $paymentData['code'],
+                        'total_price' => $paymentData['total_price'],
+                        'status' => 'Đã thanh toán',
+                        'expiry' => $paymentData['expiry'],
+                    ]);
+
+                    Log::info("MoMo IPN: Tạo Ticket thành công:", ['ticket_id' => $ticket->id]);
+
+                    foreach ($paymentData['seats'] as $seatId) {
+                        Ticket_Seat::create([
+                            'ticket_id' => $ticket->id,
+                            'seat_id' => $seatId,
+                            'price' => DB::table('seat_showtimes')->where('seat_id', $seatId)->value('price'),
+                        ]);
+                    }
+                    Log::info("MoMo IPN: Đã lưu seat vào Ticket_Seat.");
+
+                    if (!empty($paymentData['combos'])) {
+                        foreach ($paymentData['combos'] as $comboId => $quantity) {
+                            Ticket_Combo::create([
+                                'ticket_id' => $ticket->id,
+                                'combo_id' => $comboId,
+                                'quantity' => $quantity,
+                                'price' => Combo::find($comboId)->price * $quantity,
+                            ]);
+                        }
+                        Log::info("MoMo IPN: Đã lưu combo vào Ticket_Combo.");
+                    }
+
+                    DB::table('seat_showtimes')
+                        ->whereIn('seat_id', $paymentData['seats'])
+                        ->where('showtime_id', $paymentData['showtime_id'])
+                        ->update([
+                            'status' => 'booked',
+                            'user_id' => $paymentData['user_id'],
+                            'updated_at' => now()
+                        ]);
+
+                    Log::info("MoMo IPN: Đã cập nhật trạng thái ghế.");
+
+                    foreach ($paymentData['seats'] as $seatId) {
+                        Cache::forget("seat_hold_{$seatId}_{$paymentData['showtime_id']}");
+                    }
+
+                    Log::info("MoMo IPN: Đã xóa cache seat hold.");
+
+                    // Xử lý membership (điểm, rank...) như cũ của bạn tại đây
+                // Trừ điểm của người dùng
+                if ($paymentData['point_use'] > 0) {
+                    $membership = Membership::where('user_id', $ticket->user_id)->first();
+                    if ($membership) {
+                        $membership->decrement('points', $paymentData['point_use']);
+                        PointHistory::create([
+                            'membership_id' => $membership->id,
+                            'points' => -$paymentData['point_use'],
+                            'type' => 'Dùng điểm',
+                        ]);
+                    }
+                }
+
+                // Tích điểm mới cho người dùng và cộng total_spent
+                $membership = Membership::where('user_id', $ticket->user_id)->first();
+                if ($membership) {
+                    // Cộng thêm vào total_spent
+                    $membership->increment('total_spent', $paymentData['total_price']);
+                    // Tích điểm mới cho người dùng
+                    $pointsEarned = $paymentData['total_price'] * 0.03; // 3% giá trị thanh toán
+                    $membership->increment('points', $pointsEarned);
+                    PointHistory::create([
+                        'membership_id' => $membership->id,
+                        'points' => $pointsEarned,
+                        'type' => 'Nhận điểm',
+                    ]);
+                }
+            });
+
+                Cache::forget("payment_{$orderCode}");
+                Log::info("MoMo IPN: Đã xóa cache payment sau khi xử lý.");
+
+                return response()->json(["message" => "Thanh toán thành công"]);
+            } catch (Exception $e) {
+                Log::error("MoMo IPN: Exception: " . $e->getMessage());
+                return response()->json(["error" => "Có lỗi xử lý thanh toán"], 500);
+            }
+        }
+
+        // Xử lý thất bại thanh toán:
+        DB::table('seat_showtimes')
+            ->whereIn('seat_id', $paymentData['seats'])
+            ->where('showtime_id', $paymentData['showtime_id'])
+            ->update([
+                'status' => 'available',
+                'user_id' => null,
+                'hold_expires_at' => null,
+            ]);
+
+        Cache::forget("payment_{$orderCode}");
+        Log::warning("MoMo IPN: Thanh toán thất bại, đã giải phóng ghế.");
+
+        return response()->json(["message" => "Thanh toán thất bại"], 400);
+    }
+
+
+
+    // ====================END THANH TOÁN MOMO==================== //
+
+
+
 }

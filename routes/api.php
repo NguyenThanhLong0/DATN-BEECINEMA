@@ -397,5 +397,9 @@ Route::post('/zalopay/payment', [PaymentController::class, 'createPayment']);
 
 Route::get('vnpay-return', [PaymentController::class, 'returnVnpay'])->name('vnpay.return');
 
+Route::post('/momo-payment', [PaymentController::class, 'MomoPayment']);
+
+Route::post('/momo-ipn', [PaymentController::class, 'paymentIpn']);
+
 
 Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRedirect'])->name('handleZaloPayRedirect');
