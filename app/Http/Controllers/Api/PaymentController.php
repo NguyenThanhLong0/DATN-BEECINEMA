@@ -17,7 +17,6 @@ use App\Models\Ticket_Combo;
 use App\Models\Ticket_Seat;
 use App\Models\UserVoucher;
 use App\Models\Voucher;
-use Exception;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
