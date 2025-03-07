@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\ComboFoodController;
+use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\MovieReviewController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
@@ -350,6 +351,20 @@ Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'upda
 
 Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
 
+
+//Contact
+Route::get('contact',               [ContactController::class, 'index'])->name('contact.index');
+
+Route::post('contact',              [ContactController::class, 'store'])->name('contact.store');
+
+Route::get('contact/{contact}',      [ContactController::class, 'show'])->name('contact.show');
+
+Route::put('contact/{contact}',      [ContactController::class, 'update'])->name('contact.update');
+
+Route::patch('contact/{contact}',    [ContactController::class, 'update'])->name('contact.update.partial');
+
+Route::delete('contact/{contact}',   [ContactController::class, 'destroy'])->name('contact.destroy');
+
 //choose-seat
 
 Route::middleware('auth:api')->group(function () {
@@ -381,6 +396,10 @@ Route::post('/zalopay/callback', [PaymentController::class, 'zalopayCallback']);
 Route::post('/zalopay/payment', [PaymentController::class, 'createPayment']);
 
 Route::get('vnpay-return', [PaymentController::class, 'returnVnpay'])->name('vnpay.return');
+
+Route::post('/momo-payment', [PaymentController::class, 'MomoPayment']);
+
+Route::post('/momo-ipn', [PaymentController::class, 'paymentIpn']);
 
 
 Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRedirect'])->name('handleZaloPayRedirect');
