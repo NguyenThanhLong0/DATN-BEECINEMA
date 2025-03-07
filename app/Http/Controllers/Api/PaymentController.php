@@ -24,153 +24,18 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use App\Jobs\SendTicketEmail;
 
 class PaymentController extends Controller
 {
-    // public function payment(Request $request)
-    // {
-    //     // Xác thực dữ liệu đầu vào
-    //     $request->validate([
-    //         'seat_id' => 'required|array',
-    //         'seat_id.*' => 'integer|exists:seats,id',
-    //         'combo' => 'nullable|array',
-    //         'combo.*' => 'nullable|integer|min:0|max:10',
-    //         'voucher_code' => 'nullable|string|exists:vouchers,code',
-    //         'showtime_id' => 'required|integer|exists:showtimes,id',
-    //         'payment_name' => 'required|string',
-    //         'use_points' => 'nullable|integer|min:0',
-    //     ]);
 
-    //     $userId = auth()->id();
-    //     $showtime = Showtime::findOrFail($request->showtime_id);
-    //     $seatIds = $request->seat_id;
+    private function generateOrderCode()
+    {
+        $uniquePart = substr(uniqid(), -8); // Lấy 8 số cuối của uniqid()
+        $randomPart = rand(10000000, 99999999); // Thêm 8 số ngẫu nhiên
 
-    //     // Kiểm tra trạng thái ghế
-    //     $seatShowtimes = DB::table('seat_showtimes')
-    //         ->whereIn('seat_id', $seatIds)
-    //         ->where('showtime_id', $showtime->id)
-    //         ->get();
-
-    //     foreach ($seatShowtimes as $seat) {
-    //         if ($seat->hold_expires_at < now() || $seat->user_id != $userId || $seat->status != 'hold') {
-    //             return response()->json(['error' => 'Một hoặc nhiều ghế không hợp lệ.'], 400);
-    //         }
-    //     }
-
-    //     // Tính toán giá vé và combo
-    //     $priceSeat = $seatShowtimes->sum('price');
-    //     $priceCombo = 0;
-    //     if ($request->combo) {
-    //         foreach ($request->combo as $comboId => $quantity) {
-    //             if ($quantity > 0) {
-    //                 $combo = Combo::findOrFail($comboId);
-    //                 $priceCombo += ($combo->price_sale ?? $combo->price) * $quantity;
-    //             }
-    //         }
-    //     }
-
-    //     // Kiểm tra và áp dụng voucher
-    //     $voucherDiscount = 0;
-    //     $voucher = Voucher::where('code', $request->voucher_code)->first();
-    //     if ($voucher && $voucher->quantity > 0) {
-    //         $voucherDiscount = $voucher->discount;
-    //     }
-
-    //     // Kiểm tra điểm tích lũy
-    //     $membership = Membership::where('user_id', $userId)->first();
-    //     $pointUsed = min($membership->points ?? 0, $request->use_points ?? 0); // Số điểm sử dụng không được vượt quá số điểm hiện có
-    //     $pointDiscount = $pointUsed; // 1 điểm = 1 VND
-
-    //     // Tính tổng tiền sau khi trừ voucher và điểm tích lũy
-    //     $totalPrice = $priceSeat + $priceCombo;
-    //     $totalDiscount = $voucherDiscount + $pointDiscount;
-    //     $totalPayment = max($totalPrice - $totalDiscount, 10000); // Đảm bảo giá tối thiểu 10k
-
-    //     Log::info("Giá gốc: $totalPrice - Giảm giá: $totalDiscount - Số tiền thanh toán: $totalPayment");
-
-    //     // Tạo mã đơn hàng
-    //     $orderCode = date("ymd") . "_" . uniqid();
-
-    //     // Xác định thời gian giữ ghế theo phương thức thanh toán
-    //     $holdTime = now();
-    //     if ($request->payment_name == 'VNPAY' || $request->payment_name == 'ZALOPAY') {
-    //         $holdTime = now()->addMinutes(15); // Giữ ghế 15 phút cho VNPAY và ZALOPAY
-    //     } elseif ($request->payment_name == 'MOMO') {
-    //         $holdTime = now()->addMinutes(10); // Giữ ghế 10 phút cho MOMO
-    //     } else {
-    //         // Thêm các phương thức thanh toán khác
-    //         $holdTime = now()->addMinutes(15); // Mặc định là 15 phút
-    //     }
-
-    //     // Cập nhật trạng thái ghế và thời gian giữ ghế cho tất cả ghế trong yêu cầu thanh toán
-    //     DB::table('seat_showtimes')
-    //         ->whereIn('seat_id', $seatIds)
-    //         ->where('showtime_id', $showtime->id)
-    //         ->update([
-    //             'status' => 'hold',
-    //             'hold_expires_at' => $holdTime, // Cập nhật thời gian giữ ghế
-    //             'user_id' => $userId,
-    //         ]);
-
-    //     //  Thêm job để tự động giải phóng ghế sau 15 phút nếu chưa thanh toán
-    //     foreach ($seatIds as $seatId) {
-    //         ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay(now()->addMinutes(15));
-    //     }
-
-
-    //     //log
-    //     Log::info("Lưu đơn hàng vào Cache: payment_{$orderCode}", [
-    //         'data' => [
-    //             'user_id' => $userId,
-    //             'cinema_id' => $showtime->cinema_id,
-    //             'room_id' => $showtime->room_id,
-    //             'movie_id' => $showtime->movie_id,
-    //             'showtime_id' => $showtime->id,
-    //             'voucher_code' => $voucher->code ?? null,
-    //             'voucher_discount' => $voucherDiscount,
-    //             'point_use' => $pointUsed,
-    //             'point_discount' => $pointDiscount,
-    //             'payment_name' => $request->payment_name,
-    //             'code' => $orderCode,
-    //             'total_price' => $totalPayment,
-    //             'expiry' => $showtime->end_time,
-    //             'seats' => $seatIds,
-    //             'combos' => $request->combo ?? [],
-    //         ]
-    //     ]);
-
-    //     // Lưu vào cache
-    //     Cache::put("payment_{$orderCode}", [
-    //         'user_id' => $userId,
-    //         'cinema_id' => $showtime->cinema_id,
-    //         'room_id' => $showtime->room_id,
-    //         'movie_id' => $showtime->movie_id,
-    //         'showtime_id' => $showtime->id,
-    //         'voucher_code' => $voucher->code ?? null,
-    //         'voucher_discount' => $voucherDiscount,
-    //         'point_use' => $pointUsed, // Số điểm đã dùng
-    //         'point_discount' => $pointDiscount, // Tiền được giảm từ điểm
-    //         'payment_name' => $request->payment_name,
-    //         'code' => $orderCode,
-    //         'total_price' => $totalPayment,
-    //         'expiry' => $showtime->end_time,
-    //         'seats' => $seatIds,
-    //         'combos' => $request->combo ?? [],
-    //     ], now()->addMinutes(60));
-
-    //     // Chuyển hướng đến phương thức thanh toán
-    //     if ($request->payment_name == 'VNPAY') {
-    //         return $this->vnPayPayment($orderCode);
-    //     } elseif ($request->payment_name == 'ZALOPAY') {
-    //         return $this->zalopayPayment($orderCode);
-    //     } else {
-    //         return response()->json(['error' => 'Phương thức thanh toán không được hỗ trợ'], 400);
-    //     }
-    // }
-
-    // ====================THANH TOÁN VNPAY==================== //
-
-
+        return $uniquePart . $randomPart; // Tổng cộng 16 số
+    }
 
     public function payment(Request $request)
     {
@@ -215,13 +80,17 @@ class PaymentController extends Controller
         $pointUsed = min($membership->points ?? 0, $request->use_points ?? 0); // Số điểm sử dụng không được vượt quá số điểm hiện có
         $pointDiscount = $pointUsed; // 1 điểm = 1 VND
 
+
+
         // Lưu tổng tiền đã tính toán từ frontend (tổng tiền đã giảm)
         $totalPayment = $request->total_price;
 
         Log::info("Tổng tiền thanh toán đã gửi từ frontend: $totalPayment");
 
-        // Tạo mã đơn hàng
-        $orderCode = date("ymd") . "_" . uniqid();
+
+        // Tạo mã đơn hàng 16 số cho tất cả các thanh toán
+        $orderCode = $this->generateOrderCode();
+        $zalopayOrderCode = date("ymd") . "_" . $orderCode;
 
         // Xác định thời gian giữ ghế theo phương thức thanh toán
         $holdTime = now();
@@ -390,6 +259,9 @@ class PaymentController extends Controller
                     'expiry' => $paymentData['expiry'],
                 ]);
 
+                // Dispatch job gửi email
+                SendTicketEmail::dispatch($ticket)->onQueue('emails');
+
                 // **Lưu thông tin ghế vào bảng ticket_seats**
                 foreach ($paymentData['seats'] as $seatId) {
                     Ticket_Seat::create([
@@ -489,7 +361,7 @@ class PaymentController extends Controller
             return response()->json(['error' => 'Không tìm thấy đơn hàng.'], 400);
         }
 
-        // Cấu hình ZaloPay từ .env
+        // Cấu hình ZaloPay
         $app_id = env('ZALOPAY_APP_ID');
         $key1 = env('ZALOPAY_KEY1');
         $endpoint = env('ZALOPAY_ENDPOINT');
@@ -500,40 +372,38 @@ class PaymentController extends Controller
         }
 
         $apptime = round(microtime(true) * 1000);
-        $apptransid = $orderCode; // Định dạng mã giao dịch theo yêu cầu của ZaloPay
+        $zalopayTransId = date("ymd") . "_" . $orderCode; // Mã gửi lên ZaloPay
+        $zalopayOrderCode = $orderCode; // Mã 16 số dùng trong hệ thống nội bộ
 
-        // Embed data (tùy chỉnh)
-        $embeddata = [
-            "merchantinfo" => "embeddata123",
+        // Lưu vào cache **với cả 2 mã**
+        Cache::put("payment_{$zalopayTransId}", array_merge($paymentData, [
+            'zalopay_trans_id' => $zalopayTransId, // Mã gửi lên ZaloPay
+            'code' => $zalopayOrderCode // Mã 16 số dùng trong nội bộ
+        ]), now()->addMinutes(60));
 
-            "redirecturl" => route('handleZaloPayRedirect')
+        // Log kiểm tra
+        Log::info("ZaloPay - Gửi thanh toán", [
+            'zalopay_trans_id' => $zalopayTransId,
+            'zalopay_order_code' => $zalopayOrderCode,
+            'payment_data' => $paymentData
+        ]);
 
-            //"redirecturl" => "http://localhost:5173/thanks/{$paymentData['code']}?status=success"
-
-        ];
-
-        // Danh sách sản phẩm
-        $items = [
-            [
-                "itemid" => "ticket",
-                "itemname" => "Vé xem phim",
-                "itemprice" => $paymentData['total_price'],
-                "itemquantity" => 1
-            ]
-        ];
-
-        // Tạo mảng dữ liệu gửi đi
+        // Tạo yêu cầu thanh toán ZaloPay
         $order = [
             "app_id" => $app_id,
             "app_time" => $apptime,
-            "app_trans_id" => $apptransid,
+            "app_trans_id" => $zalopayTransId,
             "app_user" => "user_demo",
-            "amount" => $paymentData['total_price'],
-            "description" => "Thanh toán vé xem phim - Đơn hàng #{$orderCode}",
-            "bank_code" => "", // Để trống để hỗ trợ nhiều hình thức thanh toán
+            "amount" => (int) $paymentData['total_price'],
+            "description" => "Thanh toán vé xem phim - Đơn hàng #{$zalopayOrderCode}",
             "callback_url" => $callback_url,
-            "embed_data" => json_encode($embeddata, JSON_UNESCAPED_UNICODE),
-            "item" => json_encode($items, JSON_UNESCAPED_UNICODE),
+            "embed_data" => json_encode([
+                "merchantinfo" => "embeddata123",
+                "redirecturl" => route('handleZaloPayRedirect', ['orderCode' => $zalopayOrderCode])
+            ], JSON_UNESCAPED_UNICODE),
+            "item" => json_encode([
+                ["itemid" => "ticket", "itemname" => "Vé xem phim", "itemprice" => (int) $paymentData['total_price'], "itemquantity" => 1]
+            ], JSON_UNESCAPED_UNICODE)
         ];
 
         // Tạo chữ ký MAC
@@ -554,204 +424,158 @@ class PaymentController extends Controller
 
         if ($response->failed() || $responseData["return_code"] != 1) {
             Log::error("Lỗi khi gọi API ZaloPay", ["response" => $responseData]);
-            return response()->json([
-                "error" => "Lỗi khi gọi API ZaloPay",
-                "details" => $responseData
-            ], 500);
+            return response()->json(["error" => "Lỗi khi gọi API ZaloPay", "details" => $responseData], 500);
         }
 
-        return response()->json([
-            "status" => "success",
-            // "zp_trans_token" => $responseData["zp_trans_token"],
-            "payment_url" => $responseData["order_url"],
-            // "cashier_order_url" => $responseData["cashier_order_url"],
-            // "qr_code" => $responseData["qr_code"]
-        ]);
+        return response()->json(["status" => "success", "payment_url" => $responseData["order_url"]]);
     }
+
 
     public function zalopayCallback(Request $request)
     {
-        $result = [];
-
         try {
             $key2 = env('ZALOPAY_KEY2'); // Key2 để xác thực callback
             $postdata = $request->getContent();
             $postdatajson = json_decode($postdata, true);
 
-            // Log dữ liệu callback
+            // Log dữ liệu callback từ ZaloPay
             Log::info("Dữ liệu callback từ ZaloPay:", ['data' => $postdatajson]);
 
             // Kiểm tra chữ ký MAC
             $mac = hash_hmac("sha256", $postdatajson["data"], $key2);
-            $requestmac = $postdatajson["mac"];
-
-            if (strcmp($mac, $requestmac) != 0) {
+            if (strcmp($mac, $postdatajson["mac"]) !== 0) {
                 Log::error('ZaloPay callback failed: MAC không hợp lệ.');
-                $result["return_code"] = -1;
-                $result["return_message"] = "mac not equal";
+                return response()->json(["return_code" => -1, "return_message" => "mac not equal"]);
+            }
+
+            // Giải mã dữ liệu từ callback
+            $datajson = json_decode($postdatajson["data"], true);
+            $zalopayTransId = $datajson["app_trans_id"]; // Mã giao dịch gốc từ ZaloPay
+            $orderCode = str_replace(date("ymd") . "_", "", $zalopayTransId); // Lấy 16 số cuối làm mã đơn hàng nội bộ
+
+            // Kiểm tra cache với mã ZaloPayTransId
+            $paymentData = Cache::get("payment_{$zalopayTransId}");
+
+            if (!$paymentData) {
+                Log::warning("Không tìm thấy đơn hàng trong Cache cho ZaloPay Trans ID: {$zalopayTransId}");
+                return response()->json(['error' => 'Không tìm thấy đơn hàng.'], 400);
+            }
+
+            Log::info("ZaloPay xác nhận thanh toán thành công, mã đơn hàng: {$orderCode}");
+
+            // Kiểm tra nếu vé đã tồn tại để tránh duplicate
+            $existingTicket = Ticket::where('code', $orderCode)->first();
+            if ($existingTicket) {
+                Log::warning("Vé đã tồn tại, không tạo lại: {$orderCode}");
             } else {
-                $datajson = json_decode($postdatajson["data"], true);
-                $orderCode = $datajson["app_trans_id"];
+                DB::transaction(function () use ($paymentData, $orderCode) {
+                    // Tạo vé
+                    $ticket = Ticket::create([
+                        'user_id' => $paymentData['user_id'],
+                        'cinema_id' => $paymentData['cinema_id'],
+                        'room_id' => $paymentData['room_id'],
+                        'movie_id' => $paymentData['movie_id'],
+                        'showtime_id' => $paymentData['showtime_id'],
+                        'voucher_code' => $paymentData['voucher_code'],
+                        'voucher_discount' => $paymentData['voucher_discount'],
+                        'point_use' => $paymentData['point_use'],
+                        'point_discount' => $paymentData['point_discount'],
+                        'payment_name' => 'ZALOPAY',
+                        'code' => $orderCode, // Chỉ lưu 16 số cuối
+                        'total_price' => $paymentData['total_price'],
+                        'status' => 'Đã thanh toán',
+                        'expiry' => $paymentData['expiry'],
+                    ]);
 
-                Log::info("ZaloPay xác nhận thanh toán thành công, đơn hàng: {$orderCode}");
+                    Log::info("Đã tạo vé thành công cho đơn hàng: {$orderCode}");
 
-                // Kiểm tra đơn hàng từ Cache
-                $paymentData = Cache::get("payment_{$orderCode}");
-                //log
-                Log::info(" Tìm đơn hàng trong Cache: payment_{$orderCode}", [
-                    'found' => !empty($paymentData),
-                    'orderCode' => $orderCode,
-                    'paymentData' => $paymentData
-                ]);
+                    SendTicketEmail::dispatch($ticket)->onQueue('emails');
 
-                if (!$paymentData) {
-                    Log::info("Thanh toán thất bại, giải phóng ghế.");
+                    // Lưu thông tin ghế vào bảng ticket_seats
+                    foreach ($paymentData['seats'] as $seatId) {
+                        Ticket_Seat::create([
+                            'ticket_id' => $ticket->id,
+                            'seat_id' => $seatId,
+                            'price' => DB::table('seat_showtimes')->where('seat_id', $seatId)->value('price'),
+                        ]);
+                    }
 
-                    // Giải phóng ghế nếu thanh toán thất bại
+                    // Lưu thông tin combo vào bảng ticket_combos
+                    if (!empty($paymentData['combos'])) {
+                        foreach ($paymentData['combos'] as $comboId => $quantity) {
+                            Ticket_Combo::create([
+                                'ticket_id' => $ticket->id,
+                                'combo_id' => $comboId,
+                                'quantity' => $quantity,
+                                'price' => Combo::find($comboId)->price * $quantity,
+                            ]);
+                        }
+                    }
+
+                    // Cập nhật trạng thái ghế thành "booked"
                     DB::table('seat_showtimes')
                         ->whereIn('seat_id', $paymentData['seats'])
                         ->where('showtime_id', $paymentData['showtime_id'])
                         ->update([
-                            'status' => 'available',
-                            'user_id' => null,
-                            'hold_expires_at' => null,
+                            'status' => 'booked',
+                            'user_id' => $paymentData['user_id'],
+                            'updated_at' => now()
                         ]);
-                    // Xóa cache cho đơn hàng sau khi xử lý
-                    Cache::forget("payment_{$orderCode}");
-                    Log::info("Đã xóa Cache cho đơn hàng: payment_{$orderCode}");
 
-                    $result["return_code"] = 1;
-                    $result["return_message"] = "success";
-                }
+                    // Xóa Job giữ ghế trong cache
+                    foreach ($paymentData['seats'] as $seatId) {
+                        Cache::forget("seat_hold_{$seatId}_{$paymentData['showtime_id']}");
+                    }
 
-
-                if (!$paymentData) {
-                    Log::warning("Không tìm thấy đơn hàng trong Cache, tìm trong Database: {$orderCode}");
-                }
-
-                if ($paymentData) {
-                    // Kiểm tra nếu vé đã tồn tại để tránh duplicate
-                    $existingTicket = Ticket::where('code', $paymentData['code'])->first();
-                    if ($existingTicket) {
-                        Log::warning("Vé đã tồn tại, không tạo lại: {$orderCode}");
-                    } else {
-                        DB::transaction(function () use ($paymentData) {
-                            // Tạo vé
-                            $ticket = Ticket::create([
-                                'user_id' => $paymentData['user_id'],
-                                'cinema_id' => $paymentData['cinema_id'],
-                                'room_id' => $paymentData['room_id'],
-                                'movie_id' => $paymentData['movie_id'],
-                                'showtime_id' => $paymentData['showtime_id'],
-                                'voucher_code' => $paymentData['voucher_code'],
-                                'voucher_discount' => $paymentData['voucher_discount'],
-                                'point_use' => $paymentData['point_use'],
-                                'point_discount' => $paymentData['point_discount'],
-                                'payment_name' => 'ZALOPAY',
-                                'code' => $paymentData['code'],
-                                'total_price' => $paymentData['total_price'],
-                                'status' => 'Đã thanh toán',
-                                'expiry' => $paymentData['expiry'],
+                    // Trừ điểm của người dùng nếu sử dụng
+                    if ($paymentData['point_use'] > 0) {
+                        $membership = Membership::where('user_id', $paymentData['user_id'])->first();
+                        if ($membership) {
+                            $membership->decrement('points', $paymentData['point_use']);
+                            PointHistory::create([
+                                'membership_id' => $membership->id,
+                                'points' => -$paymentData['point_use'],
+                                'type' => 'Dùng điểm',
                             ]);
-
-                            Log::info("Đã tạo vé thành công cho đơn hàng: {$paymentData['code']}");
-
-                            // **Lưu thông tin ghế vào bảng ticket_seats**
-                            foreach ($paymentData['seats'] as $seatId) {
-                                Ticket_Seat::create([
-                                    'ticket_id' => $ticket->id,
-                                    'seat_id' => $seatId,
-                                    'price' => DB::table('seat_showtimes')->where('seat_id', $seatId)->value('price'),
-                                ]);
-                            }
-
-                            // **Lưu combo vào bảng ticket_combos**
-                            if (!empty($paymentData['combos'])) {
-                                foreach ($paymentData['combos'] as $comboId => $quantity) {
-                                    Ticket_Combo::create([
-                                        'ticket_id' => $ticket->id,
-                                        'combo_id' => $comboId,
-                                        'quantity' => $quantity,
-                                        'price' => Combo::find($comboId)->price * $quantity,
-                                    ]);
-                                }
-                            }
-
-                            //  Cập nhật trạng thái ghế thành "booked"
-                            DB::table('seat_showtimes')
-                                ->whereIn('seat_id', $paymentData['seats'])
-                                ->where('showtime_id', $paymentData['showtime_id'])
-                                ->update([
-                                    'status' => 'booked',
-                                    'user_id' => $paymentData['user_id'],
-                                    'updated_at' => now()
-                                ]);
-
-                            // **XÓA JOB GIỮ GHẾ**
-                            foreach ($paymentData['seats'] as $seatId) {
-                                Cache::forget("seat_hold_{$seatId}_{$paymentData['showtime_id']}");
-                            }
-
-                            // Trừ điểm của người dùng
-                            if ($paymentData['point_use'] > 0) {
-                                $membership = Membership::where('user_id', $paymentData['user_id'])->first();
-                                if ($membership) {
-                                    $membership->decrement('points', $paymentData['point_use']);
-                                    PointHistory::create([
-                                        'membership_id' => $membership->id,
-                                        'points' => -$paymentData['point_use'],
-                                        'type' => 'Dùng điểm',
-                                    ]);
-                                }
-                            }
-
-                            // Tích điểm mới cho người dùng
-                            $membership = Membership::where('user_id', $paymentData['user_id'])->first();
-                            if ($membership) {
-                                // Cộng thêm vào total_spent
-                                $membership->increment('total_spent', $paymentData['total_price']);
-                                $pointsEarned = $paymentData['total_price'] * 0.03; // 3% giá trị thanh toán
-                                $membership->increment('points', $pointsEarned);
-                                PointHistory::create([
-                                    'membership_id' => $membership->id,
-                                    'points' => $pointsEarned,
-                                    'type' => 'Nhận điểm',
-                                ]);
-                            }
-
-                            // Xác định rank mới
-                            $rank = Rank::where('total_spent', '<=', $membership->total_spent)
-                                ->orderBy('total_spent', 'desc')
-                                ->first() ?? Rank::orderBy('total_spent', 'asc')->first();
-
-                            if ($rank) {
-                                $membership->rank_id = $rank->id;
-                                $membership->save();
-                            }
-                        });
+                        }
                     }
 
-                    // Xóa đơn hàng khỏi Cache sau khi xử lý
-                    if (Cache::has("payment_{$orderCode}")) {
-                        Cache::forget("payment_{$orderCode}");
-                        Log::info("Đã xóa Cache cho đơn hàng: payment_{$orderCode}");
+                    // Cộng điểm thưởng mới cho người dùng
+                    $membership = Membership::where('user_id', $paymentData['user_id'])->first();
+                    if ($membership) {
+                        $membership->increment('total_spent', $paymentData['total_price']);
+                        $pointsEarned = round($paymentData['total_price'] * 0.03);
+                        $membership->increment('points', $pointsEarned);
+                        PointHistory::create([
+                            'membership_id' => $membership->id,
+                            'points' => $pointsEarned,
+                            'type' => 'Nhận điểm',
+                        ]);
                     }
-                } else {
-                    Log::error("Không tìm thấy dữ liệu đơn hàng: {$orderCode}");
-                }
 
-                $result["return_code"] = 1;
-                $result["return_message"] = "success";
+                    // Kiểm tra rank mới của thành viên
+                    $rank = Rank::where('total_spent', '<=', $membership->total_spent)
+                        ->orderBy('total_spent', 'desc')
+                        ->first() ?? Rank::orderBy('total_spent', 'asc')->first();
+
+                    if ($rank) {
+                        $membership->rank_id = $rank->id;
+                        $membership->save();
+                    }
+
+                    Log::info("Hoàn tất xử lý vé cho đơn hàng: {$orderCode}");
+                });
             }
+
+            // Xóa đơn hàng khỏi Cache sau khi xử lý thành công
+            Cache::forget("payment_{$zalopayTransId}");
+            Log::info("Đã xóa Cache cho đơn hàng: payment_{$zalopayTransId}");
+
+            return response()->json(["return_code" => 1, "return_message" => "success"]);
         } catch (Exception $e) {
             Log::error('ZaloPay callback error: ' . $e->getMessage());
-            $result["return_code"] = 0;
-            $result["return_message"] = $e->getMessage();
+            return response()->json(["return_code" => 0, "return_message" => $e->getMessage()]);
         }
-
-        Log::info("Phản hồi callback gửi lại ZaloPay:", ['response' => $result]);
-
-        return response()->json($result);
     }
 
     public function handleZaloPayRedirect(Request $request)

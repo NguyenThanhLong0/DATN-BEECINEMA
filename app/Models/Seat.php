@@ -39,8 +39,12 @@ class Seat extends Model
     {
         return $this->belongsToMany(Showtime::class, 'seat_showtimes', 'seat_id', 'showtime_id')
             ->withPivot('status', 'price', 'user_id', 'hold_expires_at')
-            ->withPivot('status', 'price', 'user_id' , 'hold_expires_at')
+            ->withPivot('status', 'price', 'user_id', 'hold_expires_at')
             ->withTimestamps();
+    }
+    public function tickets()
+    {
+        return $this->belongsToMany(Ticket::class, 'ticket_seats', 'seat_id', 'ticket_id');
     }
 
     public static function getTotalSeat($room_id, $is_active = null)

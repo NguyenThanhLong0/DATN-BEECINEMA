@@ -42,6 +42,11 @@ class Ticket extends Model
     {
         return $this->hasMany(Ticket_Seat::class, 'ticket_id');
     }
+    //mới thêm tối qua
+    public function ticketSeats()
+    {
+        return $this->hasMany(Ticket_Seat::class, 'ticket_id');
+    }
     //  Quan hệ với bảng `ticket_combos`
     public function combos()
     {
