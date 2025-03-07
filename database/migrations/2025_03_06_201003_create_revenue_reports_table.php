@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('point_histories', function (Blueprint $table) {
+        Schema::create('revenue_reports', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('membership_id')->constrained()->onDelete('cascade');
-            $table->foreignId('ticket_id')->nullable()->constrained('tickets')->onDelete('cascade');
-            $table->integer('points');
-            $table->enum('type', ['Nhận điểm', 'Dùng điểm']);
+            $table->date('date')->unique();
+            $table->decimal('total_movie_revenue', 15, 2)->default(0);
+            $table->decimal('total_combo_revenue', 15, 2)->default(0);
+            $table->decimal('total_revenue', 15, 2)->default(0);
             $table->timestamps();
         });
     }
@@ -26,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('point_histories');
+        Schema::dropIfExists('revenue_reports');
     }
 };
