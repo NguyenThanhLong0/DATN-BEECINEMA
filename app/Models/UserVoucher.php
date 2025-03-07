@@ -8,10 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 class UserVoucher extends Model
 {
     use HasFactory;
+    public $timestamps = false;
     protected $fillable = [
         'user_id',
         'voucher_id',
-        'usage_count',
+        'ticket_id',
+        'discount_applied',
     ];
     public function user()
     {
@@ -21,5 +23,9 @@ class UserVoucher extends Model
     public function voucher()
     {
         return $this->belongsTo(Voucher::class, 'voucher_id');
+    }
+    public function ticket()
+    {
+        return $this->belongsTo(Ticket::class, 'ticket_id');
     }
 }
