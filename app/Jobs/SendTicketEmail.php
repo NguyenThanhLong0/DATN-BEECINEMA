@@ -25,10 +25,10 @@ class SendTicketEmail implements ShouldQueue
     public function handle()
     {
         try {
-            Log::info('Dữ liệu vé gửi vào email:', ['ticket' => $this->ticket]);
-            Log::info("Đang gửi email tới: " . $this->ticket->user->email);
+            // Log::info('Dữ liệu vé gửi vào email:', ['ticket' => $this->ticket]);
+            // Log::info("Đang gửi email tới: " . $this->ticket->user->email);
             Mail::to($this->ticket->user->email)->send(new TicketBookedMail($this->ticket));
-            Log::info("Gửi email thành công: " . $this->ticket->user->email);
+            // Log::info("Gửi email thành công: " . $this->ticket->user->email);
         } catch (\Exception $e) {
             Log::error('Gửi email thất bại: ' . $e->getMessage());
         }
