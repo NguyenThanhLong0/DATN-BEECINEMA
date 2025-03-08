@@ -103,31 +103,30 @@ class UserController extends Controller
          }
      }
      public function getUserVouchers()
-    {
+{
     try {
         $userId = Auth::id(); // Lấy ID của user đăng nhập
-    
+
         // Lấy danh sách voucher hợp lệ
-        $vouchers = UserVoucher::join('vouchers', 'user_vouchers.voucher_id', '=', 'vouchers.id')
-            ->where('user_vouchers.user_id', $userId)
-            ->where('vouchers.end_date_time', '>=', now()) // Chỉ lấy voucher chưa hết hạn
+        $vouchers = Voucher::leftJoin('user_vouchers', function ($join) use ($userId) {
+                $join->on('user_vouchers.voucher_id', '=', 'vouchers.id')
+                     ->where('user_vouchers.user_id', '=', $userId);
+            })
+            ->where('vouchers.end_date', '>=', now()) // Chỉ lấy voucher chưa hết hạn
             ->where('vouchers.is_active', 1) // Chỉ lấy voucher đang hoạt động
-            ->whereColumn('user_vouchers.usage_count', '<', 'vouchers.limit') // So sánh trực tiếp giữa 2 bảng
-            ->whereRaw('(SELECT SUM(uv.usage_count) FROM user_vouchers uv WHERE uv.voucher_id = user_vouchers.voucher_id) < vouchers.quantity') // Kiểm tra tổng usage_count // So sánh trực tiếp giữa 2 bảng
             ->select(
-                'user_vouchers.*',
-                'vouchers.code',
-                'vouchers.title',
-                'vouchers.description',
-                'vouchers.discount',
-                'vouchers.end_date_time',
-                'vouchers.start_date_time',
-                'vouchers.limit',
-                DB::raw('(SELECT SUM(uv.usage_count) FROM user_vouchers uv WHERE uv.voucher_id = user_vouchers.voucher_id) as total_usage'), // Truy vấn con để lấy tổng lượt sử dụng
-                DB::raw('(vouchers.quantity - COALESCE((SELECT SUM(uv.usage_count) FROM user_vouchers uv WHERE uv.voucher_id = user_vouchers.voucher_id), 0)) AS remaining_usage')
+                'vouchers.*',
+                // Tổng số lần voucher đã được sử dụng trên toàn bộ hệ thống
+                DB::raw('(SELECT COUNT(*) FROM user_vouchers uv WHERE uv.voucher_id = vouchers.id) as total_usage'),
+                // Tổng số lượt sử dụng còn lại của voucher
+                DB::raw('(vouchers.quantity - (SELECT COUNT(*) FROM user_vouchers uv WHERE uv.voucher_id = vouchers.id)) AS remaining_usage'),
+                // Tổng số lần user hiện tại đã sử dụng voucher này
+                DB::raw('(SELECT COUNT(*) FROM user_vouchers uv WHERE uv.voucher_id = vouchers.id AND uv.user_id = ' . $userId . ') as total_per_user')
             )
+            ->havingRaw('total_usage < vouchers.quantity') // Kiểm tra tổng số lượt sử dụng
+            ->havingRaw('total_per_user < vouchers.per_user_limit') // Kiểm tra số lượt sử dụng tối đa của user
             ->get();
-    
+
         return response()->json($vouchers);
     } catch (Exception $e) {
         return response()->json([
@@ -135,8 +134,10 @@ class UserController extends Controller
             'message' => $e->getMessage()
         ], 500);
     }
-    
-    }
+}
+
+     
+
     public function membership()
 
 {

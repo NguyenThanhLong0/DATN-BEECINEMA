@@ -76,11 +76,7 @@ class VoucherApiController extends Controller
     public function show($id)
     {
         try {
-            $voucher = Voucher::withCount([
-                'users as total_usage' => function ($query) {
-                    $query->select(DB::raw('COUNT(user_vouchers.id)')); // Đếm số lần sử dụng
-                }
-            ])->findOrFail($id);
+            $voucher = Voucher::all();
 
             return response()->json($voucher, Response::HTTP_OK);
         } catch (ModelNotFoundException $e) {

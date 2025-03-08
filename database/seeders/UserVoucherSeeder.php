@@ -15,24 +15,23 @@ class UserVoucherSeeder extends Seeder
     {
         // Lấy danh sách ID của user và voucher từ database
         $userIds = DB::table('users')->pluck('id')->toArray();
-        $voucherIds = DB::table('vouchers')->pluck('id')->toArray();
+        $vouchers = DB::table('vouchers')->get();
 
         // Kiểm tra nếu database chưa có dữ liệu
-        if (empty($userIds) || empty($voucherIds)) {
+        if (empty($userIds)) {
             return;
         }
 
         $userVouchers = [];
         foreach ($userIds as $userId) {
-            foreach ($voucherIds as $voucherId) {
+            $voucher=$vouchers->random();
                 $userVouchers[] = [
                     'user_id' => $userId,
-                    'voucher_id' => $voucherId,
-                    'usage_count' => rand(0, 3), // Random lượt sử dụng từ 0 đến 3
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'voucher_id' => $voucher->id,
+                    // 'usage_count' => rand(0, 3), // Random lượt sử dụng từ 0 đến 3
+                    'discount_applied'=>$voucher->discount_value,
                 ];
-            }
+            
         }
 
         DB::table('user_vouchers')->insert($userVouchers);
