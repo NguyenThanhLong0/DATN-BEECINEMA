@@ -20,11 +20,13 @@ use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
 use App\Http\Controllers\Api\ShowtimeController;
 use App\Http\Controllers\Api\VNPayController;
+use App\Http\Controllers\Api\ReportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ChooseSeatController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\ReportController as ControllersReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -189,14 +191,15 @@ Route::patch('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
 Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
 
 // Voucher
-Route::prefix('vouchers')->group(function () {
+Route::prefix('vouchers')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [VoucherApiController::class, 'index']); // Lấy danh sách voucher
     Route::post('/', [VoucherApiController::class, 'store']); // Tạo mới voucher
     Route::get('{id}', [VoucherApiController::class, 'show']); // Lấy chi tiết voucher
+    Route::post('/apply-or-toggle-voucher', [VoucherApiController::class, 'applyOrToggleVoucher']); // Lấy chi tiết voucher
     Route::put('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
     Route::patch('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
     Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
-
+    
 });
 
 //Type Seat
@@ -403,3 +406,9 @@ Route::post('/momo-ipn', [PaymentController::class, 'paymentIpn']);
 
 
 Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRedirect'])->name('handleZaloPayRedirect');
+
+
+//Thống kê doanh thu
+Route::post('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
+Route::post('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
+Route::post('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total

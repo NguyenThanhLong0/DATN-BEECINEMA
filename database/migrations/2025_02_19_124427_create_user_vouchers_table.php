@@ -15,10 +15,11 @@ return new class extends Migration
     {
         Schema::create('user_vouchers', function (Blueprint $table) {
             $table->id();
-            $table->foreignIdFor(User::class)->constrained()->onDelete('cascade');
-            $table->foreignIdFor(Voucher::class)->constrained()->onDelete('cascade');
-            $table->integer('usage_count')->default(0);
-            $table->timestamps();
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('voucher_id')->constrained('vouchers')->onDelete('cascade');
+            $table->foreignId('ticket_id')->nullable()->constrained('tickets')->onDelete('set null');
+            $table->decimal('discount_applied', 10, 2);
+            $table->timestamp('used_at')->useCurrent();
         });
     }
 
