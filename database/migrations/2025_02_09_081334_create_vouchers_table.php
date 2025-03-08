@@ -19,9 +19,9 @@ return new class extends Migration
             $table->dateTime('start_date')->index();
             $table->dateTime('end_date')->index();
             $table->enum('discount_type', ['fixed', 'percent']);
-            $table->decimal('discount_value', 10, 2)->unsigned();
-            $table->decimal('min_order_amount', 10, 2)->unsigned();
-            $table->decimal('max_discount_amount', 10, 2)->nullable()->default(0)->unsigned();
+            $table->integer('discount_value')->unsigned();
+            $table->integer('min_order_amount')->unsigned();
+            $table->integer('max_discount_amount')->nullable()->default(0)->unsigned();
             $table->unsignedInteger('quantity')->default(0);
             $table->boolean('is_active')->default(1)->comment('0: expired, 1: available')->index();
             $table->unsignedInteger('used_count')->default(0);
