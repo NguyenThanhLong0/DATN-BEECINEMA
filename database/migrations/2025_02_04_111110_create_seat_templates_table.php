@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('seat_templates', function (Blueprint $table) {
             $table->id();
-            $table->unsignedSmallInteger('matrix_id')->unique();
+            $table->unsignedSmallInteger('matrix_id');
             $table->string('name')->unique();
             $table->json('seat_structure')->nullable(); // JSON cho sơ đồ ghế
             $table->text('description')->nullable();

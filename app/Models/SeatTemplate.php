@@ -10,8 +10,15 @@ class SeatTemplate extends Model
     use HasFactory;
 
     protected $fillable = [
-        'matrix_id', 'name', 'seat_structure', 'description',
-        'row_regular', 'row_vip', 'row_double', 'is_active', 'is_publish'
+        'matrix_id',
+        'name',
+        'seat_structure',
+        'description',
+        'row_regular',
+        'row_vip',
+        'row_double',
+        'is_active',
+        'is_publish'
     ];
 
     protected $casts = [
@@ -19,6 +26,8 @@ class SeatTemplate extends Model
         'is_active' => 'boolean',
         'seat_structure' => 'array',
     ];
+
+    // protected $appends = ['matrix'];
 
     const MATRIXS = [
         ['id' => 1, 'name' => '12x12', 'max_row' => 12, 'max_col' => 12, 'description' => 'Sức chứa tối đa 144 chỗ ngồi.', 'row_default' => ['regular' => 4, 'vip' => 6, 'double' => 2]],
@@ -32,8 +41,8 @@ class SeatTemplate extends Model
         return collect(self::MATRIXS)->firstWhere('id', $id);
     }
 
-    // public function rooms()
-    // {
-    //     return $this->hasMany(Room::class);
-    // }
+    public function rooms()
+    {
+        return $this->hasMany(Room::class);
+    }
 }

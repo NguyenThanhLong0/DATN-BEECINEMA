@@ -13,14 +13,16 @@ class CinemaController extends Controller
      * Display a listing of cinemas.
      */
     public function index()
-    {
-        try {
-            $cinemas = Cinema::with('branch')->get();
-            return response()->json($cinemas);
-        } catch (\Throwable $th) {
-            return response()->json(['message' => 'Không thể lấy danh sách rạp!'], 500);
-        }
+
+{
+    try {
+        $cinemas = Cinema::with('branch', 'rooms')->get(); // Lấy cả danh sách rooms
+        return response()->json($cinemas);
+    } catch (\Throwable $th) {
+        return response()->json(['message' => 'Không thể lấy danh sách rạp!'], 500);
     }
+}
+
 
     /**
      * Store a newly created cinema in storage.
@@ -30,7 +32,7 @@ class CinemaController extends Controller
         $validator = Validator::make($request->all(), [
             'branch_id' => 'required|exists:branches,id',
             'name' => 'required|string|max:255|unique:cinemas',
-            'slug' => 'required|string|max:255|unique:cinemas',
+            // 'slug' => 'required|string|max:255|unique:cinemas',
             'address' => 'required|string',
             'surcharge' => 'nullable|numeric',
             'description' => 'nullable|string',
@@ -69,7 +71,7 @@ class CinemaController extends Controller
         $validator = Validator::make($request->all(), [
             'branch_id' => 'required|exists:branches,id',
             'name' => 'nullable|string|max:255|unique:cinemas,name,' . $cinema->id,
-            'slug' => 'nullable|string|max:255|unique:cinemas,slug,' . $cinema->id,
+            // 'slug' => 'nullable|string|max:255|unique:cinemas,slug,' . $cinema->id,
             'address' => 'nullable|string',
             'surcharge' => 'nullable|numeric',
             'description' => 'nullable|string',
@@ -81,7 +83,12 @@ class CinemaController extends Controller
         }
 
         try {
-            $cinema->update($request->all());
+            $cinema->fill($request->only(['name', 'branch_id' ,'address', 'surcharge', 'description' , 'is_active'])); // Gán giá trị mới
+            if ($request->has('name') && $request->name !== $cinema->getOriginal('name')) {
+                $cinema->slug = null; // Đặt lại slug để Sluggable tự tạo lại
+            }
+            $cinema->save(); // Lưu lại model với slug mới
+            
             return response()->json(['message' => 'Sửa thành công!', 'cinema' => $cinema], 200);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Sửa thất bại!', 'error' => $th->getMessage()], 500);
