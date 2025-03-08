@@ -195,7 +195,8 @@ Route::prefix('vouchers')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [VoucherApiController::class, 'index']); // Lấy danh sách voucher
     Route::post('/', [VoucherApiController::class, 'store']); // Tạo mới voucher
     Route::get('{id}', [VoucherApiController::class, 'show']); // Lấy chi tiết voucher
-    Route::post('/apply-or-toggle-voucher', [VoucherApiController::class, 'applyOrToggleVoucher']); // Lấy chi tiết voucher
+    Route::post('/apply-voucher', [VoucherApiController::class, 'applyVoucher']); 
+    Route::post('/toggle-voucher', [VoucherApiController::class, 'ToggleVoucher']); 
     Route::put('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
     Route::patch('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
     Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
