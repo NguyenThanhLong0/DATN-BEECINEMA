@@ -12,7 +12,8 @@ class Ticket extends Model {
     protected $fillable = [
         'user_id', 'cinema_id', 'room_id', 'movie_id', 'showtime_id',
         'voucher_code', 'voucher_discount', 'payment_name', 'code',
-        'total_price', 'status', 'staff', 'expiry'
+        'total_price', 'status', 'staff', 'expiry',
+        'point', 'point_discount', 'rank_at_booking'
     ];
     protected static function boot()
     {
@@ -45,6 +46,15 @@ class Ticket extends Model {
 
     public function showtime() {
         return $this->belongsTo(Showtime::class);
+    }
+
+    // tính tổng giá trị sau khi trừ điểm giảm giá
+    public function getFinalPriceAttribute() {
+        return max(0, $this->total_price - $this->point_discount);
+    }
+    // lấy ra rank hiện tại theo user
+    public function getCurrentRankAttribute() {
+        return $this->user ? $this->user->current_rank : 'Member';
     }
 }
 ?>

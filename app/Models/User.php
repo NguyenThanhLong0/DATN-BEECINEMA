@@ -11,13 +11,13 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class User extends Authenticatable implements MustVerifyEmail,ShouldQueue
+class User extends Authenticatable implements MustVerifyEmail, ShouldQueue
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
-    const TYPE_ADMIN='admin';
-    const TYPE_MANAGER='manager';
-    const TYPE_MEMBER='member';
+    const TYPE_ADMIN = 'admin';
+    const TYPE_MANAGER = 'manager';
+    const TYPE_MEMBER = 'member';
     /**
      * The attributes that are mass assignable.
      *
@@ -58,14 +58,17 @@ class User extends Authenticatable implements MustVerifyEmail,ShouldQueue
         'password' => 'hashed',
     ];
 
-    public function IsAdmin(){
-        return $this->role==self::TYPE_ADMIN;
+    public function IsAdmin()
+    {
+        return $this->role == self::TYPE_ADMIN;
     }
-    public function IsManager(){
-        return $this->role==self::TYPE_MANAGER;
+    public function IsManager()
+    {
+        return $this->role == self::TYPE_MANAGER;
     }
-    public function IsMember(){
-        return $this->role==self::TYPE_MEMBER;
+    public function IsMember()
+    {
+        return $this->role == self::TYPE_MEMBER;
     }
 
     public function posts()
@@ -84,5 +87,20 @@ class User extends Authenticatable implements MustVerifyEmail,ShouldQueue
     public function membership()
     {
         return $this->hasOne(Membership::class);
+    }
+
+    public function getCurrentRankAttribute()
+    {
+        // Lấy rank cao nhất mà user có thể đạt được dựa trên total_spent
+        $membership = Membership::where('total_spent', '<=', $this->total_spent)
+            ->orderBy('total_spent', 'desc')
+            ->first();
+
+        // Nếu không có rank nào phù hợp, trả về rank thấp nhất
+        if (!$membership) {
+            $membership = Membership::orderBy('total_spent', 'asc')->first();
+        }
+
+        return $membership ? $membership->name : 'Member';
     }
 }
