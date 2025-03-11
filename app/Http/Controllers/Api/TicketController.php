@@ -467,6 +467,7 @@ class TicketController extends Controller
         }
     }
 
+
     public function show($code)
     {
         // Tìm vé theo code
@@ -566,4 +567,5 @@ class TicketController extends Controller
             ],
         ], 200);
     }
+
 }
