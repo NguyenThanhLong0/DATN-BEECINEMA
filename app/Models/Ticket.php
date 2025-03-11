@@ -112,14 +112,6 @@ class Ticket extends Model
         return $this->hasMany(Ticket_Combo::class, 'ticket_id', 'id');
     }
     // tính tổng giá trị sau khi trừ điểm giảm giá
-
-    public function getFinalPriceAttribute() {
-        return max(0, $this->total_price - $this->point_discount);
-    }
-    // lấy ra rank hiện tại theo user
-    public function getCurrentRankAttribute() {
-        return $this->user ? $this->user->current_rank : 'Member';
-    }
 }
 ?>
 
