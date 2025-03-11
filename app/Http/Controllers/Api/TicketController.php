@@ -37,9 +37,9 @@ class TicketController extends Controller
     // Tạo mới ticket
     public function store(Request $request)
     {
+
         // Lấy user_id từ token
         $user_id = Auth()->id();
-
         // Validation
         $validatedData = Validator::make($request->all(), [
             'cinema_id' => 'required|exists:cinemas,id',
@@ -75,6 +75,14 @@ class TicketController extends Controller
 
         DB::beginTransaction();
         try {
+            // Lấy thông tin Membership của user
+            $user = User::findOrFail($user_id);
+            $membership = Membership::firstOrCreate(
+                ['user_id' => $user->id],
+                ['total_spent' => 0, 'rank_id' => null, 'points' => 0]
+            );
+            // Lấy rank hiện tại của user
+            $currentRank = Rank::find($membership->rank_id)?->name ?? 'Member';
             $ticket = Ticket::create(array_merge(
                 $request->only([
                     'cinema_id',
@@ -87,9 +95,15 @@ class TicketController extends Controller
                     'code',
                     'status',
                     'staff',
-                    'expiry',
+                    'expiry'
                 ]),
-                ['user_id' => $user_id, 'total_price' => 0]
+                [
+                    'user_id' => $user_id,
+                    'total_price' => 0,
+                    'rank_at_booking' => $currentRank,
+                    'point' => 0,
+                    'point_discount' => 0
+                ]
             ));
 
             $total_price = 0;
@@ -143,36 +157,44 @@ class TicketController extends Controller
             }
 
             // Xử lý Membership
-            $user = User::findOrFail($user_id);
-            $isFirstBooking = !Membership::where('user_id', $user->id)->exists(); // Kiểm tra lần đầu đặt vé không
+            // $user = User::findOrFail($user_id);
+            // $isFirstBooking = !Membership::where('user_id', $user->id)->exists(); // Kiểm tra lần đầu đặt vé không
 
-            $membership = Membership::firstOrCreate(
-                ['user_id' => $user->id],
-                ['total_spent' => 0, 'rank_id' => null, 'points' => 0]
-            );
+            // $membership = Membership::firstOrCreate(
+            //     ['user_id' => $user->id],
+            //     ['total_spent' => 0, 'rank_id' => null, 'points' => 0]
+            // );
 
+            $usedPoints = 0;
+            $pointDiscount = 0;
             // Xử lý trừ điểm nếu người dùng nhập số điểm muốn sử dụng
             if ($request->has('use_points') && $request->use_points > 0) {
-                $usePoints = (int) $request->use_points;
+                $usedPoints = (int) $request->use_points;
 
                 // Kiểm tra điểm có đủ không
-                if ($usePoints > $membership->points) {
+                if ($usedPoints > $membership->points) {
                     return response()->json(['message' => 'Điểm không đủ'], 400);
                 }
-
+                $pointDiscount = $usedPoints;
                 // Trừ điểm và cập nhật lịch sử
-                $membership->decrement('points', $usePoints);
-                $total_price -= $usePoints;
-
+                $membership->decrement('points', $usedPoints);
+                $total_price -= $usedPoints;
+                //lưu vào bảng Point_history
                 PointHistory::create([
                     'membership_id' => $membership->id,
-                    'points' => -$usePoints,
+                    'points' => -$usedPoints,
                     'type' => 'trừ điểm',
                 ]);
+                $ticket->point = $usedPoints;
+                $ticket->point_discount = $usedPoints;
+                $ticket->save(); // Sử dụng save() thay vì update()
             }
-
             // Cập nhật total_price của ticket
-            $ticket->update(['total_price' => $total_price]);
+            $ticket->update([
+                'total_price' => max(0, $total_price), // Không cho giá trị âm
+                'point' => $usedPoints, // Số điểm đã dùng
+                'point_discount' => $pointDiscount // Giá trị quy đổi từ điểm
+            ]);
 
             // Cập nhật tổng tiền đã chi tiêu
             $membership->increment('total_spent', $total_price);
@@ -304,7 +326,7 @@ class TicketController extends Controller
             if ($request->voucher_id) {
                 $voucher = Voucher::find($request->voucher_id);
                 if ($voucher) {
-                    $discount = ($voucher->type == '1')
+                    $discount = ($voucher->type == 'percent')
                         ? ($total_price * $voucher->discount) / 100
                         : min($voucher->discount, $total_price);
                     $total_price -= $discount;
@@ -326,6 +348,7 @@ class TicketController extends Controller
                 ['total_spent' => 0, 'rank_id' => null, 'points' => 0]
             );
             //Trừ điểm của họ khi họ muốn dùng điểm để thanh toán
+            $pointUsed = 0;
             if ($request->has('use_points') && $request->use_points > 0) {
                 $usePoints = (int) $request->use_points;
                 if ($usePoints > $membership->points) {
@@ -333,6 +356,7 @@ class TicketController extends Controller
                 }
                 $membership->decrement('points', $usePoints);
                 $total_price -= $usePoints;
+                $pointUsed = $usePoints;
                 //Lưu lịch sử khi người dùng tiêu điểm "trừ điểm"
                 PointHistory::create([
                     'membership_id' => $membership->id,
@@ -341,7 +365,15 @@ class TicketController extends Controller
                 ]);
             }
 
-            $ticket->update(['total_price' => $total_price]); //cập nhật lại tổng tiền vé
+
+            // $ticket->update(['total_price' => $total_price]); 
+            //cập nhật lại tổng tiền vé
+            $ticket->total_price = $total_price;
+            $ticket->point = $pointUsed;
+            $ticket->point_discount = $pointUsed;
+            $ticket->save();
+
+
             $membership->increment('total_spent', $total_price); //cập nhật lại số tiền mà khách đa chi tiêu
             // cập nhật rank của thành viên dựa trên số tiền khách đã chi tiêu
             $rank = Rank::where('total_spent', '<=', $membership->total_spent)
@@ -377,6 +409,7 @@ class TicketController extends Controller
             ], 500);
         }
     }
+
     // lịch sử đặt vé của người dùng
     public function getBookingHistory(Request $request)
     {
@@ -433,4 +466,5 @@ class TicketController extends Controller
             ], 500);
         }
     }
+
 }

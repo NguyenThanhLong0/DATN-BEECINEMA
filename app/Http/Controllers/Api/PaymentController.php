@@ -780,6 +780,8 @@ class PaymentController extends Controller
 
                     Log::info("MoMo IPN: Tạo Ticket thành công:", ['ticket_id' => $ticket->id]);
 
+                    SendTicketEmail::dispatch($ticket)->onQueue('emails');
+
                     foreach ($paymentData['seats'] as $seatId) {
                         Ticket_Seat::create([
                             'ticket_id' => $ticket->id,
