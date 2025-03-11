@@ -25,14 +25,14 @@ class TicketController extends Controller
     }
 
     // Lấy thông tin 1 ticket theo ID
-    public function show($id)
-    {
-        $ticket = Ticket::find($id);
-        if (!$ticket) {
-            return response()->json(['message' => 'Ticket not found'], 404);
-        }
-        return response()->json($ticket, 200);
-    }
+    // public function show($id)
+    // {
+    //     $ticket = Ticket::find($id);
+    //     if (!$ticket) {
+    //         return response()->json(['message' => 'Ticket not found'], 404);
+    //     }
+    //     return response()->json($ticket, 200);
+    // }
 
     // Tạo mới ticket
     public function store(Request $request)
@@ -465,6 +465,107 @@ class TicketController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+
+    public function show($code)
+    {
+        // Tìm vé theo code
+        $ticket = Ticket::where('code', $code)
+            ->with(['user', 'cinema', 'room', 'movie', 'showtime', 'ticketSeats.seat', 'ticketCombos.combo.foods'])
+            ->first();
+
+        if (!$ticket) {
+            return response()->json(['message' => 'Không tìm thấy vé'], 404);
+        }
+
+        // Tính tổng tiền combo
+        $comboDetails = [];
+        $totalComboPrice = 0;
+        foreach ($ticket->ticketCombos as $ticketCombo) {
+            $combo = $ticketCombo->combo;
+            $foods = [];
+        
+            foreach ($combo->foods as $food) {
+                $foods[] = [
+                    'food_id' => $food->id,
+                    'food_name' => $food->name,
+                    'food_price' => $food->price,
+                    'food_img' => $food->img_thumbnail,
+                    'quantity' => $food->pivot->quantity, // Lấy số lượng từ bảng trung gian
+                ];
+            }
+        
+            $comboPrice = $combo->price * $ticketCombo->quantity;
+            $totalComboPrice += $comboPrice;
+            
+            $comboDetails[] = [
+                'combo_id' => $combo->id,
+                'combo_name' => $combo->name,
+                'img' => $combo->img_thumbnail,
+                'quantity' => $ticketCombo->quantity,
+                'price_per_unit' => $combo->price,
+                'total_price' => $comboPrice,
+                'foods' => $foods, // Thêm danh sách food vào combo
+            ];
+        }
+
+        // Tính tổng tiền ghế
+        $seatDetails = [];
+        $totalSeatPrice = 0;
+        foreach ($ticket->ticketSeats as $ticketSeat) {
+            $totalSeatPrice += $ticketSeat->price;
+            $seatDetails[] = [
+                'seat_id' => $ticketSeat->seat->id,
+                'seat_name' => $ticketSeat->seat->name,
+                'price' => $ticketSeat->price,
+            ];
+        }
+
+        return response()->json([
+            'ticket' => [
+                'id' => $ticket->id,
+                'user' => [
+                    'id' => $ticket->user->id,
+                    'name' => $ticket->user->name,
+                    'email' => $ticket->user->email,
+                    'avata' => $ticket->user->avata,
+                    'phone' => $ticket->user->phone,
+                    'address' => $ticket->user->address,
+                    'gender' => $ticket->user->gender,
+                    'birthday' => $ticket->user->birthday,
+                    'role' => $ticket->user->role,
+                ],
+                'cinema' => ['id' => $ticket->cinema->id, 'name' => $ticket->cinema->name, 'branch' => optional($ticket->cinema->branch)->name],
+                'room' => ['id' => $ticket->room->id, 'name' => $ticket->room->name],
+                'movie' => ['id' => $ticket->movie->id, 'name' => $ticket->movie->name, 'img' => $ticket->movie->img_thumbnail,'duration' => $ticket->movie->duration],
+                'showtime' => [
+                    'id' => $ticket->showtime->id,
+                    'format'=>$ticket->showtime->format,
+                    'start_time' => $ticket->showtime->start_time,
+                    'end_time'=> $ticket->showtime->end_time
+                ],
+                'voucher_code' => $ticket->voucher_code,
+                'voucher_discount' => $ticket->voucher_discount,
+                'payment_name' => $ticket->payment_name,
+                'code' => $ticket->code,
+                'status' => $ticket->status,
+                'staff' => $ticket->staff,
+                'expiry' => $ticket->expiry,
+                'point' => $ticket->point,
+                'point_discount' => $ticket->point_discount,
+                'rank_at_booking' => $ticket->rank_at_booking,
+                'total_price' => $ticket->total_price,
+                'combos' => [
+                    'details' => $comboDetails,
+                    'total_combo_price' => $totalComboPrice,
+                ],
+                'seats' => [
+                    'details' => $seatDetails,
+                    'total_seat_price' => $totalSeatPrice,
+                ],
+            ],
+        ], 200);
     }
 
 }
