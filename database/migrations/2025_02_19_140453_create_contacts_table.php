@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('point_histories', function (Blueprint $table) {
+        Schema::create('contacts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('membership_id')->constrained()->onDelete('cascade');
-            $table->foreignId('ticket_id')->nullable()->constrained('tickets')->onDelete('cascade');
-            $table->integer('points');
-            $table->enum('type', ['Nhận điểm', 'Dùng điểm']);
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('phone')->nullable();
+            $table->text('message')->nullable();
+            $table->string('address')->nullable();
             $table->timestamps();
         });
     }
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('point_histories');
+        Schema::dropIfExists('contacts');
     }
 };

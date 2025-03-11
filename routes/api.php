@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\ComboFoodController;
+use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\MovieReviewController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
@@ -18,10 +19,14 @@ use App\Http\Controllers\Api\TypeRoomController;
 use App\Http\Controllers\Api\VoucherApiController;
 use App\Http\Controllers\Api\TypeSeatController;
 use App\Http\Controllers\Api\ShowtimeController;
+use App\Http\Controllers\Api\VNPayController;
+use App\Http\Controllers\Api\ReportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ChooseSeatController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\ReportController as ControllersReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -186,14 +191,16 @@ Route::patch('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
 Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
 
 // Voucher
-Route::prefix('vouchers')->group(function () {
+Route::prefix('vouchers')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [VoucherApiController::class, 'index']); // Lấy danh sách voucher
     Route::post('/', [VoucherApiController::class, 'store']); // Tạo mới voucher
     Route::get('{id}', [VoucherApiController::class, 'show']); // Lấy chi tiết voucher
+    Route::post('/apply-voucher', [VoucherApiController::class, 'applyVoucher']); 
+    Route::post('/toggle-voucher', [VoucherApiController::class, 'ToggleVoucher']); 
     Route::put('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
     Route::patch('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
     Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
-
+    
 });
 
 //Type Seat
@@ -268,10 +275,12 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 });
 
 //user
-Route::middleware('auth:sanctum')->group(function(){
-    Route::get('/profile', [UserController::class, 'profile']); // Lấy thông tin user đang đăng nhập
-    Route::get('/user/voucher',[UserController::class,'getUserVouchers']); //Lấy thông tin voucher còn được sử dụng của người dùng
-    Route::get('/user/membership',[UserController::class,'membership']); //Lấy thông tin voucher còn được sử dụng của người dùng
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/profile', [UserController::class, 'profile']);
+    // Lấy thông tin user đang đăng nhập
+    Route::get('/user/membership', [UserController::class, 'membership']);
+    //Lấy thông tin voucher còn được sử dụng của người dùng
+    Route::get('/user/vouchers', [UserController::class, 'getUserVouchers']);
 });
 
 
@@ -287,6 +296,9 @@ Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])-
 Route::post('/email/resend', [AuthController::class, 'resendVerificationEmail'])->middleware('auth:sanctum');
 Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
 
+//Đăng nhập bằng GG 
+Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
 
 // banners
 Route::get('banners',               [BannerController::class, 'index'])->name('banners.index');
@@ -327,7 +339,8 @@ Route::get('/showtimes/slug/{slug}', [ShowtimeController::class, 'showBySlug']);
 //Ticket
 Route::apiResource('tickets', TicketController::class);
 Route::middleware('auth:api')->post('/tickets', [TicketController::class, 'store']);
-
+//
+Route::middleware('auth:sanctum')->get('/booking-history', [TicketController::class, 'getBookingHistory']);
 //MovieReview
 
 Route::get('movie-reviews', [MovieReviewController::class, 'index']);
@@ -342,6 +355,20 @@ Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'upda
 
 Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
 
+
+//Contact
+Route::get('contact',               [ContactController::class, 'index'])->name('contact.index');
+
+Route::post('contact',              [ContactController::class, 'store'])->name('contact.store');
+
+Route::get('contact/{contact}',      [ContactController::class, 'show'])->name('contact.show');
+
+Route::put('contact/{contact}',      [ContactController::class, 'update'])->name('contact.update');
+
+Route::patch('contact/{contact}',    [ContactController::class, 'update'])->name('contact.update.partial');
+
+Route::delete('contact/{contact}',   [ContactController::class, 'destroy'])->name('contact.destroy');
+
 //choose-seat
 
 Route::middleware('auth:api')->group(function () {
@@ -355,3 +382,34 @@ Route::middleware('auth:api')->group(function () {
 
     Route::get('userHoldSeats/{slug}', [ChooseSeatController::class, 'getUserHoldSeats']);
 });
+
+//update-seatHold
+Route::middleware('auth:sanctum')->post('/updateSeatHoldtime', [ShowtimeController::class, 'updateSeatHoldTime']);
+//VNPAY
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    route::post('payment', [PaymentController::class, 'payment'])->name('payment');
+
+    // Cổng thanh toán VNPAY (yêu cầu auth)
+    Route::get('vnpay-payment', [PaymentController::class, 'vnPayPayment'])->name('vnpay.payment');
+});
+
+Route::post('/zalopay/callback', [PaymentController::class, 'zalopayCallback']);
+
+Route::post('/zalopay/payment', [PaymentController::class, 'createPayment']);
+
+Route::get('vnpay-return', [PaymentController::class, 'returnVnpay'])->name('vnpay.return');
+
+Route::post('/momo-payment', [PaymentController::class, 'MomoPayment']);
+
+Route::post('/momo-ipn', [PaymentController::class, 'paymentIpn']);
+
+
+Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRedirect'])->name('handleZaloPayRedirect');
+
+
+//Thống kê doanh thu
+Route::post('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
+Route::post('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
+Route::post('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total

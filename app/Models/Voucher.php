@@ -12,13 +12,16 @@ class Voucher extends Model
         'code',
         'title',
         'description',
-        'start_date_time',
-        'end_date_time',
-        'discount',
+        'start_date',
+        'end_date',
+        'discount_type',
+        'discount_value',
+        'min_order_amount',
+        'max_discount_amount',
         'quantity',
         'is_active',
-        'limit',
-        'type',
+        'used_count',
+        'per_user_limit',
     ];
 
     protected $casts=[

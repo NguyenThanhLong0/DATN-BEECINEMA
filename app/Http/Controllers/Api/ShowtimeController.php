@@ -1004,18 +1004,18 @@ class ShowtimeController extends Controller
             // Lấy movie_id và cinema_id từ query string hoặc session
             $movieId = $request->query('movie_id', session('movie_id'));
             $cinemaId = $request->query('cinema_id', session('cinema_id'));
-    
+
             if (!$movieId) {
                 return response()->json(['message' => 'Movie ID is required.'], 400);
             }
-    
+
             // Thời gian hiện tại (có thể có múi giờ)
             $now = Carbon::now('Asia/Ho_Chi_Minh');  // Sử dụng múi giờ Việt Nam
-    
+
             // Kiểm tra xem người dùng có phải admin không
             $isAdmin = auth()->user() && auth()->user()->role == 'admin';
             $isMember = auth()->user() && auth()->user()->role == 'member';
-    
+
             // Lấy danh sách suất chiếu của phim theo ngày, có áp dụng điều kiện hiển thị
             $showtimesQuery = Showtime::with(['room.cinema'])
                 ->where('movie_id', $movieId)
@@ -1040,7 +1040,7 @@ class ShowtimeController extends Controller
                 ->orderBy('date')
                 ->orderBy('start_time')
                 ->get();
-    
+
             // Tạo ánh xạ cho các ngày trong tuần
             $dayNames = [
                 'Sunday' => 'CN',
@@ -1051,16 +1051,16 @@ class ShowtimeController extends Controller
                 'Friday' => 'T6',
                 'Saturday' => 'T7'
             ];
-    
+
             // Khởi tạo danh sách showtimes
             $showtimesByDate = [];
-    
+
             foreach ($showtimesQuery as $showtime) {
                 $dateKey = $showtime->date;
                 $dayOfWeek = Carbon::parse($dateKey)->format('l'); // Lấy tên ngày trong tuần bằng tiếng Anh
                 $dayLabel = Carbon::parse($dateKey)->format('d/m') . ' - ' . $dayNames[$dayOfWeek];
                 $format = $showtime->format;
-    
+
                 // Nếu ngày chưa tồn tại, tạo mới
                 if (!isset($showtimesByDate[$dateKey])) {
                     $showtimesByDate[$dateKey] = [
@@ -1069,12 +1069,12 @@ class ShowtimeController extends Controller
                         "showtimes" => []
                     ];
                 }
-    
+
                 // Nếu định dạng suất chiếu chưa tồn tại, tạo mới
                 if (!isset($showtimesByDate[$dateKey]["showtimes"][$format])) {
                     $showtimesByDate[$dateKey]["showtimes"][$format] = [];
                 }
-    
+
                 // Thêm suất chiếu vào danh sách
                 $showtimesByDate[$dateKey]["showtimes"][$format][] = [
                     "id" => $showtime->id,
@@ -1092,10 +1092,10 @@ class ShowtimeController extends Controller
                     "updated_at" => $showtime->updated_at
                 ];
             }
-    
+
             // Chuyển danh sách showtimes thành array
             $formattedShowtimes = array_values($showtimesByDate);
-    
+
             return response()->json(["showtimes" => $formattedShowtimes], 200);
         } catch (\Throwable $th) {
             return response()->json([
@@ -1105,4 +1105,63 @@ class ShowtimeController extends Controller
         }
     }
 
+    public function updateSeatHoldTime(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json(['error' => 'Bạn chưa đăng nhập'], 401);
+            }
+
+            $showtimeId = $request->input('showtime_id');
+            $additionalMinutes = (int) $request->input('minutes', 0);
+
+            if (!$showtimeId || $additionalMinutes <= 0) {
+                return response()->json(['error' => 'Dữ liệu không hợp lệ'], 400);
+            }
+
+            $seats = SeatShowtime::where('showtime_id', $showtimeId)
+                ->where('user_id', $user->id)
+                ->where('status', 'hold')
+                ->lockForUpdate() // Tránh xung đột cập nhật
+                ->get();
+
+            if ($seats->isEmpty()) {
+                return response()->json(['message' => 'Không tìm thấy ghế nào đang giữ'], 404);
+            }
+
+            $updatedSeats = [];
+            DB::transaction(function () use ($seats, $additionalMinutes, &$updatedSeats) {
+                foreach ($seats as $seat) {
+                    // Lấy giá trị cũ trước khi cập nhật
+                    $oldHoldTime = $seat->hold_expires_at ? Carbon::parse($seat->hold_expires_at) : now();
+                    $newHoldTime = $oldHoldTime->copy()->addMinutes($additionalMinutes);
+
+                    // Cập nhật trong database
+                    $updated = DB::table('seat_showtimes')
+                        ->where('seat_id', $seat->seat_id)
+                        ->where('showtime_id', $seat->showtime_id)
+                        ->update([
+                            'hold_expires_at' => $newHoldTime,
+                            'updated_at' => now(),
+                        ]);
+
+                    if ($updated) {
+                        $updatedSeats[] = [
+                            'seat_id' => $seat->seat_id,
+                            'old_hold_expires_at' => $oldHoldTime->format('Y-m-d H:i:s'),
+                            'new_hold_expires_at' => $newHoldTime->format('Y-m-d H:i:s')
+                        ];
+                    }
+                }
+            });
+
+            return response()->json([
+                'message' => 'Cập nhật thời gian giữ ghế thành công',
+                'updated_seats' => $updatedSeats
+            ], 200);
+        } catch (\Throwable $th) {
+            return response()->json(['error' => 'Lỗi khi cập nhật thời gian giữ ghế', 'message' => $th->getMessage()], 500);
+        }
+    }
 }
