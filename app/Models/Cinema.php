@@ -30,11 +30,15 @@ class Cinema extends Model
         }
 
     // Quan hệ với chi nhánh (branch)
+    // public function branch()
+    // {
+    //     return $this->belongsTo(Branch::class);
+    // }
+
     public function branch()
     {
-        return $this->belongsTo(Branch::class);
+        return $this->belongsTo(Branch::class, 'branch_id'); // Nếu mỗi Cinema chỉ có 1 Branch
     }
-
     // Quan hệ với phòng chiếu (rooms)
     public function rooms()
     {

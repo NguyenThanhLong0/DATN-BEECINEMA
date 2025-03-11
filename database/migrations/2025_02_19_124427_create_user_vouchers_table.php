@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('voucher_id')->constrained('vouchers')->onDelete('cascade');
             $table->foreignId('ticket_id')->nullable()->constrained('tickets')->onDelete('set null');
-            $table->decimal('discount_applied', 10, 2);
+            $table->integer('discount_applied');
             $table->timestamp('used_at')->useCurrent();
         });
     }
