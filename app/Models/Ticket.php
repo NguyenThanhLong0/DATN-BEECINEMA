@@ -13,10 +13,23 @@ class Ticket extends Model
 
     protected $fillable = [
 
-        'user_id', 'cinema_id', 'room_id', 'movie_id', 'showtime_id',
-        'voucher_code', 'voucher_discount', 'payment_name', 'code',
-        'total_price', 'status', 'staff', 'expiry',
-        'point', 'point_discount', 'rank_at_booking'
+        'user_id',
+        'cinema_id',
+        'room_id',
+        'movie_id',
+        'showtime_id',
+        'voucher_code',
+        'voucher_discount',
+        'payment_name',
+        'code',
+        'total_price',
+        'status',
+        'staff',
+        'expiry',
+        'point',
+        'point_discount',
+        'rank_at_booking'
+
 
     ];
     protected static function boot()
@@ -71,21 +84,7 @@ class Ticket extends Model
     {
         return $this->belongsTo(Showtime::class);
     }
-
-
-    // tính tổng giá trị sau khi trừ điểm giảm giá
-    public function getFinalPriceAttribute() {
-        return max(0, $this->total_price - $this->point_discount);
-    }
-    // lấy ra rank hiện tại theo user
-    public function getCurrentRankAttribute() {
-        return $this->user ? $this->user->current_rank : 'Member';
-    }
-}
-?>
-
-
-    //  Quan hệ với bảng `vouchers`
+  //  Quan hệ với bảng `vouchers`
     public function voucher()
     {
         return $this->belongsTo(Voucher::class, 'voucher_code', 'code');
@@ -96,4 +95,18 @@ class Ticket extends Model
         // Lấy thời gian hiện tại theo định dạng yyyymmddHis (NămThángNgàyGiờPhútGiây)
         return now()->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis');
     }
+   public function ticketCombos()
+    {
+        return $this->hasMany(Ticket_Combo::class, 'ticket_id', 'id');
+    }
+    // tính tổng giá trị sau khi trừ điểm giảm giá
+
+    public function getFinalPriceAttribute() {
+        return max(0, $this->total_price - $this->point_discount);
+    }
+    // lấy ra rank hiện tại theo user
+    public function getCurrentRankAttribute() {
+        return $this->user ? $this->user->current_rank : 'Member';
+    }
 }
+?>
