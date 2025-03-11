@@ -81,10 +81,6 @@ class Ticket extends Model
     public function getCurrentRankAttribute() {
         return $this->user ? $this->user->current_rank : 'Member';
     }
-}
-?>
-
-
     //  Quan hệ với bảng `vouchers`
     public function voucher()
     {
@@ -97,3 +93,5 @@ class Ticket extends Model
         return now()->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis');
     }
 }
+?>
+

@@ -100,30 +100,46 @@
                             </tr>
                             <tr style="border-bottom: 1px dashed #ddd">
                                 <td style="font-size: 12px; color: #555; padding: 12px 0; text-align: left;">
+                                    Tiền vé<br /><span style="font-size: 10px; color: #888">Ticket amount</span>
+                                </td>
+                                <td style="font-size: 12px; font-weight: bold; text-align: right; padding: 12px 0;">
+                                    {{ isset($paymentData['seat_amount']) ? number_format($paymentData['seat_amount'], 0, ',', '.') : 'NULL' }}
+                                    VND
+                                </td>
+                            </tr>
+
+                            <tr style="border-bottom: 1px dashed #ddd">
+                                <td style="font-size: 12px; color: #555; padding: 12px 0; text-align: left;">
                                     Tiền combo bỏng nước<br /><span style="font-size: 10px; color: #888">Concession
                                         amount</span>
                                 </td>
                                 <td style="font-size: 12px; font-weight: bold; text-align: right; padding: 12px 0;">
-                                    {{ number_format($ticket->concession_amount, 0, ',', '.') }} VND
+                                    {{ isset($paymentData['combo_amount']) ? number_format($paymentData['combo_amount'], 0, ',', '.') : 'NULL' }}
+                                    VND
                                 </td>
                             </tr>
+
                             <tr style="border-bottom: 1px dashed #ddd">
                                 <td style="font-size: 12px; color: #555; padding: 12px 0; text-align: left;">
                                     Tổng tiền<br /><span style="font-size: 10px; color: #888">Total amount</span>
                                 </td>
                                 <td style="font-size: 12px; font-weight: bold; text-align: right; padding: 12px 0;">
-                                    {{ number_format($ticket->total_amount, 0, ',', '.') }} VND
+                                    {{ isset($paymentData['total_price_before_discount']) ? number_format($paymentData['total_price_before_discount'], 0, ',', '.') : 'NULL' }}
+                                    VND
                                 </td>
                             </tr>
+
                             <tr style="border-bottom: 1px dashed #ddd">
                                 <td style="font-size: 12px; color: #555; padding: 12px 0; text-align: left;">
                                     Số tiền giảm giá<br /><span style="font-size: 10px; color: #888">Discount
                                         amount</span>
                                 </td>
                                 <td style="font-size: 12px; font-weight: bold; text-align: right; padding: 12px 0;">
-                                    {{ number_format($ticket->discount_amount, 0, ',', '.') }} VND
+                                    {{ isset($paymentData['total_discount']) ? number_format($paymentData['total_discount'], 0, ',', '.') : 'NULL' }}
+                                    VND
                                 </td>
                             </tr>
+
                             <tr>
                                 <td style="font-size: 12px; color: #555; padding: 12px 0; text-align: left;">
                                     Số tiền thanh toán<br /><span style="font-size: 10px; color: #888">Payment
@@ -133,6 +149,7 @@
                                     {{ number_format($ticket->total_price, 0, ',', '.') }} VND
                                 </td>
                             </tr>
+
 
                             <!-- Ghi chú -->
                             <tr>
