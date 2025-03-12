@@ -127,30 +127,46 @@
                             </tr>
                             <tr style="border-bottom: 1px dashed #ddd">
                                 <td style="font-size: 12px; color: #555555; padding: 12px 0; text-align: left;">
-                                    Tiền combo bỏng nước<br /><span style="font-size: 10px; color: #888888">Concession
-                                        amount</span>
+                                    Tiền vé<br /><span style="font-size: 10px; color: #888">Ticket amount</span>
                                 </td>
-                                <td style="color: #000000; font-size: 12px; font-weight: bold; text-align: right; padding: 12px 0;">
-                                    {{ number_format($ticket->concession_amount, 0, ',', '.') }} VND
+                                <td style="font-size: 12px; font-weight: bold; text-align: right; padding: 12px 0;">
+                                    {{ isset($paymentData['seat_amount']) ? number_format($paymentData['seat_amount'], 0, ',', '.') : 'NULL' }}
+                                    VND
                                 </td>
                             </tr>
+
+                            <tr style="border-bottom: 1px dashed #ddd">
+                                <td style="font-size: 12px; color: #555; padding: 12px 0; text-align: left;">
+                                    Tiền combo bỏng nước<br /><span style="font-size: 10px; color: #888">Concession
+                                        amount</span>
+                                </td>
+                                <td style="font-size: 12px; font-weight: bold; text-align: right; padding: 12px 0;">
+                                    {{ isset($paymentData['combo_amount']) ? number_format($paymentData['combo_amount'], 0, ',', '.') : 'NULL' }}
+                                    VND
+                                </td>
+                            </tr>
+
                             <tr style="border-bottom: 1px dashed #ddd">
                                 <td style="font-size: 12px; color: #555555; padding: 12px 0; text-align: left;">
                                     Tổng tiền<br /><span style="font-size: 10px; color: #888888">Total amount</span>
                                 </td>
                                 <td style="color: #000000; font-size: 12px; font-weight: bold; text-align: right; padding: 12px 0;">
-                                    {{ number_format($ticket->total_amount, 0, ',', '.') }} VND
+                                    {{ isset($paymentData['total_price_before_discount']) ? number_format($paymentData['total_price_before_discount'], 0, ',', '.') : 'NULL' }}
+                                    VND
                                 </td>
                             </tr>
+
                             <tr style="border-bottom: 1px dashed #ddd">
                                 <td style="font-size: 12px; color: #555555; padding: 12px 0; text-align: left;">
                                     Số tiền giảm giá<br /><span style="font-size: 10px; color: #888888">Discount
                                         amount</span>
                                 </td>
                                 <td style="color: #000000; font-size: 12px; font-weight: bold; text-align: right; padding: 12px 0;">
-                                    {{ number_format($ticket->discount_amount, 0, ',', '.') }} VND
+                                    {{ isset($paymentData['total_discount']) ? number_format($paymentData['total_discount'], 0, ',', '.') : 'NULL' }}
+                                    VND
                                 </td>
                             </tr>
+
                             <tr>
                                 <td style="font-size: 12px; color: #555555; padding: 12px 0; text-align: left;">
                                     Số tiền thanh toán<br /><span style="font-size: 10px; color: #888888">Payment
@@ -158,6 +174,43 @@
                                 </td>
                                 <td style="color: #000000; font-size: 12px; font-weight: bold; text-align: right; padding: 12px 0;">
                                     {{ number_format($ticket->total_price, 0, ',', '.') }} VND
+                                </td>
+                            </tr>
+
+
+
+                            <!-- Ghi chú -->
+                            <tr>
+                                <td>
+                                    <div style="padding: 15px 20px">
+                                        <div style="font-size: 14px; font-weight: bold; margin-bottom: 10px">Lưu ý /
+                                            Note:</div>
+                                        <div style="font-size: 12px; color: #333; line-height: 1.5">
+                                            Vé đã mua không thể hủy, đổi hoặc trả lại. Vui lòng tới rạp theo lịch đã mua
+                                            hoặc trước giờ
+                                            chiếu ít nhất 15-30 phút để nhận vé.
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <!-- Thông tin hỗ trợ -->
+                            <tr>
+                                <td style="text-align: center; padding: 15px 20px; font-size: 12px; color: #333;">
+                                    Vui lòng liên hệ bộ phận chăm sóc khách hàng để được hỗ trợ
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <table style="width: 50%; margin: 0 auto">
+                                        <tr>
+                                            <td><img src="https://res.cloudinary.com/du2m9ntlf/image/upload/v1741266249/beecinema/w185gonv7tpb9eoluzfb.png"
+                                                    alt="Phone" width="30" /></td>
+                                            <td><b>*6789</b></td>
+                                            <td><img src="https://res.cloudinary.com/du2m9ntlf/image/upload/v1741266249/beecinema/xxlsjpyobo2ntfkqajnm.png"
+                                                    alt="Email" width="30" /></td>
+                                            <td><a href="mailto:cs@vnpay.vn"><b>cs@vnpay.vn</b></a></td>
+                                        </tr>
+                                    </table>
                                 </td>
                             </tr>
                         </tbody>
