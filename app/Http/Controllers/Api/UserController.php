@@ -38,6 +38,43 @@ class UserController extends Controller
          }
      }
  
+     //add user
+     public function add(Request $request)
+     {
+
+         try {
+             $request->validate([
+                 'name' => 'required|string|max:255',
+                 'email' => 'required|string|email|max:255|unique:users',
+                 'password' => 'required|string|min:8|confirmed',
+                 'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
+                 'gender' => 'required|string|in:nam,nữ,khác',
+                 'birthday' => 'required|date',
+                 'role' => 'required|in:member,manager,admin'
+             ]);
+ 
+             $user = User::create([
+                 'name' => $request->name,
+                 'email' => $request->email,
+                 'password' => Hash::make($request->password),
+                 'phone' => $request->phone,
+                 'gender' => $request->gender,
+                 'birthday' => $request->birthday,
+                 'role' => $request->role,
+             ]);
+ 
+ 
+             return response()->json([
+                 'message' => 'Create user success',
+                 'user' => $user
+             ], 200);
+         } catch (\Exception $e) {
+             return response()->json([
+                 'error' => 'Create user failed',
+                 'message' => $e->getMessage(),
+             ], 500);
+         }
+     }
      // Cập nhật user
      public function update(Request $request, $id)
      {
