@@ -239,16 +239,24 @@ class PaymentController extends Controller
     {
         // Xác thực dữ liệu đầu vào
         $request->validate([
-            'rank_at_booking' => 'required|string', // Đây là trường hạng thành viên tại thời điểm đặt vé
+            'rank_at_booking' => 'required|string|exists:ranks,name', // Hạng thành viên tại thời điểm đặt vé phải tồn tại trong bảng ranks
             'seat_id' => 'required|array',
             'seat_id.*' => 'integer|exists:seats,id',
             'combo' => 'nullable|array',
             'combo.*' => 'nullable|integer|min:0|max:10',
-            'voucher_id' => 'nullable|integer',
+            'voucher_id' => 'nullable|integer|exists:vouchers,id',
             'voucher_code' => 'nullable|string|exists:vouchers,code',
             'showtime_id' => 'required|integer|exists:showtimes,id',
-            'payment_name' => 'required|string',
-            'points' => 'nullable|integer|min:0',
+            'payment_name' => 'required|string|in:VNPAY,ZALOPAY,MOMO',
+            'points' => 'nullable|integer|min:0', 
+            'price_combo' => 'nullable|numeric|min:0',
+            'price_seat' => 'nullable|numeric|min:0',
+            'combo_discount' => 'nullable|numeric|min:0',
+            'voucher_discount' => 'nullable|numeric|min:0',
+            'point_discount' => 'nullable|numeric|min:0',
+            'total_discount' => 'nullable|numeric|min:0',
+            'total_price_before_discount' => 'required|numeric|min:0',
+            'total_price' => 'required|numeric|min:0',
         ]);
 
         $userId = auth()->id();
@@ -295,7 +303,7 @@ class PaymentController extends Controller
 
         // Nhận các giá trị
         $priceCombo = $request->price_combo; // Tiền tổng combo
-        $priceSeat = $request->price_seat; //Tiền tổng ghế 
+        $priceSeat = $request->price_seat; //Tiền tổng ghế
         $comboDiscount = $request->combo_discount ?? 0; // Giảm giá combo
         $voucherDiscount = $request->voucher_discount ?? 0; // Giảm giá voucher
         $pointDiscount = $request->point_discount ?? 0; // Giảm giá điểm
