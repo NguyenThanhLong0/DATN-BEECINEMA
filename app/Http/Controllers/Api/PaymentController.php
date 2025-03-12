@@ -30,12 +30,12 @@ use App\Jobs\SendTicketEmail;
 class PaymentController extends Controller
 {
 
-    private function generateOrderCode()
-    {
-        $uniquePart = substr(uniqid(), -8); // Lấy 8 số cuối của uniqid()
-        $randomPart = rand(10000000, 99999999); // Thêm 8 số ngẫu nhiên
-
-        return $uniquePart . $randomPart; // Tổng cộng 16 số
+    function generateOrderCode() {
+        $uniquePart = preg_replace('/\D/', '', microtime(true)); // Loại bỏ dấu chấm
+        $uniquePart = substr($uniquePart, -8); 
+        $randomPart = rand(10000000, 99999999);
+    
+        return $uniquePart . $randomPart;
     }
 
     // public function payment(Request $request)
@@ -520,8 +520,8 @@ class PaymentController extends Controller
                     'seat_amount' => $paymentData['price_seat'] ?? 0,
                     'combo_amount' => $paymentData['price_combo'] ?? 0,
                 ]);
-                Log::debug('Payment Data:', $paymentData);
 
+                Log::debug('Payment Data:', $paymentData);
 
                 // Dispatch job gửi email
                 SendTicketEmail::dispatch($ticket, $paymentData)->onQueue('emails');
@@ -628,7 +628,7 @@ class PaymentController extends Controller
             return redirect(env('FRONTEND_URL') . "/thanks/{$paymentData['code']}?status=success");
         }
 
-        return response()->json(['error' => 'Thanh toán thất bại.'], 400);
+        return redirect(env('FRONTEND_URL'))
     }
 
     // ====================END THANH TOÁN VNPAY==================== //
@@ -665,15 +665,24 @@ class PaymentController extends Controller
             'zalopay_trans_id' => $zalopayTransId, // Mã gửi lên ZaloPay
             'code' => $zalopayOrderCode // Mã 16 số dùng trong nội bộ
         ]), now()->addMinutes(60));
+       
+        // Embed data (tùy chỉnh)
+        $embeddata = [
+            "merchantinfo" => "embeddata123",
+            //"redirecturl" => "http://localhost:5173/thanks/{$paymentData['code']}?status=success"
+        ];
 
-        // Log kiểm tra
-        Log::info("ZaloPay - Gửi thanh toán", [
-            'zalopay_trans_id' => $zalopayTransId,
-            'zalopay_order_code' => $zalopayOrderCode,
-            'payment_data' => $paymentData
-        ]);
-
-        // Tạo yêu cầu thanh toán ZaloPay
+        // Danh sách sản phẩm
+        $items = [
+            [
+                "itemid" => "ticket",
+                "itemname" => "Vé xem phim",
+                "itemprice" => $paymentData['total_price'],
+                "itemquantity" => 1
+            ]
+        ];
+       
+        // Tạo mảng dữ liệu gửi đi
         $order = [
             "app_id" => $app_id,
             "app_time" => $apptime,
@@ -884,15 +893,13 @@ class PaymentController extends Controller
 
     public function handleZaloPayRedirect(Request $request)
     {
+        Log::info("Thanh toán ZaloPay: ", $request->all());
         $status = $request->input('status'); // Lấy trạng thái thanh toán từ params
-        $orderCode = $request->input('orderCode'); // Lấy mã đơn hàng từ params
-
+        $orderCode = $request->input('apptransid'); // Lấy mã đơn hàng từ params
+      
         // Kiểm tra nếu thanh toán thành công
         if ($status == 1) {
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Thanh toán thành công',
-            ]); // Trả về JSON thông báo thành công
+            return redirect(env('FRONTEND_URL') . "/thanks/{$orderCode}?status=success");
         }
 
         // Nếu thanh toán thất bại, giải phóng ghế
@@ -919,11 +926,7 @@ class PaymentController extends Controller
             Log::info("Thanh toán thất bại, hủy voucher với mã giao dịch: " . $paymentData['code']);
         }
 
-        return response()->json([
-            'orderCode' => $orderCode,
-            'status' => 'failure',
-            'message' => 'Thanh toán thất bại, ghế đã được giải phóng',
-        ]); // Trả về JSON thông báo thất bại
+        return redirect(env('FRONTEND_URL'));
     }
 
     // ====================END THANH TOÁN ZALOPAY==================== //
@@ -950,7 +953,7 @@ class PaymentController extends Controller
         $orderId = $orderCode;
         $orderInfo = "Thanh toán đơn hàng #" . $orderId;
         $amount = $paymentData['total_price']; // Giá trị đơn hàng
-        $redirectUrl = env('MOMO_REDIRECT_URL');
+        $redirectUrl = env('FRONTEND_URL') . "/thanks/{$orderCode}?status=success";
         $ipnUrl = env('MOMO_IPN_URL');
         $extraData = "";
         $expiredTime = time() + 600;
@@ -979,7 +982,9 @@ class PaymentController extends Controller
         $response = Http::post($endpoint, $data);
         $result = $response->json();
 
-        return response()->json($result);
+        return response()->json([
+            "payment_url" => $result['payUrl'],
+        ]);
     }
     public function paymentIpn(Request $request)
     {

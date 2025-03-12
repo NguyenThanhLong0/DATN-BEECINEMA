@@ -29,7 +29,6 @@ class SendTicketEmail implements ShouldQueue
     public function handle()
     {
         try {
-
             // Lấy ticket từ DB
             $ticket = Ticket::where('id', $this->ticket->id)->first();
 
