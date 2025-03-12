@@ -620,7 +620,7 @@ class PaymentController extends Controller
             return redirect(env('FRONTEND_URL') . "/thanks/{$paymentData['code']}?status=success");
         }
 
-        return response()->json(['error' => 'Thanh toán thất bại.'], 400);
+        return redirect(env('FRONTEND_URL'))
     }
 
     // ====================END THANH TOÁN VNPAY==================== //
@@ -918,11 +918,7 @@ class PaymentController extends Controller
             Log::info("Thanh toán thất bại, hủy voucher với mã giao dịch: " . $paymentData['code']);
         }
 
-        return response()->json([
-            'orderCode' => $orderCode,
-            'status' => 'failure',
-            'message' => 'Thanh toán thất bại, ghế đã được giải phóng',
-        ]); // Trả về JSON thông báo thất bại
+        return redirect(env('FRONTEND_URL'));
     }
 
     // ====================END THANH TOÁN ZALOPAY==================== //

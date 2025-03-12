@@ -97,6 +97,7 @@
                                         CHI TIẾT VÉ (TICKET DETAILS)
                                     </div>
                                 </th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -176,31 +177,44 @@
                                     {{ number_format($ticket->total_price, 0, ',', '.') }} VND
                                 </td>
                             </tr>
-
-
-
+                            <!-- Divider -->
+                            <tr>
+                                <td colspan="2">
+                                    <img src="https://res.cloudinary.com/du2m9ntlf/image/upload/v1741266249/beecinema/hazj8ufm7n2d25ni6vie.png"
+                                        alt="Divider" style="width: 100%" />
+                                </td>
+                            </tr>
                             <!-- Ghi chú -->
                             <tr>
-                                <td>
+                                <td colspan="2">
                                     <div style="padding: 15px 20px">
-                                        <div style="font-size: 14px; font-weight: bold; margin-bottom: 10px">Lưu ý /
-                                            Note:</div>
+                                        <div style="font-size: 14px; font-weight: bold; margin-bottom: 10px">
+                                            Lưu ý / Note:
+                                        </div>
                                         <div style="font-size: 12px; color: #333; line-height: 1.5">
-                                            Vé đã mua không thể hủy, đổi hoặc trả lại. Vui lòng tới rạp theo lịch đã mua
-                                            hoặc trước giờ
-                                            chiếu ít nhất 15-30 phút để nhận vé.
+                                            Vé đã mua không thể hủy, đổi hoặc trả lại. Vui lòng tới rạp theo
+                                            lịch đã mua hoặc trước giờ chiếu ít nhất 15-30 phút để nhận vé.
+                                            Vé chỉ có giá trị cho suất chiếu đã mua. Cảm ơn quý khách đã sử
+                                            dụng dịch vụ của VNPAY. Chúc bạn xem phim vui vẻ!
+                                        </div>
+                                        <div style="font-size: 11px; color: #666; font-style: italic; margin-top: 10px;">
+                                            The purchased movie ticket cannot be cancelled, exchanged or
+                                            refunded. If you have any question or problems with this order,
+                                            you can contact Theater Manager or see our Condition to purchase
+                                            and use movie tickets for more information. Thank you for
+                                            choosing VNPAY ticket and enjoy the movie!
                                         </div>
                                     </div>
                                 </td>
                             </tr>
                             <!-- Thông tin hỗ trợ -->
                             <tr>
-                                <td style="text-align: center; padding: 15px 20px; font-size: 12px; color: #333;">
+                                <td colspan="2" style="text-align: center; padding: 15px 20px; font-size: 12px; color: #333;">
                                     Vui lòng liên hệ bộ phận chăm sóc khách hàng để được hỗ trợ
                                 </td>
                             </tr>
                             <tr>
-                                <td>
+                                <td colspan="2">
                                     <table style="width: 50%; margin: 0 auto">
                                         <tr>
                                             <td><img src="https://res.cloudinary.com/du2m9ntlf/image/upload/v1741266249/beecinema/w185gonv7tpb9eoluzfb.png"
@@ -213,60 +227,6 @@
                                     </table>
                                 </td>
                             </tr>
-                        </tbody>
-                    </table>
-                </td>
-            </tr>
-            <!-- Divider -->
-            <tr>
-                <td>
-                    <img src="https://res.cloudinary.com/du2m9ntlf/image/upload/v1741266249/beecinema/hazj8ufm7n2d25ni6vie.png"
-                        alt="Divider" style="width: 100%" />
-                </td>
-            </tr>
-            <!-- Ghi chú -->
-            <tr>
-                <td>
-                    <div style="padding: 15px 20px">
-                        <div style="font-size: 14px; font-weight: bold; margin-bottom: 10px">
-                            Lưu ý / Note:
-                        </div>
-                        <div style="font-size: 12px; color: #333; line-height: 1.5">
-                            Vé đã mua không thể hủy, đổi hoặc trả lại. Vui lòng tới rạp theo
-                            lịch đã mua hoặc trước giờ chiếu ít nhất 15-30 phút để nhận vé.
-                            Vé chỉ có giá trị cho suất chiếu đã mua. Cảm ơn quý khách đã sử
-                            dụng dịch vụ của VNPAY. Chúc bạn xem phim vui vẻ!
-                        </div>
-                        <div style="font-size: 11px; color: #666; font-style: italic; margin-top: 10px;">
-                            The purchased movie ticket cannot be cancelled, exchanged or
-                            refunded. If you have any question or problems with this order,
-                            you can contact Theater Manager or see our Condition to purchase
-                            and use movie tickets for more information. Thank you for
-                            choosing VNPAY ticket and enjoy the movie!
-                        </div>
-                    </div>
-                </td>
-            </tr>
-            <!-- Thông tin hỗ trợ -->
-            <tr>
-                <td style="text-align: center; padding: 15px 20px; font-size: 12px; color: #333;">
-                    Vui lòng liên hệ bộ phận chăm sóc khách hàng để được hỗ trợ
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <table style="width: 50%; margin: 0 auto">
-                        <tr>
-                            <td><img src="https://res.cloudinary.com/du2m9ntlf/image/upload/v1741266249/beecinema/w185gonv7tpb9eoluzfb.png"
-                                    alt="Phone" width="30" /></td>
-                            <td><b>*6789</b></td>
-                            <td><img src="https://res.cloudinary.com/du2m9ntlf/image/upload/v1741266249/beecinema/xxlsjpyobo2ntfkqajnm.png"
-                                    alt="Email" width="30" /></td>
-                            <td><a href="mailto:cs@vnpay.vn"><b>cs@vnpay.vn</b></a></td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
         </tbody>
     </table>
 </body>

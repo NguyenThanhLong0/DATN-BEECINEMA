@@ -132,13 +132,13 @@ class VoucherApiController extends Controller
 {
     $userId = Auth::id();
     $voucherCode = $request->voucher_code;
-    $totalAmount= $request->totalAmount;
+    $totalAmount= $request->total_amount;
     // Lấy thông tin voucher
     $voucher = Voucher::where('code', $voucherCode)->first();
     if (!$voucher) {
         return response()->json(['success' => false, 'message' => 'Voucher không tồn tại'], 400);
     }
-
+    log::info($totalAmount);
 
     // Kiểm tra điều kiện sử dụng voucher
     if ($voucher->start_date > now() || $voucher->end_date < now()) {
@@ -179,10 +179,10 @@ class VoucherApiController extends Controller
     ]);
 }
 
-public function ToggleVoucher(Request $request){
+public function removeVoucher(Request $request){
      $userId = Auth::id();
     $voucherCode = $request->voucher_code;
-    $totalAmount= $request->totalAmount;
+    $totalAmount= $request->total_amount;
     // Lấy thông tin voucher
     $voucher = Voucher::where('code', $voucherCode)->first();
     if (!$voucher) {
