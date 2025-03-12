@@ -390,6 +390,6 @@ Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRe
 
 
 //Thống kê doanh thu
-Route::post('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
-Route::post('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
-Route::post('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total
+Route::get('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
+Route::get('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
+Route::get('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total
