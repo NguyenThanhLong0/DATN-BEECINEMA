@@ -628,7 +628,7 @@ class PaymentController extends Controller
             return redirect(env('FRONTEND_URL') . "/thanks/{$paymentData['code']}?status=success");
         }
 
-        return redirect(env('FRONTEND_URL'))
+        return redirect(env('FRONTEND_URL'));
     }
 
     // ====================END THANH TOÁN VNPAY==================== //
