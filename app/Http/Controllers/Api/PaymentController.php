@@ -239,16 +239,24 @@ class PaymentController extends Controller
     {
         // Xác thực dữ liệu đầu vào
         $request->validate([
-            'rank_at_booking' => 'required|string', // Đây là trường hạng thành viên tại thời điểm đặt vé
+            'rank_at_booking' => 'required|string|exists:ranks,name', // Hạng thành viên tại thời điểm đặt vé phải tồn tại trong bảng ranks
             'seat_id' => 'required|array',
             'seat_id.*' => 'integer|exists:seats,id',
             'combo' => 'nullable|array',
             'combo.*' => 'nullable|integer|min:0|max:10',
-            'voucher_id' => 'nullable|integer',
+            'voucher_id' => 'nullable|integer|exists:vouchers,id',
             'voucher_code' => 'nullable|string|exists:vouchers,code',
             'showtime_id' => 'required|integer|exists:showtimes,id',
-            'payment_name' => 'required|string',
-            'points' => 'nullable|integer|min:0',
+            'payment_name' => 'required|string|in:VNPAY,ZALOPAY,MOMO',
+            'points' => 'nullable|integer|min:0', 
+            'price_combo' => 'nullable|numeric|min:0',
+            'price_seat' => 'nullable|numeric|min:0',
+            'combo_discount' => 'nullable|numeric|min:0',
+            'voucher_discount' => 'nullable|numeric|min:0',
+            'point_discount' => 'nullable|numeric|min:0',
+            'total_discount' => 'nullable|numeric|min:0',
+            'total_price_before_discount' => 'required|numeric|min:0',
+            'total_price' => 'required|numeric|min:0',
         ]);
 
         $userId = auth()->id();
@@ -295,7 +303,7 @@ class PaymentController extends Controller
 
         // Nhận các giá trị
         $priceCombo = $request->price_combo; // Tiền tổng combo
-        $priceSeat = $request->price_seat; //Tiền tổng ghế 
+        $priceSeat = $request->price_seat; //Tiền tổng ghế
         $comboDiscount = $request->combo_discount ?? 0; // Giảm giá combo
         $voucherDiscount = $request->voucher_discount ?? 0; // Giảm giá voucher
         $pointDiscount = $request->point_discount ?? 0; // Giảm giá điểm
@@ -1033,18 +1041,29 @@ class PaymentController extends Controller
                         'showtime_id' => $paymentData['showtime_id'],
                         'voucher_code' => $paymentData['voucher_code'],
                         'voucher_discount' => $paymentData['voucher_discount'],
-                        'point_use' => $paymentData['point_use'],
-                        'point_discount' => $paymentData['point_discount'],
+                        'point_discount' => $paymentData['point_discount'] ?? 0, // Điểm đã sử dụng trong giao dịch này
+                        'point' => $paymentData['point_discount'],  // Số điểm tích lũy khi mua vé vào bảng ticket
+                        'rank_at_booking' => $paymentData['rank_at_booking'] ?? null, // Hạng thành viên tại thời điểm đặt vé
                         'payment_name' => 'MOMO',
                         'code' => $paymentData['code'],
                         'total_price' => $paymentData['total_price'],
                         'status' => 'Đã thanh toán',
                         'expiry' => $paymentData['expiry'],
+
+                        // Các giá trị giảm giá và tiền trước giảm
+                        'combo_discount' => $paymentData['combo_discount'] ?? 0,
+                        'ticket_discount' => $paymentData['ticket_discount'] ?? 0,
+                        'total_discount' => $paymentData['total_discount'] ?? 0,
+                        'total_price_before_discount' => $paymentData['total_price_before_discount'] ?? 0,
+                        'seat_amount' => $paymentData['price_seat'] ?? 0,
+                        'combo_amount' => $paymentData['price_combo'] ?? 0,
                     ]);
 
                     Log::info("MoMo IPN: Tạo Ticket thành công:", ['ticket_id' => $ticket->id]);
 
-                    SendTicketEmail::dispatch($ticket)->onQueue('emails');
+                    // Dispatch job gửi email
+                    SendTicketEmail::dispatch($ticket, $paymentData)->onQueue('emails');
+
 
                     foreach ($paymentData['seats'] as $seatId) {
                         Ticket_Seat::create([
@@ -1066,7 +1085,19 @@ class PaymentController extends Controller
                         }
                         Log::info("MoMo IPN: Đã lưu combo vào Ticket_Combo.");
                     }
+                    // Cập nhật `ticket_id` trong `user_voucher`
+                    if (!empty($paymentData['voucher_id'])) {
+                        UserVoucher::where('user_id', $paymentData['user_id'])
+                            ->where('voucher_id', $paymentData['voucher_id'])
+                            ->whereNull('ticket_id')
+                            ->orderBy('id', 'desc')
+                            ->update(['ticket_id' => $ticket->id]);
+                    }
 
+                    // Hủy job hủy voucher
+                    Cache::forget("cancel_voucher_{$paymentData['code']}");
+
+                    //  Cập nhật trạng thái ghế thành "booked"
                     DB::table('seat_showtimes')
                         ->whereIn('seat_id', $paymentData['seats'])
                         ->where('showtime_id', $paymentData['showtime_id'])
@@ -1086,16 +1117,15 @@ class PaymentController extends Controller
 
                     // Xử lý membership (điểm, rank...) như cũ của bạn tại đây
                     // Trừ điểm của người dùng
-                    if ($paymentData['point_use'] > 0) {
-                        $membership = Membership::where('user_id', $ticket->user_id)->first();
-                        if ($membership) {
-                            $membership->decrement('points', $paymentData['point_use']);
-                            PointHistory::create([
-                                'membership_id' => $membership->id,
-                                'points' => -$paymentData['point_use'],
-                                'type' => 'Dùng điểm',
-                            ]);
-                        }
+                    $pointUsed = $paymentData['point_discount'];
+                    if ($pointUsed > 0) {
+                        $membership = Membership::where('user_id', $paymentData['user_id'])->first();
+                        $membership->decrement('points', $pointUsed); // Trừ điểm tích lũy của người dùng
+                        PointHistory::create([
+                            'membership_id' => $membership->id,
+                            'points' => -$pointUsed,
+                            'type' => 'Dùng điểm',
+                        ]);
                     }
 
                     // Tích điểm mới cho người dùng và cộng total_spent
@@ -1112,6 +1142,16 @@ class PaymentController extends Controller
                             'type' => 'Nhận điểm',
                         ]);
                     }
+
+                    // Xác định rank mới
+                    $rank = Rank::where('total_spent', '<=', $membership->total_spent)
+                        ->orderBy('total_spent', 'desc')
+                        ->first() ?? Rank::orderBy('total_spent', 'asc')->first();
+
+                    if ($rank) {
+                        $membership->rank_id = $rank->id;
+                        $membership->save();
+                    }
                 });
 
                 Cache::forget("payment_{$orderCode}");
@@ -1124,7 +1164,13 @@ class PaymentController extends Controller
             }
         }
 
-        // Xử lý thất bại thanh toán:
+        // Hủy ngay lập tức voucher nếu có
+        if (!empty($paymentData['voucher_id'])) {
+            CancelVoucherJob::dispatchSync($paymentData['user_id'], $paymentData['voucher_id'], $paymentData['code']);
+        }
+        Log::info("Thanh toán thất bại, hủy voucher với mã giao dịch: " . $paymentData['code']);
+
+        // Giải phóng ghế nếu thanh toán thất bại
         DB::table('seat_showtimes')
             ->whereIn('seat_id', $paymentData['seats'])
             ->where('showtime_id', $paymentData['showtime_id'])
