@@ -77,6 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Tickets
+    Route::post('/tickets/confirm', [TicketController::class, 'confirm']);
     Route::post('/tickets', [TicketController::class, 'store']);
     Route::get('/booking-history', [TicketController::class, 'getBookingHistory']);
 
@@ -298,10 +299,7 @@ Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRe
 
 Route::get('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
 Route::get('/revenue-by-food', [ReportController::class, 'foodStats']);//food
-Route::get('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
-Route::get('/revenue-statistics', [ReportController::class,'revenueStatistics']);
 
-//overview
 
 Route::get('/overview', [OverviewController::class, 'overview']);//overview
 Route::get('/seatOccupancyByDay', [OverviewController::class, 'seatOccupancyByDay']);//phần trăm đặt ghế trong 1 ngày của các suất chiếu 

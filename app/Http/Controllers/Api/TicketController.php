@@ -657,4 +657,41 @@ class TicketController extends Controller
 
 
     }
+
+    public function confirm(Request $request)
+{
+    $ticketId = $request->input('ticket_id');
+
+    if (!$ticketId) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vui lòng cung cấp ID của vé!'
+        ], 400);
+    }
+
+    $ticket = Ticket::where('id', $ticketId)->first();
+
+    if (!$ticket) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vé không tồn tại!'
+        ], 404);
+    }
+
+    if ($ticket->status == "Đã thanh toán" ) {
+        $ticket->update([
+            'status' => "Đã xuất vé"
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Thay đổi trạng thái thành công!'
+        ]);
+    }
+
+    return response()->json([
+        'success' => false,
+        'message' => 'Vé không hợp lệ hoặc đã hết hạn!'
+    ], 400);
+}
 }

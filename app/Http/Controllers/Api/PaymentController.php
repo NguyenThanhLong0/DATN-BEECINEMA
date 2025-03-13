@@ -1189,6 +1189,17 @@ class PaymentController extends Controller
             ], 400);
         }
         
+
+        // Giải phóng ghế nếu thanh toán thất bại
+        DB::table('seat_showtimes')
+            ->whereIn('seat_id', $paymentData['seats'])
+            ->where('showtime_id', $paymentData['showtime_id'])
+            ->update([
+                'status' => 'available',
+                'user_id' => null,
+                'hold_expires_at' => null,
+            ]);
+        return response()->json(["message" => "Thanh toán thất bại"], 400);
     }
 
 
