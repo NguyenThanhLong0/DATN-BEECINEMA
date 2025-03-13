@@ -1179,10 +1179,6 @@ class PaymentController extends Controller
                 'user_id' => null,
                 'hold_expires_at' => null,
             ]);
-
-        Cache::forget("payment_{$orderCode}");
-        Log::warning("MoMo IPN: Thanh toán thất bại, đã giải phóng ghế.");
-
         return response()->json(["message" => "Thanh toán thất bại"], 400);
     }
 
