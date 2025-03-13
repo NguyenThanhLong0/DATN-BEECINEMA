@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\UserVoucher;
 use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class TicketController extends Controller
@@ -441,19 +442,19 @@ class TicketController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($ticket) {
-                // Tính tổng tiền ghế
-                $ticket->total_seat_price = $ticket->seats->sum('price');
+                    // Tính tổng tiền ghế
+                    $ticket->total_seat_price = $ticket->seats->sum('price');
 
-                // Tính tổng tiền combo
-                $totalComboPrice = 0;
-                foreach ($ticket->combos as $combo) {
-                    $totalComboPrice += $combo->price * $combo->quantity;
-                }
-                
-                $ticket->total_combo_price = $totalComboPrice;
+                    // Tính tổng tiền combo
+                    $totalComboPrice = 0;
+                    foreach ($ticket->combos as $combo) {
+                        $totalComboPrice += $combo->price * $combo->quantity;
+                    }
 
-                return $ticket;
-            });
+                    $ticket->total_combo_price = $totalComboPrice;
+
+                    return $ticket;
+                });
 
             return response()->json([
                 'message' => 'Lịch sử đặt vé',
@@ -485,7 +486,7 @@ class TicketController extends Controller
         foreach ($ticket->ticketCombos as $ticketCombo) {
             $combo = $ticketCombo->combo;
             $foods = [];
-        
+
             foreach ($combo->foods as $food) {
                 $foods[] = [
                     'food_id' => $food->id,
@@ -495,10 +496,10 @@ class TicketController extends Controller
                     'quantity' => $food->pivot->quantity, // Lấy số lượng từ bảng trung gian
                 ];
             }
-        
+
             $comboPrice = $combo->price * $ticketCombo->quantity;
             $totalComboPrice += $comboPrice;
-            
+
             $comboDetails[] = [
                 'combo_id' => $combo->id,
                 'combo_name' => $combo->name,
@@ -536,14 +537,14 @@ class TicketController extends Controller
                     'birthday' => $ticket->user->birthday,
                     'role' => $ticket->user->role,
                 ],
-                'cinema' => ['id' => $ticket->cinema->id, 'name' => $ticket->cinema->name,"address" => $ticket->cinema->address,'branch' => optional($ticket->cinema->branch)->name],
+                'cinema' => ['id' => $ticket->cinema->id, 'name' => $ticket->cinema->name, "address" => $ticket->cinema->address, 'branch' => optional($ticket->cinema->branch)->name],
                 'room' => ['id' => $ticket->room->id, 'name' => $ticket->room->name],
-                'movie' => ['id' => $ticket->movie->id, 'name' => $ticket->movie->name, 'img' => $ticket->movie->img_thumbnail,'duration' => $ticket->movie->duration, 'age' => $ticket->movie->rating, 'category' => $ticket->movie->category],
+                'movie' => ['id' => $ticket->movie->id, 'name' => $ticket->movie->name, 'img' => $ticket->movie->img_thumbnail, 'duration' => $ticket->movie->duration, 'age' => $ticket->movie->rating, 'category' => $ticket->movie->category],
                 'showtime' => [
                     'id' => $ticket->showtime->id,
-                    'format'=>$ticket->showtime->format,
+                    'format' => $ticket->showtime->format,
                     'start_time' => $ticket->showtime->start_time,
-                    'end_time'=> $ticket->showtime->end_time
+                    'end_time' => $ticket->showtime->end_time
                 ],
                 'voucher_code' => $ticket->voucher_code,
                 'voucher_discount' => $ticket->voucher_discount,
@@ -569,5 +570,81 @@ class TicketController extends Controller
             ],
         ], 200);
     }
+    //lọc vé
+    public function filter(Request $request)
+        {
+            
+            // Log::info('Filter Request:', $request->all());
+            try {
+                $query = Ticket::query()
+                    ->select([
+                        'tickets.code',
+                        'users.name as user_name',
+                        'users.email as user_email',
+                        'users.role as user_role',
+                        'movies.img_thumbnail as movie_image',
+                        'movies.name as movie_name',
+                        'cinemas.name as cinema_name',
+                        'rooms.name as room_name',
+                        'tickets.total_price',
+                        'tickets.status',
+                        'showtimes.start_time as start_time',
+                        'showtimes.date as show_date',
+                        'tickets.expiry'
+                    ])
+                    ->join('users', 'tickets.user_id', '=', 'users.id')
+                    ->join('movies', 'tickets.movie_id', '=', 'movies.id')
+                    ->join('cinemas', 'tickets.cinema_id', '=', 'cinemas.id')
+                    ->join('rooms', 'tickets.room_id', '=', 'rooms.id')
+                    ->join('showtimes', 'tickets.showtime_id', '=', 'showtimes.id');
 
+                    // $query = Ticket::query();
+                // Lọc theo branch_id nếu có
+                if ($request->has('branch_id')) {
+                    $query->where('cinemas.branch_id',  $request->branch_id);
+                }
+
+                // Lọc theo cinema_id nếu có
+                if ($request->has('cinema_id')) {
+                    $query->where('tickets.cinema_id',  $request->cinema_id);
+                }
+
+                // Lọc theo movie_id nếu có
+                if ($request->has('movie_id')) {
+                    $query->where('tickets.movie_id', $request->movie_id);
+                }
+
+                // Lọc theo ngày chiếu nếu có
+                if ($request->has('date')) {
+                    $query->whereDate('showtimes.date', $request->date);
+                }
+
+                // Lọc theo trạng thái nếu có
+                if ($request->has('status')) {
+                    $query->where('tickets.status', $request->status);
+                }
+
+                // Lấy dữ liệu
+                // Log::info('SQL Query:', ['sql' => $query->toSql(), 'bindings' => $query->getBindings()]);
+                $tickets = $query->get();
+                // Log::info('Tickets count:', ['count' => $tickets->count()]);
+
+                if ($tickets->isEmpty()) {
+                    return response()->json(['message' => 'Không tìm thấy vé']);
+                }
+                // Trả về response
+                return response()->json([
+                    'success' => true,
+                    'data' => $tickets
+                ]);
+                // dd($query->toSql(), $query->getBindings());
+            } catch (\Exception $e) {
+                // Xử lý lỗi và trả về JSON thông báo lỗi
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Đã có lỗi xảy ra khi lấy danh sách vé.',
+                    'error' => $e->getMessage()
+                ], 500);
+            }
+        }
 }
