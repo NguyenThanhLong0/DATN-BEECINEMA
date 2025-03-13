@@ -536,9 +536,9 @@ class TicketController extends Controller
                     'birthday' => $ticket->user->birthday,
                     'role' => $ticket->user->role,
                 ],
-                'cinema' => ['id' => $ticket->cinema->id, 'name' => $ticket->cinema->name, 'branch' => optional($ticket->cinema->branch)->name],
+                'cinema' => ['id' => $ticket->cinema->id, 'name' => $ticket->cinema->name,"address" => $ticket->cinema->address,'branch' => optional($ticket->cinema->branch)->name],
                 'room' => ['id' => $ticket->room->id, 'name' => $ticket->room->name],
-                'movie' => ['id' => $ticket->movie->id, 'name' => $ticket->movie->name, 'img' => $ticket->movie->img_thumbnail,'duration' => $ticket->movie->duration],
+                'movie' => ['id' => $ticket->movie->id, 'name' => $ticket->movie->name, 'img' => $ticket->movie->img_thumbnail,'duration' => $ticket->movie->duration, 'age' => $ticket->movie->rating, 'category' => $ticket->movie->category],
                 'showtime' => [
                     'id' => $ticket->showtime->id,
                     'format'=>$ticket->showtime->format,
@@ -556,6 +556,8 @@ class TicketController extends Controller
                 'point_discount' => $ticket->point_discount,
                 'rank_at_booking' => $ticket->rank_at_booking,
                 'total_price' => $ticket->total_price,
+                'create_at' => $ticket->created_at,
+                'update_at' => $ticket->update_at,
                 'combos' => [
                     'details' => $comboDetails,
                     'total_combo_price' => $totalComboPrice,
