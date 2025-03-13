@@ -124,6 +124,7 @@ class ReportController extends Controller
             })
             ->where('tickets.status', '!=', 'đã hủy')
             ->selectRaw('
+
             SUM(ticket_seats.price) 
             - COALESCE(SUM(tickets.voucher_discount), 0) 
             - COALESCE(SUM(point_histories.points), 0) as total_movie_revenue,
@@ -250,4 +251,5 @@ class ReportController extends Controller
             'total_revenue' => $totalRevenue
         ]);
     }
+
 }

@@ -420,3 +420,4 @@ Route::post('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//
 Route::post('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total
 
 Route::get('/revenue-statistics', [ReportController::class,'revenueStatistics']);
+
