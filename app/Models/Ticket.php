@@ -88,11 +88,13 @@ class Ticket extends Model
 
 
     // tính tổng giá trị sau khi trừ điểm giảm giá
-    public function getFinalPriceAttribute() {
+    public function getFinalPriceAttribute()
+    {
         return max(0, $this->total_price - $this->point_discount);
     }
     // lấy ra rank hiện tại theo user
-    public function getCurrentRankAttribute() {
+    public function getCurrentRankAttribute()
+    {
         return $this->user ? $this->user->current_rank : 'Member';
     }
     //  Quan hệ với bảng `vouchers`
@@ -107,11 +109,15 @@ class Ticket extends Model
         // Lấy thời gian hiện tại theo định dạng yyyymmddHis (NămThángNgàyGiờPhútGiây)
         return now()->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis');
     }
-   public function ticketCombos()
+    public function ticketCombos()
     {
         return $this->hasMany(Ticket_Combo::class, 'ticket_id', 'id');
     }
     // tính tổng giá trị sau khi trừ điểm giảm giá
-}
-?>
 
+    //lọc theo branch
+    public function branch()
+    {
+        return $this->hasOneThrough(Branch::class, Cinema::class, 'id', 'id', 'cinema_id', 'branch_id');
+    }
+}
