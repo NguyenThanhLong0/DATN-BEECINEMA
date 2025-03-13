@@ -339,8 +339,13 @@ Route::get('/showtimes/slug/{slug}', [ShowtimeController::class, 'showBySlug']);
 
 
 //Ticket
+Route::get('/tickets/filter', [TicketController::class, 'filter']);
 Route::apiResource('tickets', TicketController::class);
 Route::middleware('auth:api')->post('/tickets', [TicketController::class, 'store']);
+
+// Route::middleware(['auth:sanctum'])->group(function () {
+//     Route::get('/tickets/filter', [TicketController::class, 'filter']);
+// });
 
 //
 Route::middleware('auth:sanctum')->get('/booking-history', [TicketController::class, 'getBookingHistory']);
