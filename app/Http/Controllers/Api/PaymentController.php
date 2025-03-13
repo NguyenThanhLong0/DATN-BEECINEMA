@@ -1080,7 +1080,7 @@ class PaymentController extends Controller
                                 'ticket_id' => $ticket->id,
                                 'combo_id' => $comboId,
                                 'quantity' => $quantity,
-                                'price' => Combo::find($comboId)->price * $quantity,
+                                'price' => Combo::find($comboId)->discount_price * $quantity,
                             ]);
                         }
                         Log::info("MoMo IPN: Đã lưu combo vào Ticket_Combo.");
