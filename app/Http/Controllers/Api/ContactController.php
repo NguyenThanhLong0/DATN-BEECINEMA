@@ -14,10 +14,12 @@ class ContactController extends Controller
      */
     public function index()
     {
+        $contacts = Contact::latest()->get();
+    
         return response()->json([
             'status' => 200,
             'message' => 'Lấy Thông Tin Thành Công',
-            'data' => Contact::all()
+            'data' => $contacts
         ], Response::HTTP_OK);
     }
 
