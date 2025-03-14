@@ -953,7 +953,7 @@ class PaymentController extends Controller
         $orderId = $orderCode;
         $orderInfo = "Thanh toán đơn hàng #" . $orderId;
         $amount = $paymentData['total_price']; // Giá trị đơn hàng
-        $redirectUrl = env('FRONTEND_URL') . "/thanks/{$orderCode}?status=success";
+        $redirectUrl = env('MOMO_REDIRECT_URL') . "/thanks/{$orderCode}?status=success";
         $ipnUrl = env('MOMO_IPN_URL');
         $extraData = "";
         $expiredTime = time() + 600;
@@ -1164,22 +1164,31 @@ class PaymentController extends Controller
             }
         }
 
-        // Hủy ngay lập tức voucher nếu có
-        if (!empty($paymentData['voucher_id'])) {
-            CancelVoucherJob::dispatchSync($paymentData['user_id'], $paymentData['voucher_id'], $paymentData['code']);
+        if ($data['resultCode'] != 0) {
+            // Hủy voucher nếu có
+            if (!empty($paymentData['voucher_id'])) {
+                CancelVoucherJob::dispatchSync($paymentData['user_id'], $paymentData['voucher_id'], $paymentData['code']);
+            }
+        
+            Log::info("Thanh toán thất bại, hủy voucher với mã giao dịch: " . $paymentData['code']);
+        
+            // Giải phóng ghế
+            DB::table('seat_showtimes')
+                ->whereIn('seat_id', $paymentData['seats'])
+                ->where('showtime_id', $paymentData['showtime_id'])
+                ->update([
+                    'status' => 'available',
+                    'user_id' => null,
+                    'hold_expires_at' => null,
+                ]);
+        
+            // Trả về URL để frontend redirect
+            return response()->json([
+                "message" => "Thanh toán thất bại",
+                "redirect_url" => env('MOMO_REDIRECT_URL') . "/thanks/{$orderCode}?status=failed"
+            ], 400);
         }
-        Log::info("Thanh toán thất bại, hủy voucher với mã giao dịch: " . $paymentData['code']);
-
-        // Giải phóng ghế nếu thanh toán thất bại
-        DB::table('seat_showtimes')
-            ->whereIn('seat_id', $paymentData['seats'])
-            ->where('showtime_id', $paymentData['showtime_id'])
-            ->update([
-                'status' => 'available',
-                'user_id' => null,
-                'hold_expires_at' => null,
-            ]);
-        return response()->json(["message" => "Thanh toán thất bại"], 400);
+        
     }
 
 
