@@ -353,17 +353,17 @@ Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'des
 
 
 //Contact
-Route::get('contact',               [ContactController::class, 'index'])->name('contact.index');
+Route::get('contact',[ContactController::class, 'index'])->name('contact.index');
 
-Route::post('contact',              [ContactController::class, 'store'])->name('contact.store');
+Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
 
-Route::get('contact/{contact}',      [ContactController::class, 'show'])->name('contact.show');
+Route::get('contact/{contact}',[ContactController::class, 'show'])->name('contact.show');
 
-Route::put('contact/{contact}',      [ContactController::class, 'update'])->name('contact.update');
+Route::put('contact/{contact}',[ContactController::class, 'update'])->name('contact.update');
 
-Route::patch('contact/{contact}',    [ContactController::class, 'update'])->name('contact.update.partial');
+Route::patch('contact/{contact}',[ContactController::class, 'update'])->name('contact.update.partial');
 
-Route::delete('contact/{contact}',   [ContactController::class, 'destroy'])->name('contact.destroy');
+Route::delete('contact/{contact}',[ContactController::class, 'destroy'])->name('contact.destroy');
 
 //choose-seat
 
