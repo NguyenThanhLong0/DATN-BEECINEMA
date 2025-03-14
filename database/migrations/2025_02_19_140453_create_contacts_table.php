@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('phone')->nullable();
             $table->text('message')->nullable();
             $table->string('address')->nullable();
-            $table->enum('status', ['Chưa xử lý', 'Đã xử lý', 'Không xử lý'])
+            $table->string('status')
             ->default('Chưa xử lý');
             $table->timestamps();
         });
