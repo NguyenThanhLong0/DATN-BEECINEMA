@@ -20,5 +20,6 @@ class Contact extends Model
         'phone',
         'message',
         'address',
+        'status'
     ];
 }

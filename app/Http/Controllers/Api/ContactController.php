@@ -68,6 +68,7 @@ class ContactController extends Controller
             'phone' => 'nullable|string|max:20',
             'message' => 'nullable|string',
             'address' => 'nullable|string|max:255',
+            'status' => 'sometimes|required|in:Đã xử lý,Chưa xử lý,Không xử lý'
         ]);
 
         $contact->update($request->all());
