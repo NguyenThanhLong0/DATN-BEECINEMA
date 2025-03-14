@@ -588,6 +588,7 @@ class TicketController extends Controller
                         'rooms.name as room_name',
                         'tickets.total_price',
                         'tickets.status',
+                        'tickets.payment_name',
                         'showtimes.start_time as start_time',
                         'showtimes.date as show_date',
                         'tickets.expiry'
@@ -616,7 +617,7 @@ class TicketController extends Controller
 
                 // Lọc theo ngày chiếu nếu có
                 if ($request->has('date')) {
-                    $query->whereDate('showtimes.date', $request->date);
+                    $query->whereDate('tickets.created_at', $request->date);
                 }
 
                 // Lọc theo trạng thái nếu có
