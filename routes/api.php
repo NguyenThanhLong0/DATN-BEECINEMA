@@ -24,6 +24,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ChooseSeatController;
+use App\Http\Controllers\Api\OverviewController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\ReportController as ControllersReportController;
 
@@ -393,3 +394,9 @@ Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRe
 Route::get('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
 Route::get('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
 Route::get('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total
+
+//overview
+
+Route::get('/overview', [OverviewController::class, 'overview']);//overview
+Route::get('/seatOccupancyByDay', [OverviewController::class, 'seatOccupancyByDay']);//phần trăm đặt ghế trong 1 ngày của các suất chiếu 
+Route::get('/seatOccupancyByMonth', [OverviewController::class, 'seatOccupancyByMonth']);//phần trăm đặt ghế trong 1 tháng của các suất chiếu 
