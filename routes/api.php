@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CinemaController;
 use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\ComboFoodController;
+use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\MovieReviewController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
@@ -139,6 +140,7 @@ Route::middleware('auth:sanctum')->prefix('posts')->group(function () {
     Route::get('/', [PostApiController::class, 'index']); // Lấy danh sách bài viết
     Route::post('/', [PostApiController::class, 'store']); // Thêm bài viết
     Route::get('{id}', [PostApiController::class, 'show']); // Xem chi tiết bài viết
+    Route::patch('{id}', [PostApiController::class, 'update']); // Cập nhật bài viết
     Route::put('{id}', [PostApiController::class, 'update']); // Cập nhật bài viết
     Route::delete('{id}', [PostApiController::class, 'destroy']); // Xóa bài viết
     // Route::put('{id}/toggle', [PostApiController::class, 'toggle']); // Bật/tắt trạng thái
@@ -195,11 +197,11 @@ Route::prefix('vouchers')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [VoucherApiController::class, 'index']); // Lấy danh sách voucher
     Route::post('/', [VoucherApiController::class, 'store']); // Tạo mới voucher
     Route::get('{id}', [VoucherApiController::class, 'show']); // Lấy chi tiết voucher
-    Route::post('/apply-or-toggle-voucher', [VoucherApiController::class, 'applyOrToggleVoucher']); // Lấy chi tiết voucher
+    Route::post('/apply-voucher', [VoucherApiController::class, 'applyVoucher']); 
+    Route::post('/remove-voucher', [VoucherApiController::class, 'removeVoucher']); 
     Route::put('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
     Route::patch('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
     Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
-    
 });
 
 //Type Seat
@@ -267,11 +269,13 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::get('/users/{id}', [UserController::class, 'show']); // Lấy thông tin user cụ thể
     Route::put('/users/{id}', [UserController::class, 'update']); // Cập nhật user
     Route::patch('/users/{id}', [UserController::class, 'update']); // Cập nhật user
+    Route::post('/users/create', [UserController::class, 'add']); // Cập nhật user
     Route::delete('/users/{id}', [UserController::class, 'destroy']); // Xóa mềm
     Route::post('/users/{id}/restore', [UserController::class, 'restore']); // Khôi phục
     Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']); // Xóa vĩnh viễn
 
 });
+Route::patch('/users/{id}', [UserController::class, 'update']); // Cập nhật user
 
 //user
 Route::middleware('auth:sanctum')->group(function () {
@@ -336,10 +340,18 @@ Route::get('/showtimes/slug/{slug}', [ShowtimeController::class, 'showBySlug']);
 
 
 //Ticket
+Route::get('/tickets/filter', [TicketController::class, 'filter']);
 Route::apiResource('tickets', TicketController::class);
 Route::middleware('auth:api')->post('/tickets', [TicketController::class, 'store']);
+
+// Route::middleware(['auth:sanctum'])->group(function () {
+//     Route::get('/tickets/filter', [TicketController::class, 'filter']);
+// });
+
 //
 Route::middleware('auth:sanctum')->get('/booking-history', [TicketController::class, 'getBookingHistory']);
+
+
 //MovieReview
 
 Route::get('movie-reviews', [MovieReviewController::class, 'index']);
@@ -353,6 +365,20 @@ Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update
 Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
 
 Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
+
+
+//Contact
+Route::get('contact',[ContactController::class, 'index'])->name('contact.index');
+
+Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
+
+Route::get('contact/{contact}',[ContactController::class, 'show'])->name('contact.show');
+
+Route::put('contact/{contact}',[ContactController::class, 'update'])->name('contact.update');
+
+Route::patch('contact/{contact}',[ContactController::class, 'update'])->name('contact.update.partial');
+
+Route::delete('contact/{contact}',[ContactController::class, 'destroy'])->name('contact.destroy');
 
 //choose-seat
 
@@ -386,11 +412,16 @@ Route::post('/zalopay/payment', [PaymentController::class, 'createPayment']);
 
 Route::get('vnpay-return', [PaymentController::class, 'returnVnpay'])->name('vnpay.return');
 
+Route::post('/momo-payment', [PaymentController::class, 'MomoPayment']);
+
+Route::post('/momo-ipn', [PaymentController::class, 'paymentIpn']);
+
 
 Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRedirect'])->name('handleZaloPayRedirect');
 
 
 //Thống kê doanh thu
+
 Route::get('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
 Route::get('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
 Route::get('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total
@@ -400,3 +431,7 @@ Route::get('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Tot
 Route::get('/overview', [OverviewController::class, 'overview']);//overview
 Route::get('/seatOccupancyByDay', [OverviewController::class, 'seatOccupancyByDay']);//phần trăm đặt ghế trong 1 ngày của các suất chiếu 
 Route::get('/seatOccupancyByMonth', [OverviewController::class, 'seatOccupancyByMonth']);//phần trăm đặt ghế trong 1 tháng của các suất chiếu 
+
+Route::get('/revenue-statistics', [ReportController::class,'revenueStatistics']);
+
+
