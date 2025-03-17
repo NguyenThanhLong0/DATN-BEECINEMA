@@ -437,7 +437,7 @@ class TicketController extends Controller
                     'movie:id,name,duration,img_thumbnail', //lấy ra tên và thời lượng phim
                     'room:id,name',
                     'showtime:id,start_time,end_time',
-                    'voucher:id,code,type,discount',
+                    'voucher:id,code,discount_type,discount_value',
                 ])
                 ->orderBy('created_at', 'desc')
                 ->get()

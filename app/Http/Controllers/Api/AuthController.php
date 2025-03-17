@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use Illuminate\Http\Request;
 use App\Events\UserRegistered;
 use App\Http\Controllers\Controller;
 use App\Jobs\ResendVerificationEmailJob;
 use App\Jobs\SendPasswordResetEmail;
 use App\Models\Membership;
 use App\Models\Rank;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -24,37 +24,18 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        try {
-            // Validate input
-            $request->validate([
-                'email' => 'required|email',
-                'password' => 'required'
-            ]);
+        $credentials = $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
 
-            // Find user by email
-            $user = User::where('email', $request->email)->first();
-
-            // Check if user exists and password matches
-            if (!$user || !Hash::check($request->password, $user->password)) {
-                return response()->json(['error' => 'Unauthorized'], 401);
-            }
-
-            // Delete old tokens if necessary
-            $user->tokens()->delete();
-
-            // Create a new token
-            $token = $user->createToken('authToken')->plainTextToken;
-
-            return response()->json([
-                'user' => $user,
-                'token' => $token
-            ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Login failed',
-                'message' => $e->getMessage(),
-            ], 500);
+        if (Auth::attempt($credentials)) {
+            $request->session()->regenerate();
+            $user = Auth::user();
+            return response()->json(['message' => 'Login successful' , 'user' => $user ], 200);
         }
+
+        return response()->json(['message' => 'Invalid credentials'], 401);
     }
 
     public function register(Request $request)
@@ -109,17 +90,17 @@ class AuthController extends Controller
         }
     }
 
+    public function user(Request $request)
+    {
+        return response()->json($request->user());
+    }
+
     public function logout(Request $request)
     {
-        try {
-            $request->user()->tokens()->delete();
-            return response()->json(['message' => 'Successfully logged out']);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Logout failed',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        return response()->json(['message' => 'Logged out successfully']);
     }
 
     public function forgotPassword(Request $request)
@@ -249,44 +230,64 @@ class AuthController extends Controller
     }
     
 
-    public function handleGoogleCallback()
-{
-    try {
-        // Lấy thông tin người dùng từ Google
-        $googleUser = Socialite::driver('google')->stateless()->user();
+    public function handleGoogleCallback(Request $request)
+    {
+        try {
+            // Lấy thông tin người dùng từ Google
+            $googleUser = Socialite::driver('google')->stateless()->user();
+    
+            // Kiểm tra xem user đã tồn tại chưa
+            $user = User::where('email', $googleUser->getEmail())->first();
+    
+            // Nếu chưa có thì tạo mới
+            $rank = Rank::where('is_default', true)->first();
+            if (!$user) {
+                $user = User::create([
+                    'name' => $googleUser->getName(),
+                    'email' => $googleUser->getEmail(),
+                    'google_id' => $googleUser->getId(),
+                    'avatar' => $googleUser->getAvatar(),
+                    'password' => bcrypt('randompassword'), // Mật khẩu ngẫu nhiên
+                    'email_verified_at' => Carbon::now()
+                ]);
+    
+                Membership::create([
+                    'user_id' => $user->id,
+                    'rank_id' => $rank->id, // Sửa lỗi lấy rank_id
+                    'code' => str_pad($user->id, 12, '0', STR_PAD_LEFT),
+                    'points' => 0,
+                    'total_spent' => 0,
+                ]);
+            }else{
+                 // Nếu user đã tồn tại nhưng chưa xác thực email, cập nhật email_verified_at
+                $updateData = [];
 
-        // Kiểm tra xem user đã tồn tại chưa
-        $user = User::where('email', $googleUser->getEmail())->first();
+                if (!$user->email_verified_at) {
+                    $updateData['email_verified_at'] = Carbon::now();
+                }
 
-        // Nếu chưa có thì tạo mới
-        $rank=Rank::where('is_default',true)->first();
-        if (!$user) {
-            $user = User::create([
-                'name' => $googleUser->getName(),
-                'email' => $googleUser->getEmail(),
-                'google_id' => $googleUser->getId(),
-                'avatar' =>$googleUser->getAvatar(),
-                'password' => bcrypt('randompassword'), // Mật khẩu ngẫu nhiên
-                'email_verified_at'=> Carbon::now()
-            ]);
-            Membership::create([
-                'user_id' => $user->id,
-                'rank_id'=>$rank->is_default,
-                'code'=>str_pad($user->id, 12, '0', STR_PAD_LEFT),
-                'points'=>0,
-                'total_spent'=>0,
-            ]);
+                // Nếu avatar thay đổi, cập nhật luôn
+                if ($user->avatar !== $googleUser->getAvatar()) {
+                    $updateData['avatar'] = $googleUser->getAvatar();
+                }
+
+                if (!empty($updateData)) {
+                    $user->update($updateData);
+                }
+            }
+    
+            // Đăng nhập user vào hệ thống (dùng session)
+            Auth::login($user);
+    
+            // Regenerate session để bảo mật
+            $request->session()->regenerate();
+    
+           
+    
+            return response()->json(['message' => 'Login successful' , 'user' => $user], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        // Tạo token đăng nhập
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-           'user' => $user,
-           'token' => $token
-        ]);
-    } catch (\Exception $e) {
-        return response()->json(['error' => $e->getMessage()], 500);
     }
-}
+    
 }
