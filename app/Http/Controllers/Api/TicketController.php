@@ -591,13 +591,18 @@ class TicketController extends Controller
                         'tickets.payment_name',
                         'showtimes.start_time as start_time',
                         'showtimes.date as show_date',
-                        'tickets.expiry'
+                        'tickets.expiry',
+                        'tickets.payment_name',
+                        DB::raw('GROUP_CONCAT(seats.name ORDER BY seats.name ASC) as seat_names')
                     ])
                     ->join('users', 'tickets.user_id', '=', 'users.id')
                     ->join('movies', 'tickets.movie_id', '=', 'movies.id')
                     ->join('cinemas', 'tickets.cinema_id', '=', 'cinemas.id')
                     ->join('rooms', 'tickets.room_id', '=', 'rooms.id')
-                    ->join('showtimes', 'tickets.showtime_id', '=', 'showtimes.id');
+                    ->join('showtimes', 'tickets.showtime_id', '=', 'showtimes.id')
+                    ->join('ticket_seats', 'tickets.id', '=', 'ticket_seats.ticket_id') // Bảng trung gian
+                    ->join('seats', 'ticket_seats.seat_id', '=', 'seats.id') // Liên kết với bảng seats
+                    ->groupBy('tickets.id');
 
                     // $query = Ticket::query();
                 // Lọc theo branch_id nếu có
@@ -647,5 +652,6 @@ class TicketController extends Controller
                     'error' => $e->getMessage()
                 ], 500);
             }
-        }
+
+    }
 }

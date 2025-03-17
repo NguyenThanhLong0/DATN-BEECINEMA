@@ -190,15 +190,16 @@ class ReportController extends Controller
             'branch_id'  => 'nullable|integer',
         ]);
         // Log::info('Request Data:', $request->all());
-        $query = Ticket::where('status', 'Đã thanh toán'); // Chỉ lấy vé đã thanh toán
-
-        // Xử lý ngày tháng: Nếu không có from_date hoặc to_date, lấy min/max ngày trong DB
+        // Lấy ngày bắt đầu và kết thúc
         $fromDate = $request->from_date ?? Ticket::min('created_at');
         $toDate   = $request->to_date ?? Ticket::max('created_at');
 
+        // Truy vấn chỉ lấy các vé có trạng thái "Đã thanh toán"
+        $query = Ticket::where('status', 'Đã thanh toán');
+
+
         if ($fromDate && $toDate) {
-            $query->whereDate('created_at', '>=', $fromDate)
-                ->whereDate('created_at', '<=', $toDate);
+            $query->whereBetween('created_at', [$fromDate, $toDate]);
         }
 
         // Nếu có cinema_id, kiểm tra xem cinema có tồn tại không
@@ -224,7 +225,7 @@ class ReportController extends Controller
                     'message'       => 'Branch này không có Cinema nào!',
                     'branch_id'     => $request->branch_id,
                     'total_revenue' => 0
-                ], 400); 
+                ], 400);
             }
 
             // Nếu có cả cinema_id và branch_id, kiểm tra xem cinema có thuộc branch không
@@ -240,16 +241,20 @@ class ReportController extends Controller
             $query->whereIn('cinema_id', $cinemaIds);
         }
 
-        // Tính tổng doanh thu
-        $totalRevenue = $query->sum('total_price');
+        // Truy vấn doanh thu theo ngày
+        // Lấy doanh thu theo từng ngày
+        $revenues = $query->selectRaw('DATE(created_at) as date, SUM(total_price) as revenue')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+
         // Log::debug($totalRevenue);
         return response()->json([
-            'from_date'     => $request->from_date ?? 'All time',
-            'to_date'       => $request->to_date ?? 'All time',
+            'from_date' => $fromDate,
+            'to_date'   => $toDate,
             'cinema_id'     => $request->cinema_id ?? 'All Cinemas',
             'branch_id'     => $request->branch_id ?? 'All Branches',
-            'total_revenue' => $totalRevenue
+            'data'      => $revenues
         ]);
     }
-
 }

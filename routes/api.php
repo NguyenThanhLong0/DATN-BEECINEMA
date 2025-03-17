@@ -25,6 +25,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ChooseSeatController;
+use App\Http\Controllers\Api\OverviewController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\ReportController as ControllersReportController;
 
@@ -367,17 +368,17 @@ Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'des
 
 
 //Contact
-Route::get('contact',               [ContactController::class, 'index'])->name('contact.index');
+Route::get('contact',[ContactController::class, 'index'])->name('contact.index');
 
-Route::post('contact',              [ContactController::class, 'store'])->name('contact.store');
+Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
 
-Route::get('contact/{contact}',      [ContactController::class, 'show'])->name('contact.show');
+Route::get('contact/{contact}',[ContactController::class, 'show'])->name('contact.show');
 
-Route::put('contact/{contact}',      [ContactController::class, 'update'])->name('contact.update');
+Route::put('contact/{contact}',[ContactController::class, 'update'])->name('contact.update');
 
-Route::patch('contact/{contact}',    [ContactController::class, 'update'])->name('contact.update.partial');
+Route::patch('contact/{contact}',[ContactController::class, 'update'])->name('contact.update.partial');
 
-Route::delete('contact/{contact}',   [ContactController::class, 'destroy'])->name('contact.destroy');
+Route::delete('contact/{contact}',[ContactController::class, 'destroy'])->name('contact.destroy');
 
 //choose-seat
 
@@ -420,9 +421,17 @@ Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRe
 
 
 //Thống kê doanh thu
-Route::post('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
-Route::post('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
-Route::post('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total
+
+Route::get('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
+Route::get('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
+Route::get('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total
+
+//overview
+
+Route::get('/overview', [OverviewController::class, 'overview']);//overview
+Route::get('/seatOccupancyByDay', [OverviewController::class, 'seatOccupancyByDay']);//phần trăm đặt ghế trong 1 ngày của các suất chiếu 
+Route::get('/seatOccupancyByMonth', [OverviewController::class, 'seatOccupancyByMonth']);//phần trăm đặt ghế trong 1 tháng của các suất chiếu 
 
 Route::get('/revenue-statistics', [ReportController::class,'revenueStatistics']);
+
 
