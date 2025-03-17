@@ -42,7 +42,7 @@ return [
         ],
 
         'api' => [
-        'driver' => 'sanctum', // Hoặc 'passport' nếu bạn dùng Laravel Passport
+        'driver' => 'sanctum',
         'provider' => 'users',
     ],
 

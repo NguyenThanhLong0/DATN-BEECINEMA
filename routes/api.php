@@ -40,15 +40,6 @@ use App\Http\Controllers\ReportController as ControllersReportController;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-Route::middleware(['auth:sanctum'])->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-});
-
-
-
 //branchers
 
 Route::get('branches',              [BranchController::class, 'index'])->name('branches.index');
@@ -289,10 +280,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
 //Đăng nhập
 
+Route::get('/sanctum/csrf-cookie', [\Laravel\Sanctum\Http\Controllers\CsrfCookieController::class, 'show']);
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::middleware('auth:sanctum')->post('/logout', [AuthController::class, 'logout']);
+Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'user']);
+
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
@@ -306,7 +300,6 @@ Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbac
 // banners
 Route::get('banners',               [BannerController::class, 'index'])->name('banners.index');
 Route::post('banners',              [BannerController::class, 'store'])->name('banners.store');
-
 Route::get('banners/active',      [BannerController::class, 'getActiveBanner'])->name('banners.getActiveBanner');
 Route::get('banners/{banner}',      [BannerController::class, 'show'])->name('banners.show');
 Route::put('banners/{banner}',      [BannerController::class, 'update'])->name('banners.update');
