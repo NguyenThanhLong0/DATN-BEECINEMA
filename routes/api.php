@@ -420,11 +420,11 @@ Route::post('/momo-ipn', [PaymentController::class, 'paymentIpn']);
 Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRedirect'])->name('handleZaloPayRedirect');
 
 
-//Thống kê doanh thu
+//Doanh thu
 
 Route::get('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
 Route::get('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
-Route::get('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total
+Route::get('/revenue-statistics', [ReportController::class,'revenueStatistics']);
 
 //overview
 
@@ -432,6 +432,11 @@ Route::get('/overview', [OverviewController::class, 'overview']);//overview
 Route::get('/seatOccupancyByDay', [OverviewController::class, 'seatOccupancyByDay']);//phần trăm đặt ghế trong 1 ngày của các suất chiếu 
 Route::get('/seatOccupancyByMonth', [OverviewController::class, 'seatOccupancyByMonth']);//phần trăm đặt ghế trong 1 tháng của các suất chiếu 
 
-Route::get('/revenue-statistics', [ReportController::class,'revenueStatistics']);
+//Thống kê
+Route::get('/dashboard', [OverviewController::class, 'card']);// Dashboard Tổng Quan (Overview)
+Route::get('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Thống kê Doanh Thu (Revenue Analytics)
+Route::get('/revenue-ticket-statistics', [ReportController::class,'ticketStatistics']);//Thống kê Lượt Đặt Vé (Ticket Sales Report)
+Route::get('/customer', [ReportController::class,'customer']);//Thống kê Khách Hàng (Customer Insights)
+Route::get('/booking-trends', [ReportController::class,'bookingTrends']);//Thống kê Xu Hướng Đặt Vé (Booking Trends)
 
 
