@@ -23,11 +23,11 @@ use Illuminate\Support\Facades\Log;
 
 class ShowtimeController extends Controller
 {
-    public function __construct()
-    {
-        // Yêu cầu xác thực bằng Sanctum cho tất cả các phương thức trong controller này
-        $this->middleware('auth:sanctum');
-    }
+    // public function __construct()
+    // {
+    //     // Yêu cầu xác thực bằng Sanctum cho tất cả các phương thức trong controller này
+    //     $this->middleware('auth:sanctum');
+    // }
 
     // public function index(Request $request)
     // {
@@ -663,6 +663,7 @@ class ShowtimeController extends Controller
     public function pageShowtime(Request $request)
     {
         try {
+            
             // Lấy cinema_id và branch_id từ query string hoặc session
             $cinemaId = $request->query('cinema_id', session('cinema_id'));
             $branchId = $request->query('branch_id', null);
@@ -674,25 +675,37 @@ class ShowtimeController extends Controller
             // Tìm rạp chiếu phim từ cơ sở dữ liệu
             $cinema = Cinema::where('id', $cinemaId)->firstOrFail();
 
-            // Thời gian hiện tại (cộng 10 phút nếu không phải admin)
-            $now = now()->addMinutes(10);
-            if (Auth::check() && Auth::user()->type == 'admin') {
-                $now = now(); // Admin lấy full dữ liệu
+
+            // Lấy thời gian hiện tại
+            $now = now();
+
+            if (Auth::check()) {
+                if (Auth::user()->type == 'admin') {
+                    // Admin lấy full dữ liệu
+                    $timeCondition = [];
+                } else {
+                    // Người dùng thường lấy suất chiếu từ hiện tại + 10 phút trở đi
+                    $timeCondition = [['start_time', '>', $now->addMinutes(10)]];
+                }
+            } else {
+                // Người chưa đăng nhập chỉ xem suất chiếu trước thời điểm hiện tại
+                $timeCondition = [['start_time', '>', $now->addMinutes(10)]];
             }
 
             // Lấy suất chiếu trong 7 ngày tới, có phim đang active
             $showtimesQuery = Showtime::with(['movie' => function ($query) {
                 $query->where('is_active', 1); // Chỉ lấy phim đang hoạt động
             }, 'room'])
-                ->where([
-                    ['cinema_id', $cinemaId],
-                    ['is_active', 1],
-                    ['start_time', '>', $now] // Chỉ lấy suất chiếu tương lai
-                ])
-                ->whereBetween('date', [now()->format('Y-m-d'), now()->addDays(7)->format('Y-m-d')]) // Chỉ lấy 7 ngày tới
-                ->orderBy('date')
-                ->orderBy('start_time')
-                ->get();
+            ->where([
+                ['cinema_id', $cinemaId],
+                ['is_active', 1]
+            ])
+            ->where($timeCondition) // Áp dụng điều kiện thời gian
+            ->whereBetween('date', [now()->format('Y-m-d'), now()->addDays(7)->format('Y-m-d')]) // Chỉ lấy 7 ngày tới
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get();
+        
 
             // Tạo ánh xạ cho các ngày trong tuần
             $dayNames = [
