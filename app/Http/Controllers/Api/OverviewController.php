@@ -128,104 +128,160 @@ class OverviewController extends Controller
     public function card()
     {
         $daysInMonth = Carbon::now()->daysInMonth;
-        $month = request()->input('month');
-        $year = request()->input('year');
-        $totalRevenue = 0;
-    
-        $query = Ticket_Seat::join('tickets', 'tickets.id', '=', 'ticket_id')
-            ->where('tickets.status', 'Đã thanh toán');
+        $month = request()->input('month') ?? Carbon::now()->month;
+        $year = request()->input('year') ?? Carbon::now()->year;
         
+        // Xác định tháng và năm trước đó
+        $previousMonthDate = Carbon::create($year, $month, 1)->subMonth();
+        $previousMonth = $previousMonthDate->month;
+        $previousYear = $previousMonthDate->year;
+    
+        // ticketsSold: Số vé tháng hiện tại
+        $ticketSeatsQuery = Ticket_Seat::join('tickets', 'tickets.id', '=', 'ticket_id');
         if (!empty($month) && !empty($year)) {
-            $query->whereMonth('tickets.created_at', $month)->whereYear('tickets.created_at', $year);
+            $ticketSeatsQuery->whereMonth('tickets.created_at', $month)->whereYear('tickets.created_at', $year);
         }
-        
-        $ticketSeats = $query->count();
+        $ticketSeats = $ticketSeatsQuery->count();
     
+        // ticketsSold: Số vé tháng trước
+        $ticketSeatsPreviousQuery = Ticket_Seat::join('tickets', 'tickets.id', '=', 'ticket_id')
+            ->whereMonth('tickets.created_at', $previousMonth)
+            ->whereYear('tickets.created_at', $previousYear);
+        $ticketSeatsPrevious = $ticketSeatsPreviousQuery->count();
+    
+        // Tính phần trăm thay đổi cho ticketsSold
+        $ticketsSoldChange = $ticketSeatsPrevious > 0 
+            ? round((($ticketSeats - $ticketSeatsPrevious) / $ticketSeatsPrevious) * 100, 1) 
+            : ($ticketSeats > 0 ? 100 : 0);
+        $ticketsSoldChange = $ticketsSoldChange >= 0 
+            ? "+" . $ticketsSoldChange 
+            : $ticketsSoldChange;
+    
+        // newCustomers: Số khách hàng mới tháng hiện tại
         $newCustomersQuery = User::where('role', 'member');
         if (!empty($month) && !empty($year)) {
             $newCustomersQuery->whereMonth('created_at', $month)->whereYear('created_at', $year);
         }
         $newCustomers = $newCustomersQuery->count();
     
+        // newCustomers: Số khách hàng mới tháng trước
+        $newCustomersPreviousQuery = User::where('role', 'member')
+            ->whereMonth('created_at', $previousMonth)
+            ->whereYear('created_at', $previousYear);
+        $newCustomersPrevious = $newCustomersPreviousQuery->count();
+    
+        // Tính phần trăm thay đổi cho newCustomers
+        $newCustomersChange = $newCustomersPrevious > 0 
+            ? round((($newCustomers - $newCustomersPrevious) / $newCustomersPrevious) * 100, 1) 
+            : ($newCustomers > 0 ? 100 : 0);
+        $newCustomersChange = $newCustomersChange >= 0 
+            ? "+" . $newCustomersChange 
+            : $newCustomersChange;
+    
+        // totalRevenue: Doanh thu tháng hiện tại
+        $totalRevenue = Ticket::whereMonth('created_at', $month)
+            ->whereYear('created_at', $year)
+            ->sum('total_price');
+    
+        // totalRevenue: Doanh thu tháng trước
+        $totalRevenuePrevious = Ticket::whereMonth('created_at', $previousMonth)
+            ->whereYear('created_at', $previousYear)
+            ->sum('total_price');
+    
+        // Tính phần trăm thay đổi cho totalRevenue
+        $totalRevenueChange = $totalRevenuePrevious > 0 
+            ? round((($totalRevenue - $totalRevenuePrevious) / $totalRevenuePrevious) * 100, 1) 
+            : ($totalRevenue > 0 ? 100 : 0);
+        $totalRevenueChange = $totalRevenueChange >= 0 
+            ? "+" . $totalRevenueChange 
+            : $totalRevenueChange;
+    
         // revenueChart
         $revenueChart = [];
         for ($day = 1; $day <= $daysInMonth; $day++) {
-            $date = Carbon::createFromDate($year ?? Carbon::now()->year, $month ?? Carbon::now()->month, $day)->toDateString();
+            $date = Carbon::createFromDate($year, $month, $day)->toDateString();
             $tickets = Ticket::whereDate('created_at', $date)->get();
             if ($tickets->isEmpty()) {
                 continue;
             }
             $totalRevenueDay = $tickets->sum('total_price');
-            $totalRevenue += $totalRevenueDay;
             $revenueChart[] = [
                 'date' => $date,
                 'revenue' => $totalRevenueDay
             ];
         }
     
-        // top 5 movies
+        // top 5 movies: Thêm doanh thu (revenue) cho mỗi phim
         $moviesQuery = Ticket_Seat::join('tickets', 'tickets.id', '=', 'ticket_seats.ticket_id')
             ->join('movies', 'movies.id', '=', 'tickets.movie_id')
-            ->where('tickets.status', 'Đã thanh toán')
-            ->selectRaw('movies.name, movies.img_thumbnail, COUNT(DISTINCT ticket_seats.id) as total_tickets')
+            ->selectRaw('movies.name, movies.img_thumbnail, COUNT(DISTINCT ticket_seats.id) as total_tickets, SUM(DISTINCT tickets.total_price) as revenue')
             ->groupBy('movies.name', 'movies.img_thumbnail')
             ->orderByDesc('total_tickets')
-            ->limit(5);
-    
+            ->limit(6);
+        
         if (!empty($month) && !empty($year)) {
             $moviesQuery->whereMonth('tickets.created_at', $month)->whereYear('tickets.created_at', $year);
         }
         $movies = $moviesQuery->get();
     
         // bookingHeatmap
-        $totalTicketsQuery = DB::table('ticket_seats')
-            ->join('tickets', 'tickets.id', '=', 'ticket_seats.ticket_id')
-            ->where('tickets.status', 'Đã thanh toán');
-        
-        if (!empty($month) && !empty($year)) {
-            $totalTicketsQuery->whereMonth('tickets.created_at', $month)->whereYear('tickets.created_at', $year);
-        }
-        $totalTickets = $totalTicketsQuery->count();
+        $startDate = Carbon::now()->subDays(13)->startOfDay(); // Từ 09/03/2025
+    $endDate = Carbon::now()->endOfDay(); // Đến 22/03/2025
+
+    $bookingHeatmapQuery = DB::table('tickets')
+        ->join('ticket_seats', 'tickets.id', '=', 'ticket_seats.ticket_id')
+        ->join('showtimes', 'tickets.showtime_id', '=', 'showtimes.id')
+        ->where('tickets.status', 'Đã thanh toán')
+        ->whereBetween('tickets.created_at', [$startDate, $endDate])
+        ->select('showtimes.start_time')
+        ->get();
+
+    $bookingHeatmap = $bookingHeatmapQuery->map(function ($item) {
+        $dateTime = Carbon::parse($item->start_time);
+        return [
+            'time' => $dateTime->toDateTimeString(), // "YYYY-MM-DD HH:MM:SS"
+            'day' => $dateTime->format('l') // Tên ngày trong tuần: Monday, Tuesday, ...
+        ];
+    })->values()->all();
+        // customerRetentionRate
+        $totalCustomersThisMonth = DB::table('tickets')
+            ->whereMonth('created_at', $month)
+            ->whereYear('created_at', $year)
+            ->distinct()
+            ->count('user_id');
     
-        $top5TimeSlotsQuery = DB::table('tickets')
-            ->join('ticket_seats', 'tickets.id', '=', 'ticket_seats.ticket_id')
-            ->join('showtimes', 'tickets.showtime_id', '=', 'showtimes.id')
-            ->where('tickets.status', 'Đã thanh toán')
-            ->selectRaw("CASE 
-                WHEN HOUR(showtimes.start_time) BETWEEN 7 AND 8 THEN '07:00 - 09:00'
-                WHEN HOUR(showtimes.start_time) BETWEEN 9 AND 10 THEN '09:00 - 11:00'
-                WHEN HOUR(showtimes.start_time) BETWEEN 11 AND 12 THEN '11:00 - 13:00'
-                WHEN HOUR(showtimes.start_time) BETWEEN 13 AND 14 THEN '13:00 - 15:00'
-                WHEN HOUR(showtimes.start_time) BETWEEN 15 AND 16 THEN '15:00 - 17:00'
-                WHEN HOUR(showtimes.start_time) BETWEEN 17 AND 18 THEN '17:00 - 19:00'
-                WHEN HOUR(showtimes.start_time) BETWEEN 19 AND 20 THEN '19:00 - 21:00'
-                WHEN HOUR(showtimes.start_time) BETWEEN 21 AND 22 THEN '21:00 - 23:00'
-                ELSE 'Khác' END as time_slot,
-                COUNT(ticket_seats.id) as totalbooking")
-            ->groupBy('time_slot')
-            ->orderByDesc('totalbooking')
-            ->limit(5);
-        
-        if (!empty($month) && !empty($year)) {
-            $top5TimeSlotsQuery->whereMonth('tickets.created_at', $month)->whereYear('tickets.created_at', $year);
-        }
-        $top5TimeSlots = $top5TimeSlotsQuery->get()
-            ->map(fn($item) => [
-                'time' => $item->time_slot,
-                'totalbooking' => $item->totalbooking,
-                'percentage' => $totalTickets > 0 ? round(($item->totalbooking / $totalTickets) * 100, 2) . '%' : '0%'
-            ]);
+        $returningCustomers = DB::table('tickets')
+            ->whereMonth('created_at', $month)
+            ->whereYear('created_at', $year)
+            ->whereIn('user_id', function ($query) use ($month, $year) {
+                $query->select('user_id')
+                      ->from('tickets')
+                      ->where('created_at', '<', Carbon::create($year, $month, 1)->startOfMonth());
+            })
+            ->distinct()
+            ->count('user_id');
+    
+        $customerRetentionRate = $totalCustomersThisMonth > 0 ? round(($returningCustomers / $totalCustomersThisMonth) * 100, 2) : 0;
     
         return response()->json(array_filter([
-            'month' => !empty($month) ? $month : null,
-            'year' => !empty($year) ? $year : null,
-            'totalRevenue' => $totalRevenue,
-            'ticketsSold' => $ticketSeats,
-            'newCustomers' => $newCustomers,
+            'month' => $month,
+            'year' => $year,
+            'totalRevenue' => [
+                'value' => $totalRevenue,
+                'change' => $totalRevenueChange
+            ],
+            'ticketsSold' => [
+                'value' => $ticketSeats,
+                'change' => $ticketsSoldChange
+            ],
+            'newCustomers' => [
+                'value' => $newCustomers,
+                'change' => $newCustomersChange
+            ],
+            'customerRetentionRate' => $customerRetentionRate,
             'revenueChart' => $revenueChart,
             'movies' => $movies,
-            'bookingHeatmap' => $top5TimeSlots,
+            'bookingHeatmap' => $bookingHeatmap,
         ], fn($value) => !is_null($value)));
     }
-    
 }
