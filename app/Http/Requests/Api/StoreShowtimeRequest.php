@@ -27,116 +27,272 @@ class StoreShowtimeRequest extends FormRequest
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
+
+
     public function rules(): array
     {
         if (filter_var($this->input('auto_generate_showtimes'), FILTER_VALIDATE_BOOLEAN)) {
+            // Kiểm tra điều kiện giờ bắt đầu và giờ kết thúc
             return [
-                'room_id' => ['required', 'exists:rooms,id'],
+                'cinema_ids' => ['required', 'array', 'min:1'],
+                'cinema_ids.*' => ['required', 'exists:cinemas,id'],
+                'rooms' => ['required', 'array', 'min:1'],
+                'rooms.*.room_id' => ['required', 'exists:rooms,id'],
                 'movie_id' => ['required', 'exists:movies,id'],
                 'movie_version_id' => ['required', 'exists:movie_versions,id'],
-                'date' => ['required', 'date', 'after_or_equal:today'],
+                'start_date' => ['required', 'date', 'after_or_equal:today'],
+                'end_date' => ['required', 'date', 'after_or_equal:start_date'],
                 'start_hour' => ['required', 'date_format:H:i'],
-                'end_hour' => ['required', 'date_format:H:i', 'after:start_hour'],
+                'end_hour' => [
+                    'required',
+                    'date_format:H:i',
+                    'after:start_hour',
+                    // Thêm rule kiểm tra thời gian cách nhau ít nhất 12 tiếng
+                    function ($attribute, $value, $fail) {
+                        $startTime = Carbon::parse($this->input('start_date') . ' ' . $this->input('start_hour'));
+                        $endTime = Carbon::parse($this->input('end_date') . ' ' . $value);
+
+                        if ($endTime->diffInHours($startTime) < 12) {
+                            $fail("Giờ kết thúc phải cách giờ bắt đầu ít nhất 12 tiếng.");
+                        }
+                    }
+                ],
             ];
         } else {
             return [
-                'room_id' => [
+                'cinema_ids' => [
                     'required',
-                    'exists:rooms,id',
+                    'array',
+                    'min:1',
                     function ($attribute, $value, $fail) {
-                        // Kiểm tra movie_id
+                        if (empty($value)) {
+                            $fail("Vui lòng chọn ít nhất một cinema.");
+                            return;
+                        }
+
                         $movie = Movie::find($this->input('movie_id'));
                         if (!$movie) {
                             $fail("Phim không tồn tại.");
                             return;
                         }
 
-                        // Kiểm tra room_id
-                        $room = Room::find($this->input('room_id'));
-                        if (!$room) {
-                            $fail("Phòng không tồn tại.");
-                            return;
+                        $rooms = $this->input('rooms');
+                        $errors = []; // Mảng lỗi sẽ chứa các lỗi trùng suất chiếu
+
+                        foreach ($rooms as $roomData) {
+                            $room = Room::find($roomData['room_id']);
+                            if (!$room) {
+                                $fail("Phòng không tồn tại.");
+                                return;
+                            }
+
+                            // Kiểm tra phòng có thuộc một trong các cinema_ids đã chọn không
+                            $cinemaIds = $this->input('cinema_ids');
+                            if (!in_array($room->cinema_id, $cinemaIds)) {
+                                $fail("Phòng không thuộc rạp đã chọn.");
+                                return;
+                            }
                         }
 
-                        // Kiểm tra movie_version_id
                         $movieVersion = MovieVersion::find($this->input('movie_version_id'));
                         if (!$movieVersion) {
                             $fail("Phiên bản phim không tồn tại.");
                             return;
                         }
 
-                        // Kiểm tra type_room_id từ room
-                        $typeRoom = TypeRoom::find($room->type_room_id);
-                        if (!$typeRoom) {
-                            $fail("Loại phòng không tồn tại.");
-                            return;
+                        $showtimes = $this->input('showtimes');
+                        foreach ($showtimes as $showtimeData) {
+                            $startTime = Carbon::parse($this->start_date . ' ' . $showtimeData['start_time']);
+                            $endTime = $startTime->copy()->addMinutes($movie->duration + 15);
+
+                            foreach ($rooms as $roomData) {
+                                $existingShowtimes = Showtime::where('room_id', $roomData['room_id'])
+                                    ->where('date', $this->start_date)
+                                    ->get();
+
+                                foreach ($existingShowtimes as $showtime) {
+                                    $existingStartTime = Carbon::parse($showtime->start_time);
+                                    $existingEndTime = Carbon::parse($showtime->end_time);
+
+                                    if ($startTime->lt($existingEndTime) && $endTime->gt($existingStartTime)) {
+                                        $errors[] = "Suất chiếu bạn chọn trùng với suất chiếu khác tại rạp {$showtime->cinema_id}, phòng {$roomData['room_id']} từ {$existingStartTime->format('H:i')} - {$existingEndTime->format('H:i')}";
+                                    }
+                                }
+                            }
                         }
 
-                        // Tạo thời gian suất chiếu
-                        $startTime = Carbon::parse($this->date . ' ' . $this->input('start_time'));
-                        $endTime = $startTime->copy()->addMinutes($movie->duration + 15);
-
-                        // Kiểm tra suất chiếu có trùng không
-                        $existingShowtimes = Showtime::where('room_id', $this->room_id)
-                            ->where('date', $this->date)
-                            ->get();
-
-                        foreach ($existingShowtimes as $showtime) {
-                            $existingStartTime = Carbon::parse($showtime->start_time);
-                            $existingEndTime = Carbon::parse($showtime->end_time);
-
-                            if ($startTime->lt($existingEndTime) && $endTime->gt($existingStartTime)) {
-                                $fail("Suất chiếu bạn chọn trùng với suất chiếu khác từ {$existingStartTime->format('H:i')} - {$existingEndTime->format('H:i')}.");
-                                return;
-                            }
+                        if (!empty($errors)) {
+                            $fail(implode(', ', $errors)); // Trả về tất cả các lỗi trùng suất chiếu
                         }
                     },
                 ],
                 'movie_id' => 'required|exists:movies,id',
                 'movie_version_id' => 'required|exists:movie_versions,id',
-                'date' => 'required|date|after_or_equal:today',
+                'start_date' => ['required', 'date', 'after_or_equal:today'],
+                'end_date' => ['required', 'date', 'after_or_equal:start_date'],
                 'start_time' => 'nullable|date_format:H:i',
-                'showtimes' => ['required', 'array', 'min:1'], // Xác nhận showtimes là mảng
+                'showtimes' => ['required', 'array', 'min:1'],
                 'showtimes.*.start_time' => ['required', 'date_format:H:i'],
-
             ];
         }
     }
 
 
-    /**
-     * Custom messages for validation errors.
-     */
+    // {
+    //     if (filter_var($this->input('auto_generate_showtimes'), FILTER_VALIDATE_BOOLEAN)) {
+    //         return [
+    //             'cinema_ids' => ['required', 'array', 'min:1'],
+    //             'cinema_ids.*' => ['required', 'exists:cinemas,id'],
+    //             'rooms' => ['required', 'array', 'min:1'],
+    //             'rooms.*.room_id' => ['required', 'exists:rooms,id'],
+    //             'movie_id' => ['required', 'exists:movies,id'],
+    //             'movie_version_id' => ['required', 'exists:movie_versions,id'],
+    //             'start_date' => ['required', 'date', 'after_or_equal:today'],
+    //             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+    //             'start_hour' => ['required', 'date_format:H:i'],
+    //             'end_hour' => ['required', 'date_format:H:i', 'after:start_hour'],
+    //         ];
+    //     } else {
+    //         return [
+    //             'cinema_ids' => [
+    //                 'required',
+    //                 'array',
+    //                 'min:1',
+    //                 function ($attribute, $value, $fail) {
+    //                     if (empty($value)) {
+    //                         $fail("Vui lòng chọn ít nhất một cinema.");
+    //                         return;
+    //                     }
+
+    //                     $movie = Movie::find($this->input('movie_id'));
+    //                     if (!$movie) {
+    //                         $fail("Phim không tồn tại.");
+    //                         return;
+    //                     }
+
+    //                     $rooms = $this->input('rooms');
+    //                     $errors = []; // Mảng lỗi sẽ chứa các lỗi trùng suất chiếu
+
+    //                     foreach ($rooms as $roomData) {
+    //                         $room = Room::find($roomData['room_id']);
+    //                         if (!$room) {
+    //                             $fail("Phòng không tồn tại.");
+    //                             return;
+    //                         }
+
+    //                         // Kiểm tra phòng có thuộc một trong các cinema_ids đã chọn không
+    //                         $cinemaIds = $this->input('cinema_ids');
+    //                         if (!in_array($room->cinema_id, $cinemaIds)) {
+    //                             $fail("Phòng không thuộc rạp đã chọn.");
+    //                             return;
+    //                         }
+    //                     }
+
+    //                     $movieVersion = MovieVersion::find($this->input('movie_version_id'));
+    //                     if (!$movieVersion) {
+    //                         $fail("Phiên bản phim không tồn tại.");
+    //                         return;
+    //                     }
+
+    //                     $showtimes = $this->input('showtimes');
+    //                     foreach ($showtimes as $showtimeData) {
+    //                         $startTime = Carbon::parse($this->start_date . ' ' . $showtimeData['start_time']);
+    //                         $endTime = $startTime->copy()->addMinutes($movie->duration + 15);
+
+    //                         foreach ($rooms as $roomData) {
+    //                             $existingShowtimes = Showtime::where('room_id', $roomData['room_id'])
+    //                                 ->where('date', $this->start_date)
+    //                                 ->get();
+
+    //                             foreach ($existingShowtimes as $showtime) {
+    //                                 $existingStartTime = Carbon::parse($showtime->start_time);
+    //                                 $existingEndTime = Carbon::parse($showtime->end_time);
+
+    //                                 if ($startTime->lt($existingEndTime) && $endTime->gt($existingStartTime)) {
+    //                                     $errors[] = "Suất chiếu bạn chọn trùng với suất chiếu khác tại rạp {$showtime->cinema_id}, phòng {$roomData['room_id']} từ {$existingStartTime->format('H:i')} - {$existingEndTime->format('H:i')}";
+    //                                 }
+    //                             }
+    //                         }
+    //                     }
+
+    //                     if (!empty($errors)) {
+    //                         $fail(implode(', ', $errors)); // Trả về tất cả các lỗi trùng suất chiếu
+    //                     }
+    //                 },
+    //             ],
+    //             'movie_id' => 'required|exists:movies,id',
+    //             'movie_version_id' => 'required|exists:movie_versions,id',
+    //             'start_date' => ['required', 'date', 'after_or_equal:today'],
+    //             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+    //             'start_time' => 'nullable|date_format:H:i',
+    //             'showtimes' => ['required', 'array', 'min:1'],
+    //             'showtimes.*.start_time' => ['required', 'date_format:H:i'],
+    //         ];
+    //     }
+    // }
+
     public function messages()
     {
         return [
-            'room_id.required' => 'Vui lòng chọn phòng.',
-            'room_id.exists' => 'Phòng đã chọn không tồn tại.',
+            'cinema_ids.required' => 'Vui lòng chọn ít nhất một rạp.',
+            'cinema_ids.array' => 'Cinema IDs phải là mảng.',
+            'cinema_ids.*.required' => 'Mỗi cinema phải được chọn.',
+            'cinema_ids.*.exists' => 'Cinema không tồn tại.',
+            'rooms.required' => 'Vui lòng chọn ít nhất một phòng.',
+            'rooms.*.room_id.required' => 'Vui lòng chọn phòng.',
+            'rooms.*.room_id.exists' => 'Phòng không tồn tại.',
             'movie_id.required' => 'Vui lòng chọn phim.',
-            'movie_id.exists' => 'Phim đã chọn không tồn tại.',
+            'movie_id.exists' => 'Phim không tồn tại.',
             'movie_version_id.required' => 'Vui lòng chọn phiên bản phim.',
-            'movie_version_id.exists' => 'Phiên bản phim đã chọn không tồn tại.',
-            'date.required' => 'Vui lòng chọn ngày chiếu.',
-            'date.date' => 'Ngày chiếu không hợp lệ.',
-            'date.after_or_equal' => 'Ngày chiếu phải từ hôm nay trở đi.',
-            'start_hour.required' => 'Vui lòng nhập giờ mở cửa.',
-            'start_hour.date_format' => 'Giờ mở cửa không đúng định dạng (HH:MM).',
-            'end_hour.required' => 'Vui lòng nhập giờ đóng cửa.',
-            'end_hour.date_format' => 'Giờ đóng cửa không đúng định dạng (HH:MM).',
-            'end_hour.after' => 'Giờ đóng cửa phải sau giờ mở cửa.',
-            'start_time.required' => 'Vui lòng nhập giờ chiếu.',
-            'start_time.date_format' => 'Giờ chiếu không hợp lệ (định dạng phải là HH:MM).',
-            // Danh sách suất chiếu
+            'movie_version_id.exists' => 'Phiên bản phim không tồn tại.',
+            'start_date.required' => 'Vui lòng nhập ngày bắt đầu.',
+            'start_date.date' => 'Ngày bắt đầu không hợp lệ.',
+            'start_date.after_or_equal' => 'Ngày bắt đầu phải từ hôm nay trở đi.',
+            'end_date.required' => 'Vui lòng nhập ngày kết thúc.',
+            'end_date.date' => 'Ngày kết thúc không hợp lệ.',
+            'end_date.after_or_equal' => 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.',
+            'start_hour.required' => 'Vui lòng nhập giờ bắt đầu.',
+            'start_hour.date_format' => 'Giờ bắt đầu không đúng định dạng (HH:MM).',
+            'end_hour.required' => 'Vui lòng nhập giờ kết thúc.',
+            'end_hour.date_format' => 'Giờ kết thúc không đúng định dạng (HH:MM).',
+            'end_hour.after' => 'Giờ kết thúc phải sau giờ bắt đầu.',
             'showtimes.required' => 'Vui lòng nhập danh sách suất chiếu.',
-            'showtimes.array' => 'Danh sách suất chiếu phải là một mảng hợp lệ.',
-            'showtimes.min' => 'Phải có ít nhất một suất chiếu.',
-            // Giờ suất chiếu trong danh sách
             'showtimes.*.start_time.required' => 'Vui lòng nhập giờ bắt đầu suất chiếu.',
             'showtimes.*.start_time.date_format' => 'Giờ bắt đầu suất chiếu không hợp lệ (định dạng phải là HH:MM).',
-
-
         ];
     }
+
+
+    // public function messages()
+    // {
+    //     return [
+    //         'cinema_ids.required' => 'Vui lòng chọn ít nhất một rạp.',
+    //         'cinema_ids.array' => 'Cinema IDs phải là mảng.',
+    //         'cinema_ids.*.required' => 'Mỗi cinema phải được chọn.',
+    //         'cinema_ids.*.exists' => 'Cinema không tồn tại.',
+    //         'rooms.required' => 'Vui lòng chọn ít nhất một phòng.',
+    //         'rooms.*.room_id.required' => 'Vui lòng chọn phòng.',
+    //         'rooms.*.room_id.exists' => 'Phòng không tồn tại.',
+    //         'movie_id.required' => 'Vui lòng chọn phim.',
+    //         'movie_id.exists' => 'Phim không tồn tại.',
+    //         'movie_version_id.required' => 'Vui lòng chọn phiên bản phim.',
+    //         'movie_version_id.exists' => 'Phiên bản phim không tồn tại.',
+    //         'start_date.required' => 'Vui lòng nhập ngày bắt đầu.',
+    //         'start_date.date' => 'Ngày bắt đầu không hợp lệ.',
+    //         'start_date.after_or_equal' => 'Ngày bắt đầu phải từ hôm nay trở đi.',
+    //         'end_date.required' => 'Vui lòng nhập ngày kết thúc.',
+    //         'end_date.date' => 'Ngày kết thúc không hợp lệ.',
+    //         'end_date.after_or_equal' => 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.',
+    //         'start_hour.required' => 'Vui lòng nhập giờ bắt đầu.',
+    //         'start_hour.date_format' => 'Giờ bắt đầu không đúng định dạng (HH:MM).',
+    //         'end_hour.required' => 'Vui lòng nhập giờ kết thúc.',
+    //         'end_hour.date_format' => 'Giờ kết thúc không đúng định dạng (HH:MM).',
+    //         'end_hour.after' => 'Giờ kết thúc phải sau giờ bắt đầu.',
+    //         'showtimes.required' => 'Vui lòng nhập danh sách suất chiếu.',
+    //         'showtimes.*.start_time.required' => 'Vui lòng nhập giờ bắt đầu suất chiếu.',
+    //         'showtimes.*.start_time.date_format' => 'Giờ bắt đầu suất chiếu không hợp lệ (định dạng phải là HH:MM).',
+    //     ];
+    // }
 
     /**
      * Handle a failed validation attempt.

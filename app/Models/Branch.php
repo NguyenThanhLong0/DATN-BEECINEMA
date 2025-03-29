@@ -26,4 +26,9 @@ class Branch extends Model
     {
         return $this->hasMany(Cinema::class);
     }
+
+    public function movies()
+    {
+        return $this->hasMany(Movie::class); // Một chi nhánh có nhiều phim
+    }
 }

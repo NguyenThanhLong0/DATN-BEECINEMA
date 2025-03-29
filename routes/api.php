@@ -173,10 +173,10 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::post('movies/update-hot', [MovieController::class, 'updateHot'])->name('movies.update-hot');
 
     // Combo Foods
-    Route::post('combofoods', [ComboFoodController::class, 'store'])->name('combofoods.store');
-    Route::put('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update');
-    Route::patch('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update.partial');
-    Route::delete('combofoods/{combofood}', [ComboFoodController::class, 'destroy'])->name('combofoods.destroy');
+    // Route::post('combofoods', [ComboFoodController::class, 'store'])->name('combofoods.store');
+    // Route::put('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update');
+    // Route::patch('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update.partial');
+    // Route::delete('combofoods/{combofood}', [ComboFoodController::class, 'destroy'])->name('combofoods.destroy');
 
     // Banners
     Route::post('banners', [BannerController::class, 'store'])->name('banners.store');
@@ -232,6 +232,26 @@ Route::get('combosActive', [ComboController::class, 'indexActive']);
 Route::get('/type-rooms', [TypeRoomController::class, 'index']);
 Route::get('/type-rooms/{typeRoom}', [TypeRoomController::class, 'show']);
 
+Route::put('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
+
+Route::patch('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
+
+Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
+
+// Voucher
+Route::prefix('vouchers')->middleware('auth:sanctum')->group(function () {
+    Route::get('/', [VoucherApiController::class, 'index']); // Lấy danh sách voucher
+    Route::post('/', [VoucherApiController::class, 'store']); // Tạo mới voucher
+    Route::get('{id}', [VoucherApiController::class, 'show']); // Lấy chi tiết voucher
+    Route::post('/apply-voucher', [VoucherApiController::class, 'applyVoucher']); 
+    Route::post('/remove-voucher', [VoucherApiController::class, 'removeVoucher']); 
+    Route::put('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
+    Route::patch('{id}', [VoucherApiController::class, 'update']); // Cập nhật voucher
+    Route::delete('{id}', [VoucherApiController::class, 'destroy']); // Xóa voucher
+});
+
+//Type Seat
+
 Route::get('/type-seats', [TypeSeatController::class, 'index']);
 Route::get('/type-seats/{typeSeat}', [TypeSeatController::class, 'show']);
 
@@ -239,8 +259,8 @@ Route::get('/movies', [MovieController::class, 'index']);
 Route::get('/movies/tab', [MovieController::class, 'moviesTabPageClient']);
 Route::get('/movies/{movie}', [MovieController::class, 'show']);
 
-Route::get('combofoods', [ComboFoodController::class, 'index'])->name('combofoods.index');
-Route::get('combofoods/{combofood}', [ComboFoodController::class, 'show'])->name('combofoods.show');
+// Route::get('combofoods', [ComboFoodController::class, 'index'])->name('combofoods.index');
+// Route::get('combofoods/{combofood}', [ComboFoodController::class, 'show'])->name('combofoods.show');
 
 Route::get('banners', [BannerController::class, 'index'])->name('banners.index');
 Route::get('banners/active', [BannerController::class, 'getActiveBanner'])->name('banners.getActiveBanner');
@@ -251,6 +271,10 @@ Route::get('showtimes/{showtime}', [ShowtimeController::class, 'show']);
 Route::get('showtimespage', [ShowtimeController::class, 'pageShowtime']);
 Route::get('showtimemovie', [ShowtimeController::class, 'showtimeMovie']);
 Route::get('/showtimes/slug/{slug}', [ShowtimeController::class, 'showBySlug']);
+
+Route::post('/showtimes/{id}/copy', [ShowtimeController::class, 'copyShowtime']);
+
+Route::get('listshowtimesdate', [ShowtimeController::class, 'listShowtimesByDate']);
 
 Route::get('/tickets/filter', [TicketController::class, 'filter']);
 Route::apiResource('tickets', TicketController::class)->only(['index', 'show']);
@@ -269,23 +293,7 @@ Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRe
 
 //Doanh thu
 
+//Thống kê doanh thu
 Route::get('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
 Route::get('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
-Route::get('/revenue-statistics', [ReportController::class,'revenueStatistics']);
-
-//overview
-
-Route::get('/overview', [OverviewController::class, 'overview']);//overview
-Route::get('/seatOccupancyByDay', [OverviewController::class, 'seatOccupancyByDay']);//phần trăm đặt ghế trong 1 ngày của các suất chiếu 
-Route::get('/seatOccupancyByMonth', [OverviewController::class, 'seatOccupancyByMonth']);//phần trăm đặt ghế trong 1 tháng của các suất chiếu 
-
-//Thống kê
-Route::get('/dashboard', [OverviewController::class, 'card']);// Dashboard Tổng Quan (Overview)
-Route::get('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Thống kê Doanh Thu (Revenue Analytics)
-Route::get('/revenue-ticket-statistics', [ReportController::class,'ticketStatistics']);//Thống kê Lượt Đặt Vé (Ticket Sales Report)
-Route::get('/customer', [ReportController::class,'customer']);//Thống kê Khách Hàng (Customer Insights)
-Route::get('/booking-trends', [ReportController::class,'bookingTrends']);//Thống kê Xu Hướng Đặt Vé (Booking Trends)
-
-
-// Reports & Overview (Thường cần auth, nhưng để public theo yêu cầu đơn giản hóa)
-Route::get('/revenue-statistics', [ReportController::class, 'revenueStatistics']);
+Route::get('/revenue-by-total', [ReportController::class, 'totalRevenue']);//Total
