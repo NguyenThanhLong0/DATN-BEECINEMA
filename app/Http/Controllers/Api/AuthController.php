@@ -148,26 +148,37 @@ class AuthController extends Controller
         }
     }
 
-    public function verifyEmail(Request $request, $id, $hash)
-    {
-        // Tìm user theo id
-        $user = User::findOrFail($id);
+    public function verifyEmail($id, $hash)
+{
+    // Tìm người dùng theo ID
+    $user = User::find($id);
 
-        // Kiểm tra hash của email
-        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
-            return response()->json(['message' => 'Invalid verification link.'], 403);
-        }
-
-        // Kiểm tra nếu email đã được xác minh
-        if ($user->hasVerifiedEmail()) {
-            return response()->json(['message' => 'Email already verified.']);
-        }
-
-        // Mark email as verified
-        $user->markEmailAsVerified();
-
-        return response()->json(['message' => 'Email verified successfully.']);
+    if (!$user) {
+        // Người dùng không tồn tại
+        return redirect(config('app.frontend_url') . '/email-verified?status=error');
     }
+
+    // Kiểm tra hash email
+    if (!hash_equals(sha1($user->getEmailForVerification()), $hash)) {
+        // Hash không hợp lệ
+        return redirect(config('app.frontend_url') . '/email-verified?status=invalid');
+    }
+
+    // Kiểm tra nếu email đã được xác minh
+    if ($user->hasVerifiedEmail()) {
+        // Email đã được xác minh
+        return redirect(config('app.frontend_url') . '/email-verified?status=already-verified');
+    }
+
+    // Đánh dấu email là đã xác minh
+    $user->markEmailAsVerified();
+
+    // Chuyển hướng người dùng về frontend sau khi xác minh email thành công
+    return redirect(config('app.frontend_url') . '/email-verified?status=success');
+}
+
+    
+    
 
 
     public function resendVerificationEmail(Request $request)

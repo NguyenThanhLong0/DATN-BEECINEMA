@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use App\Notifications\CustomVerifyEmail;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -88,7 +90,10 @@ class User extends Authenticatable implements MustVerifyEmail, ShouldQueue
     {
         return $this->hasOne(Membership::class);
     }
-
+    public function sendEmailVerificationNotification()
+    {
+        $this->notify(new CustomVerifyEmail());
+    }
     public function getCurrentRankAttribute()
     {
         // Lấy rank cao nhất mà user có thể đạt được dựa trên total_spent

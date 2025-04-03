@@ -38,7 +38,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
-Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
+Route::get('/verify/email/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
 // Các route cần xác thực (auth:sanctum)
@@ -172,10 +172,10 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::post('movies/update-hot', [MovieController::class, 'updateHot'])->name('movies.update-hot');
 
     // Combo Foods
-    Route::post('combofoods', [ComboFoodController::class, 'store'])->name('combofoods.store');
-    Route::put('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update');
-    Route::patch('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update.partial');
-    Route::delete('combofoods/{combofood}', [ComboFoodController::class, 'destroy'])->name('combofoods.destroy');
+    // Route::post('combofoods', [ComboFoodController::class, 'store'])->name('combofoods.store');
+    // Route::put('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update');
+    // Route::patch('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update.partial');
+    // Route::delete('combofoods/{combofood}', [ComboFoodController::class, 'destroy'])->name('combofoods.destroy');
 
     // Banners
     Route::post('banners', [BannerController::class, 'store'])->name('banners.store');
@@ -247,8 +247,8 @@ Route::get('/movies', [MovieController::class, 'index']);
 Route::get('/movies/tab', [MovieController::class, 'moviesTabPageClient']);
 Route::get('/movies/{movie}', [MovieController::class, 'show']);
 
-Route::get('combofoods', [ComboFoodController::class, 'index'])->name('combofoods.index');
-Route::get('combofoods/{combofood}', [ComboFoodController::class, 'show'])->name('combofoods.show');
+// Route::get('combofoods', [ComboFoodController::class, 'index'])->name('combofoods.index');
+// Route::get('combofoods/{combofood}', [ComboFoodController::class, 'show'])->name('combofoods.show');
 
 Route::get('banners', [BannerController::class, 'index'])->name('banners.index');
 Route::get('banners/active', [BannerController::class, 'getActiveBanner'])->name('banners.getActiveBanner');
