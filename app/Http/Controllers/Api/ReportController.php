@@ -22,47 +22,128 @@ class ReportController extends Controller
     public function revenueByCombo(Request $request)
     {
         $query = Ticket_Combo::query()
-            ->join('tickets', 'ticket_combos.ticket_id', '=', 'tickets.id')
-            ->where('tickets.status', '!=', 'đã hủy')
-            ->selectRaw('ticket_combos.combo_id, SUM(ticket_combos.quantity) as total_quantity, SUM(ticket_combos.price * ticket_combos.quantity) as total_revenue');
-
+        ->join('tickets', 'ticket_combos.ticket_id', '=', 'tickets.id')
+        ->join('cinemas', 'tickets.cinema_id', '=', 'cinemas.id')
+        ->join('combos', 'combos.id', '=', 'ticket_combos.combo_id') // ✅ Sửa sai sót trong JOIN
+        ->where('tickets.status', '!=', 'đã hủy')
+        ->selectRaw('cinemas.id as cinema_id, ticket_combos.combo_id, combos.name, 
+                     SUM(ticket_combos.quantity) as total_quantity, 
+                     SUM(ticket_combos.price * ticket_combos.quantity) as total_revenue');
         // Lọc theo ngày
         if ($request->filled('from_date') && $request->filled('to_date')) {
             $query->whereBetween('tickets.created_at', [$request->input('from_date'), $request->input('to_date')]);
         }
-
-        // Lọc theo tháng và năm
-        if ($request->filled('month') && $request->filled('year')) {
-            $query->whereMonth('tickets.created_at', $request->input('month'))
-                ->whereYear('tickets.created_at', $request->input('year'));
-        }
-
+    
         // Lọc theo rạp chiếu (cinema)
         if ($request->filled('cinema_id')) {
             $query->where('tickets.cinema_id', $request->input('cinema_id'));
         }
-
+    
         // Lọc theo chi nhánh (branch)
         if ($request->filled('branch_id')) {
             $query->where('cinemas.branch_id', $request->input('branch_id'));
         }
-
+    
         // Lọc theo combo
         if ($request->filled('combo_id')) {
             $query->where('ticket_combos.combo_id', $request->input('combo_id'));
         }
-
+    
         // Nhóm theo combo_id để tính tổng doanh thu và số lượng
-        $ComboRevenue = $query->groupBy('ticket_combos.combo_id')->get();
-
-        $totalAllRevenue = $ComboRevenue->sum('total_revenue');
-
-        $ComboRevenue->push([
-            'total_all_Revenue' => $totalAllRevenue
-        ]);
-        return response()->json($ComboRevenue);
+        $ComboRevenue = $query->groupBy('cinemas.id', 'ticket_combos.combo_id', 'combos.name')->get();
+    
+        // Tổng số lượng combo đã bán và tổng doanh thu
+        $totalSold = $ComboRevenue->sum('total_quantity');
+        $totalRevenue = $ComboRevenue->sum('total_revenue');
+    
+        // Combo bán chạy nhất (theo số lượng)
+        $bestSellingCombo = $ComboRevenue->sortByDesc('total_quantity')->first();
+    
+        // Top 3 combo có doanh thu cao nhất
+        $topRevenueCombos = $ComboRevenue->sortByDesc('total_revenue')->take(4);
+    
+        // Phân bố combo theo đối tượng (ví dụ: theo cinema)
+        $comboByCinema = $ComboRevenue->groupBy('cinema_id');
+    
+        // Thêm thông tin vào kết quả trả về
+        $result = [
+            'total_sold' => $totalSold,
+            'total_revenue' => $totalRevenue,
+            'best_selling_combo' => $bestSellingCombo,
+            'top_revenue_combos' => $topRevenueCombos,
+            'combo_by_cinema' => $comboByCinema
+        ];
+    
+        return response()->json($result);
     }
-
+    
+    //food
+    public function foodStats(Request $request)
+    {
+        $query = DB::table('combo_food')
+            ->join('food', 'combo_food.food_id', '=', 'food.id')
+            ->join('ticket_combos', 'combo_food.combo_id', '=', 'ticket_combos.combo_id')
+            ->join('tickets', 'ticket_combos.ticket_id', '=', 'tickets.id')
+            ->where('tickets.status', '!=', 'đã hủy')
+            ->selectRaw(
+                'food.id, food.name, food.type, 
+                SUM(combo_food.quantity) as total_quantity, 
+                SUM(food.price * combo_food.quantity) as total_revenue'
+            );
+    
+        // Lọc theo ngày
+        if ($request->filled('start_date') && $request->filled('end_date')) {
+            $query->whereBetween('tickets.created_at', [$request->input('from_date'), $request->input('to_date')]);
+        }
+    
+        // Lọc theo tháng và năm
+        // if ($request->filled('month') && $request->filled('year')) {
+        //     $query->whereMonth('tickets.created_at', $request->input('month'))
+        //         ->whereYear('tickets.created_at', $request->input('year'));
+        // }
+    
+        // Lọc theo loại món ăn
+        if ($request->filled('food_type')) {
+            $query->where('food.type', $request->input('food_type'));
+        }
+    
+        // Nhóm theo món ăn
+        $foodStats = $query->groupBy('food.id', 'food.name', 'food.type')->get();
+    
+        // Tổng số lượng món ăn đã bán
+        $totalSold = $foodStats->sum('total_quantity');
+    
+        // Món ăn bán chạy nhất (theo số lượng)
+        $bestSellingFood = $foodStats->sortByDesc('total_quantity')->first();
+    
+        // Top 3 món ăn bán chạy nhất
+        $topSellingFoods = $foodStats->sortByDesc('total_quantity')->take(4);
+        $foodStats = $foodStats->map(function ($item) {
+            // Chuyển `total_revenue` thành integer
+            $item->total_revenue = (int) $item->total_revenue;
+            return $item;
+        });
+        
+        // Món ăn có doanh thu cao nhất
+        $mostValuableFood = $foodStats->sortByDesc('total_revenue')->first();
+    
+        // Phân bố món ăn theo loại
+        $foodDistributionByType = $foodStats->groupBy('type')->map(function ($group) {
+            return $group->sum('total_quantity');
+        });
+    
+        // Kết quả trả về
+        $result = [
+            'total_sold' => $totalSold,
+            'best_selling_food' => $bestSellingFood,
+            'top_selling_foods' => $topSellingFoods,
+            'most_valuable_food' => $mostValuableFood,
+            'food_distribution_by_type' => $foodDistributionByType
+        ];
+    
+        return response()->json($result);
+    }
+    
 
     public function revenueByMovie(Request $request)
     {

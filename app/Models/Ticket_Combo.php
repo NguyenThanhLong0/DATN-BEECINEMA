@@ -15,7 +15,6 @@ class Ticket_Combo extends Model
         'price',
         'quantity'
     ];
-
     public function ticket()
     {
         return $this->belongsTo(Ticket::class);

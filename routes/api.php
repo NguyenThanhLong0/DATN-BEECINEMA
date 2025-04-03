@@ -272,6 +272,7 @@ Route::get('/handleZalopayRedirect', [PaymentController::class, 'handleZaloPayRe
 //Doanh thu
 
 Route::get('/revenue-by-combo', [ReportController::class, 'revenueByCombo']);//Combo
+Route::get('/revenue-by-food', [ReportController::class, 'foodStats']);//food
 Route::get('/revenue-by-movie', [ReportController::class, 'revenueByMovie']);//Movie
 Route::get('/revenue-statistics', [ReportController::class,'revenueStatistics']);
 
