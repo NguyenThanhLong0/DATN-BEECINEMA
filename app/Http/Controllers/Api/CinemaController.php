@@ -14,14 +14,14 @@ class CinemaController extends Controller
      */
     public function index()
 
-{
-    try {
-        $cinemas = Cinema::with('branch', 'rooms')->get(); // Lấy cả danh sách rooms
-        return response()->json($cinemas);
-    } catch (\Throwable $th) {
-        return response()->json(['message' => 'Không thể lấy danh sách rạp!'], 500);
+    {
+        try {
+            $cinemas = Cinema::with('branch', 'rooms')->get(); // Lấy cả danh sách rooms
+            return response()->json($cinemas);
+        } catch (\Throwable $th) {
+            return response()->json(['message' => 'Không thể lấy danh sách rạp!'], 500);
+        }
     }
-}
 
 
     /**
@@ -83,12 +83,12 @@ class CinemaController extends Controller
         }
 
         try {
-            $cinema->fill($request->only(['name', 'branch_id' ,'address', 'surcharge', 'description' , 'is_active'])); // Gán giá trị mới
+            $cinema->fill($request->only(['name', 'branch_id', 'address', 'surcharge', 'description', 'is_active'])); // Gán giá trị mới
             if ($request->has('name') && $request->name !== $cinema->getOriginal('name')) {
                 $cinema->slug = null; // Đặt lại slug để Sluggable tự tạo lại
             }
             $cinema->save(); // Lưu lại model với slug mới
-            
+
             return response()->json(['message' => 'Sửa thành công!', 'cinema' => $cinema], 200);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Sửa thất bại!', 'error' => $th->getMessage()], 500);

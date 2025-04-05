@@ -113,44 +113,44 @@ class MovieController extends Controller
      * Hiển thị chi tiết của một bộ phim.
      */
     public function show(Movie $movie)
-{
-    try {
-        // Lấy toàn bộ thông tin của các phiên bản phim
-        $movie->load('movieVersions');
+    {
+        try {
+            // Lấy toàn bộ thông tin của các phiên bản phim
+            $movie->load('movieVersions');
 
-        // Lấy số lượng suất chiếu (showtime_count)
-        $currentNow = now();
-        $movie->loadCount(['showtimes' => function ($query) use ($currentNow) {
-            $query->where('is_active', 1)
-                  ->where('start_time', '>', $currentNow);
-        }]);
+            // Lấy số lượng suất chiếu (showtime_count)
+            $currentNow = now();
+            $movie->loadCount(['showtimes' => function ($query) use ($currentNow) {
+                $query->where('is_active', 1)
+                    ->where('start_time', '>', $currentNow);
+            }]);
 
-        // Lấy các đánh giá của bộ phim
-        $movieReviews = $movie->movieReview()->get();
-        $totalReviews = $movieReviews->count();
-        $averageRating = $totalReviews > 0 ? $movieReviews->avg('rating') : 0; // Tính điểm đánh giá trung bình
+            // Lấy các đánh giá của bộ phim
+            $movieReviews = $movie->movieReview()->get();
+            $totalReviews = $movieReviews->count();
+            $averageRating = $totalReviews > 0 ? $movieReviews->avg('rating') : 0; // Tính điểm đánh giá trung bình
 
-        // Đếm số lượng đánh giá theo từng mức sao
-        $starCounts = [];
-        for ($i = 1; $i <= 10; $i++) {
-            $starCounts[$i] = $movieReviews->where('rating', $i)->count();
+            // Đếm số lượng đánh giá theo từng mức sao
+            $starCounts = [];
+            for ($i = 1; $i <= 10; $i++) {
+                $starCounts[$i] = $movieReviews->where('rating', $i)->count();
+            }
+
+            // Trả về thông tin chi tiết bộ phim
+            return response()->json([
+                'movie' => $movie,
+                'totalReviews' => $totalReviews,
+                'averageRating' => $averageRating,
+                'starCounts' => $starCounts,
+                'showtime_count' => $movie->showtimes_count // Số lượng suất chiếu
+            ]);
+        } catch (\Throwable $th) {
+            // Trả về lỗi nếu không thể lấy thông tin phim
+            return response()->json(['message' => 'Không thể lấy thông tin phim!'], 500);
         }
-
-        // Trả về thông tin chi tiết bộ phim
-        return response()->json([
-            'movie' => $movie,
-            'totalReviews' => $totalReviews,
-            'averageRating' => $averageRating,
-            'starCounts' => $starCounts,
-            'showtime_count' => $movie->showtimes_count // Số lượng suất chiếu
-        ]);
-    } catch (\Throwable $th) {
-        // Trả về lỗi nếu không thể lấy thông tin phim
-        return response()->json(['message' => 'Không thể lấy thông tin phim!'], 500);
     }
-}
 
-    
+
 
     /**
      * Cập nhật thông tin của một bộ phim.
@@ -288,86 +288,85 @@ class MovieController extends Controller
     }
 
     public function moviesTabPageClient(Request $request)
-{
-    try {
-        $currentNow = now();
-        $cinemaId = $request->query('cinema_id'); // Lấy cinema_id từ request
+    {
+        try {
+            $currentNow = now();
+            $cinemaId = $request->query('cinema_id'); // Lấy cinema_id từ request
 
-        // Phim đang chiếu
-        $moviesShowing = Movie::where([
-            ['is_active', '1'],
-            ['is_publish', '1'],
-            ['release_date', '<=', $currentNow],
-            ['end_date', '>=', $currentNow]
-        ])
-            ->withCount(['showtimes' => function ($query) use ($currentNow, $cinemaId) {
-                $query->where('is_active', 1)
-                    ->where('start_time', '>', $currentNow);
-                
-                if ($cinemaId) {
-                    $query->where('cinema_id', $cinemaId);
-                }
-            }])
-            ->orderBy('is_hot', 'desc')
-            ->latest('id')
-            ->limit(8)
-            ->get();
+            // Phim đang chiếu
+            $moviesShowing = Movie::where([
+                ['is_active', '1'],
+                ['is_publish', '1'],
+                ['release_date', '<=', $currentNow],
+                ['end_date', '>=', $currentNow]
+            ])
+                ->withCount(['showtimes' => function ($query) use ($currentNow, $cinemaId) {
+                    $query->where('is_active', 1)
+                        ->where('start_time', '>', $currentNow);
 
-        // Phim sắp chiếu
-        $moviesUpcoming = Movie::where([
-            ['is_active', '1'],
-            ['is_publish', '1'],
-            ['release_date', '>', $currentNow]
-        ])
-            ->withCount(['showtimes' => function ($query) use ($currentNow, $cinemaId) {
-                $query->where('is_active', 1)
-                    ->where('start_time', '>', $currentNow);
-                
-                if ($cinemaId) {
-                    $query->where('cinema_id', $cinemaId);
-                }
-            }])
-            ->orderBy('is_hot', 'desc')
-            ->latest('id')
-            ->limit(8)
-            ->get();
+                    if ($cinemaId) {
+                        $query->where('cinema_id', $cinemaId);
+                    }
+                }])
+                ->orderBy('is_hot', 'desc')
+                ->latest('id')
+                ->limit(8)
+                ->get();
 
-        // Phim suất chiếu đặc biệt
-        $moviesSpecial = Movie::where([
-            ['is_active', '1'],
-            ['is_publish', '1'],
-            ['is_special', '1']
-        ])
-            ->where(function ($query) use ($currentNow) {
-                $query->where('end_date', '<', $currentNow) // Phim đã hết chiếu
-                    ->orWhere('release_date', '>', $currentNow); // Hoặc phim sắp chiếu
-            })
-            ->withCount(['showtimes' => function ($query) use ($currentNow, $cinemaId) {
-                $query->where('is_active', 1)
-                    ->where('start_time', '>', $currentNow);
-                
-                if ($cinemaId) {
-                    $query->where('cinema_id', $cinemaId);
-                }
-            }])
-            ->orderBy('is_hot', 'desc')
-            ->latest('id')
-            ->limit(8)
-            ->get();
+            // Phim sắp chiếu
+            $moviesUpcoming = Movie::where([
+                ['is_active', '1'],
+                ['is_publish', '1'],
+                ['release_date', '>', $currentNow]
+            ])
+                ->withCount(['showtimes' => function ($query) use ($currentNow, $cinemaId) {
+                    $query->where('is_active', 1)
+                        ->where('start_time', '>', $currentNow);
 
-        return response()->json([
-            'message' => 'hiển thị thành công!',
-            'status' => true,
-            'moviesShowing' => $moviesShowing,
-            'moviesUpcoming' => $moviesUpcoming,
-            'moviesSpecial' => $moviesSpecial
-        ]);
-    } catch (\Throwable $th) {
-        return response()->json([
-            'message' => 'hiển thị không thất bại!',
-            'status' => false,
-        ], 500);
+                    if ($cinemaId) {
+                        $query->where('cinema_id', $cinemaId);
+                    }
+                }])
+                ->orderBy('is_hot', 'desc')
+                ->latest('id')
+                ->limit(8)
+                ->get();
+
+            // Phim suất chiếu đặc biệt
+            $moviesSpecial = Movie::where([
+                ['is_active', '1'],
+                ['is_publish', '1'],
+                ['is_special', '1']
+            ])
+                ->where(function ($query) use ($currentNow) {
+                    $query->where('end_date', '<', $currentNow) // Phim đã hết chiếu
+                        ->orWhere('release_date', '>', $currentNow); // Hoặc phim sắp chiếu
+                })
+                ->withCount(['showtimes' => function ($query) use ($currentNow, $cinemaId) {
+                    $query->where('is_active', 1)
+                        ->where('start_time', '>', $currentNow);
+
+                    if ($cinemaId) {
+                        $query->where('cinema_id', $cinemaId);
+                    }
+                }])
+                ->orderBy('is_hot', 'desc')
+                ->latest('id')
+                ->limit(8)
+                ->get();
+
+            return response()->json([
+                'message' => 'hiển thị thành công!',
+                'status' => true,
+                'moviesShowing' => $moviesShowing,
+                'moviesUpcoming' => $moviesUpcoming,
+                'moviesSpecial' => $moviesSpecial
+            ]);
+        } catch (\Throwable $th) {
+            return response()->json([
+                'message' => 'hiển thị không thất bại!',
+                'status' => false,
+            ], 500);
+        }
     }
-}
-
 }

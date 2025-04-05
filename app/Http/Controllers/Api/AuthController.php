@@ -32,7 +32,7 @@ class AuthController extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
             $user = Auth::user();
-            return response()->json(['message' => 'Login successful' , 'user' => $user ], 200);
+            return response()->json(['message' => 'Login successful', 'user' => $user], 200);
         }
 
         return response()->json(['message' => 'Invalid credentials'], 401);
@@ -63,14 +63,14 @@ class AuthController extends Controller
             event(new UserRegistered($user));
 
 
-            $rank=Rank::where('is_default',true)->first();
+            $rank = Rank::where('is_default', true)->first();
 
-            $membership=[
+            $membership = [
                 'user_id' => $user->id,
-                'rank_id'=>$rank->is_default,
-                'code'=>str_pad($user->id, 12, '0', STR_PAD_LEFT),
-                'points'=>0,
-                'total_spent'=>0,
+                'rank_id' => $rank->is_default,
+                'code' => str_pad($user->id, 12, '0', STR_PAD_LEFT),
+                'points' => 0,
+                'total_spent' => 0,
             ];
 
             Membership::create($membership);
@@ -239,17 +239,17 @@ class AuthController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-    
+
 
     public function handleGoogleCallback(Request $request)
     {
         try {
             // Lấy thông tin người dùng từ Google
             $googleUser = Socialite::driver('google')->stateless()->user();
-    
+
             // Kiểm tra xem user đã tồn tại chưa
             $user = User::where('email', $googleUser->getEmail())->first();
-    
+
             // Nếu chưa có thì tạo mới
             $rank = Rank::where('is_default', true)->first();
             if (!$user) {
@@ -261,7 +261,7 @@ class AuthController extends Controller
                     'password' => bcrypt('randompassword'), // Mật khẩu ngẫu nhiên
                     'email_verified_at' => Carbon::now()
                 ]);
-    
+
                 Membership::create([
                     'user_id' => $user->id,
                     'rank_id' => $rank->id, // Sửa lỗi lấy rank_id
@@ -269,8 +269,8 @@ class AuthController extends Controller
                     'points' => 0,
                     'total_spent' => 0,
                 ]);
-            }else{
-                 // Nếu user đã tồn tại nhưng chưa xác thực email, cập nhật email_verified_at
+            } else {
+                // Nếu user đã tồn tại nhưng chưa xác thực email, cập nhật email_verified_at
                 $updateData = [];
 
                 if (!$user->email_verified_at) {
@@ -286,19 +286,18 @@ class AuthController extends Controller
                     $user->update($updateData);
                 }
             }
-    
+
             // Đăng nhập user vào hệ thống (dùng session)
             Auth::login($user);
-    
+
             // Regenerate session để bảo mật
             $request->session()->regenerate();
-    
-           
-    
-            return response()->json(['message' => 'Login successful' , 'user' => $user], 200);
+
+
+
+            return response()->json(['message' => 'Login successful', 'user' => $user], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-    
 }

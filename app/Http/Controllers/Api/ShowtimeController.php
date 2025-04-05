@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ShowtimeController extends Controller
 {
@@ -513,7 +514,7 @@ class ShowtimeController extends Controller
     public function pageShowtime(Request $request)
     {
         try {
-            
+
             // Lấy cinema_id và branch_id từ query string hoặc session
             $cinemaId = $request->query('cinema_id', session('cinema_id'));
             $branchId = $request->query('branch_id', null);
@@ -546,16 +547,16 @@ class ShowtimeController extends Controller
             $showtimesQuery = Showtime::with(['movie' => function ($query) {
                 $query->where('is_active', 1); // Chỉ lấy phim đang hoạt động
             }, 'room'])
-            ->where([
-                ['cinema_id', $cinemaId],
-                ['is_active', 1]
-            ])
-            ->where($timeCondition) // Áp dụng điều kiện thời gian
-            ->whereBetween('date', [now()->format('Y-m-d'), now()->addDays(7)->format('Y-m-d')]) // Chỉ lấy 7 ngày tới
-            ->orderBy('date')
-            ->orderBy('start_time')
-            ->get();
-        
+                ->where([
+                    ['cinema_id', $cinemaId],
+                    ['is_active', 1]
+                ])
+                ->where($timeCondition) // Áp dụng điều kiện thời gian
+                ->whereBetween('date', [now()->format('Y-m-d'), now()->addDays(7)->format('Y-m-d')]) // Chỉ lấy 7 ngày tới
+                ->orderBy('date')
+                ->orderBy('start_time')
+                ->get();
+
 
             // Tạo ánh xạ cho các ngày trong tuần
             $dayNames = [
@@ -1031,213 +1032,118 @@ class ShowtimeController extends Controller
     public function store(StoreShowtimeRequest $request)
     {
         try {
-            $createdShowtimes = [];
-            $overlappingShowtimes = []; // Mảng chứa các lỗi trùng suất chiếu
+            $movie = Movie::findOrFail($request->movie_id);
+            $movieVersion = MovieVersion::findOrFail($request->movie_version_id);
+            $movieDuration = $movie->duration ?? 0;
+            $cleaningTime = Showtime::CLEANINGTIME;
+            $user = auth()->user();
     
-            DB::transaction(function () use ($request, &$createdShowtimes, &$overlappingShowtimes) {
-                $movie = Movie::find($request->movie_id);
-                if (!$movie) {
-                    throw new \Exception("Movie not found.");
-                }
+            return DB::transaction(function () use (
+                $request, 
+                $movie, 
+                $movieVersion, 
+                $movieDuration, 
+                $cleaningTime, 
+                $user
+            ) {
+                $createdShowtimes = [];
+                $overlappingShowtimes = [];
+                $seatShowtimesToInsert = [];
     
-                $movieDuration = $movie->duration ?? 0;
-                $cleaningTime = Showtime::CLEANINGTIME;
+                // Load all rooms in one query
+                $roomIds = collect($request->showtimes)->pluck('room_id')->unique()->toArray();
+                $rooms = Room::whereIn('id', $roomIds)->get()->keyBy('id');
     
-                $movieVersion = MovieVersion::find($request->movie_version_id);
-                if (!$movieVersion) {
-                    throw new \Exception("Movie version not found.");
-                }
+                // Load existing showtimes for all relevant dates and rooms
+                $dates = collect($request->showtimes)->pluck('date')->unique()->toArray();
+                $existingShowtimes = Showtime::whereIn('room_id', $roomIds)
+                    ->whereIn('date', $dates)
+                    ->select('id', 'room_id', 'date', 'start_time', 'end_time')
+                    ->get()
+                    ->groupBy(['date', 'room_id']);
     
-                $user = auth()->user();
-                $cinemaIds = $request->cinema_ids ?? [$user->cinema_id];
-                $startDate = Carbon::parse($request->start_date);
-                $endDate = Carbon::parse($request->end_date);
-                $excludeDates = $request->input('exclude_dates', []);
+                foreach ($request->showtimes as $dayData) {
+                    $date = $dayData['date'];
+                    $roomId = $dayData['room_id'];
+                    $cinemaId = $dayData['cinema_id'];
     
-                // Kiểm tra phòng có thuộc rạp hay không
-                foreach ($request->rooms as $roomData) {
-                    $room = Room::find($roomData['room_id']);
-                    if (!$room) {
-                        throw new \Exception("Room not found.");
+                    $room = $rooms[$roomId] ?? null;
+                    if (!$room || $room->cinema_id != $cinemaId) {
+                        throw new \Exception("Phòng {$roomId} không hợp lệ hoặc không thuộc rạp {$cinemaId}");
                     }
     
-                    // Kiểm tra phòng thuộc rạp nào và so sánh với cinema_ids trong request
-                    if (!in_array($room->cinema_id, $cinemaIds)) {
-                        throw new \Exception("Room {$room->id} không thuộc bất kỳ rạp nào trong danh sách đã chọn.");
-                    }
-                }
+                    $roomExistingShowtimes = $existingShowtimes[$date][$roomId] ?? collect();
     
-                // Kiểm tra tự động tạo suất chiếu trong nhiều ngày
-                if (filter_var($request->input('auto_generate_showtimes'), FILTER_VALIDATE_BOOLEAN)) {
-                    for ($date = $startDate; $date <= $endDate; $date->addDay()) {
-                        if (in_array($date->format('Y-m-d'), $excludeDates)) {
+                    foreach ($dayData['showtimes'] as $showtimeData) {
+                        if ($showtimeData['type'] !== 'generated' || $showtimeData['overlapping']) {
                             continue;
                         }
-                        foreach ($request->rooms as $roomData) {
-                            $room = Room::find($roomData['room_id']);
-                            if (!$room || !in_array($room->cinema_id, $cinemaIds)) {
-                                continue;  // Bỏ qua phòng không thuộc rạp trong danh sách
-                            }
     
-                            // Lấy danh sách suất chiếu hiện có cho phòng và rạp này
-                            $existingShowtimes = Showtime::where('room_id', $room->id)
-                                ->where('cinema_id', $room->cinema_id)
-                                ->where('date', $date->format('Y-m-d'))
-                                ->orderBy('start_time')
-                                ->get();
+                        $startTime = Carbon::parse("{$date} {$showtimeData['start_time']}");
+                        $endTime = $startTime->copy()->addMinutes($movieDuration);
     
-                            $startHour = Carbon::parse($date->format('Y-m-d') . ' ' . $request->start_hour);
-                            $endHour = Carbon::parse($date->format('Y-m-d') . ' ' . $request->end_hour);
-                            $currentStartTime = $startHour;
+                        $isOverlapping = $roomExistingShowtimes->contains(function ($existing) use ($startTime, $endTime) {
+                            $existingStart = Carbon::parse($existing->start_time);
+                            $existingEnd = Carbon::parse($existing->end_time);
+                            return $startTime->lt($existingEnd) && $endTime->gt($existingStart);
+                        });
     
-                            while ($currentStartTime->copy()->addMinutes($movieDuration + $cleaningTime)->lt($endHour)) {
-                                $currentEndTime = $currentStartTime->copy()->addMinutes($movieDuration + $cleaningTime);
-    
-                                // Kiểm tra xem suất chiếu có bị trùng không
-                                $isOverlapping = false;
-                                foreach ($existingShowtimes as $showtime) {
-                                    $existingStartTime = Carbon::parse($showtime->start_time);
-                                    $existingEndTime = Carbon::parse($showtime->end_time);
-    
-                                    if ($currentStartTime->lt($existingEndTime) && $currentEndTime->gt($existingStartTime)) {
-                                        $isOverlapping = true;
-                                        // Bỏ qua và không tạo suất chiếu mới, tiếp tục vòng lặp
-                                        break;
-                                    }
-                                }
-    
-                                if (!$isOverlapping) {
-                                    // Tạo suất chiếu mới
-                                    $newShowtime = Showtime::create([
-                                        'cinema_id' => $room->cinema_id,
-                                        'room_id' => $room->id,
-                                        'slug' => Showtime::generateCustomRandomString(),
-                                        'format' => ($room->typeRoom->name ?? 'Không xác định') . ' ' . ($movieVersion->name ?? 'Không xác định'),
-                                        'movie_version_id' => $request->movie_version_id,
-                                        'movie_id' => $request->movie_id,
-                                        'date' => $date->format('Y-m-d'),
-                                        'start_time' => $currentStartTime->format('Y-m-d H:i'),
-                                        'end_time' => $currentEndTime->format('Y-m-d H:i'),
-                                        'is_active' => true,
-                                    ]);
-    
-                                    // Thêm ghế vào bảng `seat_showtime`
-                                    $seats = Seat::where('room_id', $room->id)->get();
-                                    foreach ($seats as $seat) {
-                                        SeatShowtime::create([
-                                            'showtime_id' => $newShowtime->id,
-                                            'seat_id' => $seat->id,
-                                            'status' => 'available',
-                                            'price' => $seat->typeSeat->price ?? null,
-                                        ]);
-                                    }
-    
-                                    $createdShowtimes[] = $newShowtime;
-                                }
-    
-                                $currentStartTime = $currentEndTime;
-                            }
+                        if ($isOverlapping) {
+                            $overlappingShowtimes[] = "Suất chiếu tại phòng {$roomId} ngày {$date} từ {$startTime->format('H:i')}";
+                            continue;
                         }
+    
+                        $newShowtime = Showtime::create([
+                            'cinema_id' => $cinemaId,
+                            'room_id' => $roomId,
+                            'slug' => Showtime::generateCustomRandomString(),
+                            'format' => ($room->typeRoom->name ?? 'Không xác định') . ' ' . ($movieVersion->name ?? 'Không xác định'),
+                            'movie_version_id' => $request->movie_version_id,
+                            'movie_id' => $request->movie_id,
+                            'date' => $date,
+                            'start_time' => $startTime->format('Y-m-d H:i'),
+                            'end_time' => $endTime->format('Y-m-d H:i'),
+                            'is_active' => true,
+                        ]);
+    
+                        // Prepare seat showtimes for bulk insert
+                        $seats = $room->seats; // Assuming Room has seats relationship
+                        foreach ($seats as $seat) {
+                            $seatShowtimesToInsert[] = [
+                                'showtime_id' => $newShowtime->id,
+                                'seat_id' => $seat->id,
+                                'status' => 'available',
+                                'price' => $seat->typeSeat->price ?? null,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ];
+                        }
+    
+                        $createdShowtimes[] = $newShowtime;
                     }
                 }
     
-                // Kiểm tra tạo suất chiếu thủ công (không tự động)
-                if (!$request->input('auto_generate_showtimes')) {
-                    // Đảm bảo tạo suất chiếu cho tất cả các ngày trong khoảng start_date đến end_date
-                    for ($date = $startDate; $date <= $endDate; $date->addDay()) {
-                        if (in_array($date->format('Y-m-d'), $excludeDates)) {
-                            continue; // Bỏ qua ngày trong danh sách loại trừ
-                        }
-    
-                        foreach ($request->rooms as $roomData) {
-                            $room = Room::find($roomData['room_id']);
-                            if (!$room) {
-                                throw new \Exception("Room not found.");
-                            }
-    
-                            if (!in_array($room->cinema_id, $cinemaIds)) {
-                                continue; // Bỏ qua phòng không thuộc rạp đã chọn
-                            }
-    
-                            foreach ($request->showtimes as $showtimeData) {
-                                $startTime = Carbon::parse($date->format('Y-m-d') . ' ' . $showtimeData['start_time']);
-                                $endTime = $startTime->copy()->addMinutes($movieDuration + $cleaningTime);
-    
-                                // Kiểm tra suất chiếu có trùng không
-                                $existingShowtimes = Showtime::where('room_id', $room->id)
-                                    ->where('cinema_id', $room->cinema_id)
-                                    ->where('date', $date->format('Y-m-d'))
-                                    ->get();
-    
-                                foreach ($existingShowtimes as $existing) {
-                                    $existingStart = Carbon::parse($existing->start_time);
-                                    $existingEnd = Carbon::parse($existing->end_time);
-    
-                                    if ($startTime->lt($existingEnd) && $endTime->gt($existingStart)) {
-                                        $overlappingShowtimes[] = "Suất chiếu bạn chọn trùng với suất chiếu khác tại rạp {$room->cinema_id}, phòng {$room->id} từ {$existingStart->format('H:i')} - {$existingEnd->format('H:i')}";
-                                    }
-                                }
-    
-                                // Nếu có trùng suất chiếu, không cho tạo
-                                if (!empty($overlappingShowtimes)) {
-                                    throw new \Exception("Suất chiếu trùng với các suất chiếu đã có: " . implode(", ", $overlappingShowtimes));
-                                }
-    
-                                // Tạo suất chiếu mới nếu không bị trùng
-                                $newShowtime = Showtime::create([
-                                    'cinema_id' => $room->cinema_id, // Dùng cinema_id của phòng
-                                    'room_id' => $room->id,
-                                    'slug' => Showtime::generateCustomRandomString(),
-                                    'format' => ($room->typeRoom ? $room->typeRoom->name : 'Unknown') . ' ' . ($movieVersion ? $movieVersion->name : 'Unknown'),
-                                    'movie_version_id' => $request->movie_version_id,
-                                    'movie_id' => $request->movie_id,
-                                    'date' => $date->format('Y-m-d'),
-                                    'start_time' => $startTime->format('Y-m-d H:i'),
-                                    'end_time' => $endTime->format('Y-m-d H:i'),
-                                    'is_active' => true,
-                                ]);
-    
-                                // Thêm ghế vào bảng seat_showtime
-                                $seats = Seat::where('room_id', $room->id)->get();
-                                foreach ($seats as $seat) {
-                                    SeatShowtime::create([
-                                        'showtime_id' => $newShowtime->id,
-                                        'seat_id' => $seat->id,
-                                        'status' => 'available',
-                                        'price' => $seat->typeSeat->price ?? null,
-                                    ]);
-                                }
-    
-                                $createdShowtimes[] = $newShowtime;
-                            }
-                        }
-                    }
+                if (!empty($overlappingShowtimes)) {
+                    throw new \Exception("Có suất chiếu bị trùng: " . implode(", ", $overlappingShowtimes));
                 }
+    
+                if (empty($createdShowtimes)) {
+                    throw new \Exception("Không có suất chiếu nào được tạo.");
+                }
+    
+                // Bulk insert seat showtimes
+                SeatShowtime::insert($seatShowtimesToInsert);
+    
+                return response()->json([
+                    'message' => 'Thêm suất chiếu thành công!',
+                    'showtimes' => $createdShowtimes
+                ], 201);
             });
-    
-            // Nếu có các suất chiếu trùng, trả về lỗi
-            if (!empty($overlappingShowtimes)) {
-                return response()->json([
-                    'message' => 'Validation failed',
-                    'errors' => [
-                        'cinema_ids' => $overlappingShowtimes
-                    ]
-                ], 422);
-            }
-    
-            // Nếu không có suất chiếu nào được tạo, trả về lỗi
-            if (empty($createdShowtimes)) {
-                return response()->json([
-                    'message' => 'Không có suất chiếu nào được tạo. Kiểm tra lại các tham số.',
-                ], 422);
-            }
-    
-            return response()->json([
-                'message' => 'Thêm suất chiếu thành công!',
-                'showtimes' => $createdShowtimes
-            ], 201);
         } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+            return response()->json([
+                'message' => 'Có lỗi xảy ra',
+                'error' => $e->getMessage()
+            ], 422);
         }
     }
 
@@ -1392,6 +1298,146 @@ class ShowtimeController extends Controller
         }
     }
     
+    public function previewShowtimes(Request $request)
+    {
+        try {
+            $movie = Movie::find($request->movie_id);
+            if (!$movie) {
+                return response()->json(['message' => 'Phim không tồn tại'], 422);
+            }
+    
+            $movieDuration = $movie->duration;
+            $cleaningTime = Showtime::CLEANINGTIME;
+            $startDate = Carbon::parse($request->start_date);
+            $endDate = Carbon::parse($request->end_date);
+            $excludeDates = $request->input('exclude_dates', []);
+            $results = [];
+    
+            if ($request->input('auto_generate_showtimes', false)) {
+                if (!$request->start_hour || !$request->end_hour || Carbon::parse($request->start_hour)->gte(Carbon::parse($request->end_hour))) {
+                    return response()->json(['message' => 'Giờ bắt đầu phải nhỏ hơn giờ kết thúc'], 422);
+                }
+            }
+    
+            for ($date = $startDate->copy(); $date <= $endDate; $date->addDay()) {
+                if (in_array($date->format('Y-m-d'), $excludeDates)) {
+                    continue;
+                }
+    
+                foreach ($request->rooms as $roomData) {
+                    $room = Room::find($roomData['room_id']);
+                    if (!$room || !in_array($room->cinema_id, $request->cinema_ids)) {
+                        $results[] = [
+                            'room_id' => $roomData['room_id'] ?? null,
+                            'error' => 'Phòng không tồn tại hoặc không thuộc rạp được chọn'
+                        ];
+                        continue;
+                    }
+    
+                    $existingShowtimes = Showtime::where('room_id', $room->id)
+                        ->where('cinema_id', $room->cinema_id)
+                        ->where('date', $date->format('Y-m-d'))
+                        ->orderBy('start_time')
+                        ->get();
+    
+                    $generatedShowtimes = [];
+    
+                    if ($request->input('auto_generate_showtimes', false)) {
+                        $startHourStr = $request->start_hour;
+                        $endHourStr = $request->end_hour;
+                        $startHour = Carbon::parse($date->format('Y-m-d') . ' ' . $startHourStr);
+                        $endHour = Carbon::parse($date->format('Y-m-d') . ' ' . $endHourStr);
+                        $currentStartTime = $startHour->copy();
+    
+                        while ($currentStartTime->copy()->addMinutes($movieDuration)->lte($endHour)) {
+                            // Chỉ tính end_time dựa trên movieDuration, không cộng cleaningTime
+                            $currentEndTime = $currentStartTime->copy()->addMinutes($movieDuration);
+                            $isOverlapping = false;
+    
+                            foreach ($existingShowtimes as $showtime) {
+                                $existStart = Carbon::parse($showtime->start_time);
+                                $existEnd = Carbon::parse($showtime->end_time);
+    
+                                if ($currentStartTime->lt($existEnd) && $currentEndTime->gt($existStart)) {
+                                    $isOverlapping = true;
+                                    break;
+                                }
+                            }
+    
+                            $generatedShowtimes[] = [
+                                'start_time' => $currentStartTime->format('H:i'),
+                                'end_time' => $currentEndTime->format('H:i'),
+                                'type' => 'generated',
+                                'overlapping' => $isOverlapping
+                            ];
+    
+                            // Cộng thêm cleaningTime để tạo khoảng cách giữa các suất chiếu
+                            $currentStartTime = $currentEndTime->addMinutes($cleaningTime);
+                        }
+                    } else {
+                        foreach ($request->showtimes as $showtimeData) {
+                            $startTimeStr = preg_replace('/\d{4}-\d{2}-\d{2}\s*/', '', $showtimeData['start_time']);
+                            $startTime = Carbon::parse($date->format('Y-m-d') . ' ' . trim($startTimeStr));
+                            // Chỉ tính end_time dựa trên movieDuration
+                            $endTime = $startTime->copy()->addMinutes($movieDuration);
+    
+                            $isOverlapping = false;
+                            foreach ($existingShowtimes as $existing) {
+                                $existingStart = Carbon::parse($existing->start_time);
+                                $existingEnd = Carbon::parse($existing->end_time);
+    
+                                if ($startTime->lt($existingEnd) && $endTime->gt($existingStart)) {
+                                    $isOverlapping = true;
+                                    break;
+                                }
+                            }
+    
+                            $generatedShowtimes[] = [
+                                'start_time' => $startTime->format('H:i'),
+                                'end_time' => $endTime->format('H:i'),
+                                'type' => 'generated',
+                                'overlapping' => $isOverlapping
+                            ];
+                        }
+                    }
+    
+                    $existing = [];
+                    foreach ($existingShowtimes as $s) {
+                        $totalSeats = Seat::where('room_id', $s->room_id)->count();
+                        $bookedSeats = SeatShowtime::where('showtime_id', $s->id)->where('status', '!=', 'available')->count();
+    
+                        $existing[] = [
+                            'start_time' => Carbon::parse($s->start_time)->format('H:i'),
+                            'end_time' => Carbon::parse($s->end_time)->format('H:i'),
+                            'type' => 'existing',
+                            'overlapping' => $totalSeats,
+                            'booked' => $bookedSeats,
+                            'seat_info' => "$bookedSeats/$totalSeats ghế đã đặt"
+                        ];
+                    }
+    
+                    $results[] = [
+                        'date' => $date->format('Y-m-d'),
+                        'room_id' => $room->id,
+                        'cinema_id' => $room->cinema_id,
+                        'showtimes' => array_merge($existing, $generatedShowtimes)
+                    ];
+                }
+            }
+    
+            return response()->json([
+                'movie_id' => $request->movie_id,
+                'movie_version_id' => $request->input('movie_version_id', null),
+                'showtimes' => $results
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Có lỗi xảy ra trong quá trình xử lý',
+                'error' => $e->getMessage(),
+                'line' => $e->getLine()
+            ], 500);
+        }
+    }
 
     public function copyShowtime($id, Request $request)
     {
