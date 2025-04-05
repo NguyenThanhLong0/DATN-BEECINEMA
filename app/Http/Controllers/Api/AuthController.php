@@ -42,15 +42,46 @@ class AuthController extends Controller
     {
         DB::beginTransaction();
         try {
-            $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => 'required|string|email|max:255|unique:users',
-                'password' => 'required|string|min:8|confirmed',
-                'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
+            $messages = [
+                'required' => ':attribute không được để trống.',
+                'string' => ':attribute phải là chuỗi ký tự.',
+                'email' => ':attribute phải là địa chỉ email hợp lệ.',
+                'max' => ':attribute không được dài quá :max ký tự.',
+                'min' => ':attribute phải có ít nhất :min ký tự.',
+                'confirmed' => ':attribute không khớp.',
+                'unique' => ':attribute đã được sử dụng.',
+                'regex' => ':attribute không hợp lệ.',
+                'date' => ':attribute phải là ngày hợp lệ.',
+                'in' => ':attribute phải là một trong các giá trị hợp lệ.',
+            ];
+    
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:100',
+                'email' => 'required|string|email|max:255|unique:users,email',
+                'password' => 'required|string|min:8|confirmed|max:20',
+                'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/', 'unique:users,phone'],
                 'gender' => 'required|string|in:nam,nữ,khác',
                 'birthday' => 'required|date',
-            ]);
-
+            ], $messages);
+    
+            if ($validator->fails()) {
+                // Lấy tất cả lỗi và nối thành chuỗi
+                $errorMessages = collect($validator->errors()->all())->implode(' ');
+    
+                return response()->json([
+                    'message' => $errorMessages, // Trả về tất cả lỗi trong message
+                    'errors' => $validator->errors() // Giữ lại errors để frontend xử lý nếu cần
+                ], 422);
+            }
+    
+            // Kiểm tra lại email trước khi tạo user (tránh race condition)
+            if (User::where('email', $request->email)->exists()) {
+                return response()->json([
+                    'message' => 'Email đã được sử dụng.',
+                    'errors' => ['email' => ['Email đã được sử dụng.']]
+                ], 422);
+            }
+    
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
@@ -59,10 +90,9 @@ class AuthController extends Controller
                 'gender' => $request->gender,
                 'birthday' => $request->birthday,
             ]);
-
+    
             event(new UserRegistered($user));
-
-
+            // Gửi email xác thực
             $rank = Rank::where('is_default', true)->first();
 
             $membership = [
@@ -72,20 +102,20 @@ class AuthController extends Controller
                 'points' => 0,
                 'total_spent' => 0,
             ];
-
+    
             Membership::create($membership);
-
+    
             DB::commit();
-
+    
             return response()->json([
-                'message' => 'User registered. Please verify your email.',
+                'message' => 'User registered successfully. Please verify your email.',
                 'user' => $user
             ], 200);
         } catch (\Exception $e) {
-            DB::rollBack();
+    DB::rollBack();
             return response()->json([
-                'error' => 'Registration failed',
-                'message' => $e->getMessage(),
+                'message' => $e->getMessage(), // Trả về lỗi server trong message
+                'errors' => ['server' => [$e->getMessage()]]
             ], 500);
         }
     }
