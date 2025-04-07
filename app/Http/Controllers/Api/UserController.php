@@ -21,6 +21,13 @@ class UserController extends Controller
     {
         try {
             $users = User::all();
+            foreach ($users as $user) {
+                $user['role']=$user->getRoleNames()->implode(', ');
+                $user = $user->makeHidden(['roles']); 
+
+                // Xử lý các tên vai trò ở đây
+            }
+            // $user = User::find($userId); // Tìm người dùng
             return response()->json($users, 201);
         } catch (Exception $e) {
             return response()->json(['error' => 'Error fetching users', 'message' => $e->getMessage()], 500);
@@ -32,6 +39,8 @@ class UserController extends Controller
     {
         try {
             $user = User::findOrFail($id);
+            $user['role']=$user->getRoleNames()->implode(', ');
+            $user = $user->makeHidden(['roles']); 
             return response()->json($user, 200);
         } catch (Exception $e) {
             return response()->json(['error' => 'User not found', 'message' => $e->getMessage()], 404);
@@ -50,7 +59,7 @@ class UserController extends Controller
                 'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
                 'gender' => 'required|string|in:nam,nữ,khác',
                 'birthday' => 'required|date',
-                'role' => 'required|in:member,manager,admin'
+                'role' => 'required|in:member,staff,admin,admin_cinema'
             ]);
 
             $user = User::create([
@@ -60,10 +69,12 @@ class UserController extends Controller
                 'phone' => $request->phone,
                 'gender' => $request->gender,
                 'birthday' => $request->birthday,
-                'role' => $request->role,
+                'id_cinema'=>$request->id_cinema,
             ]);
+            $user->assignRole($request->role);
 
-
+            $user['role']=$user->getRoleNames()->implode(', ');
+            $user = $user->makeHidden(['roles']); 
             return response()->json([
                 'message' => 'Create user success',
                 'user' => $user
@@ -80,8 +91,14 @@ class UserController extends Controller
     {
         try {
             $user = User::findOrFail($id);
-            $user->update($request->all());
-
+            $user->update($request->except('role'));
+            if ($request->has('role')) {
+                // Sync các vai trò mới cho người dùng, sẽ xóa các vai trò cũ
+                $user->syncRoles($request->role);  // Gán vai trò mới (có thể là một mảng vai trò)
+            }
+            
+            $user['role']=$user->getRoleNames()->implode(', ');
+            $user = $user->makeHidden(['roles']); 
             return response()->json([
                 'message' => 'User updated successfully',
                 'user' => $user

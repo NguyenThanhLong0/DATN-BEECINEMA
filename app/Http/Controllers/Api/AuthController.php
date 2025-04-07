@@ -19,6 +19,7 @@ use Carbon\Carbon;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\DB;
 use Laravel\Socialite\Facades\Socialite;
+use Spatie\Permission\Models\Permission;
 
 class AuthController extends Controller
 {
@@ -32,7 +33,21 @@ class AuthController extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
             $user = Auth::user();
-            return response()->json(['message' => 'Login successful', 'user' => $user], 200);
+            
+            $roles = $user->getRoleNames();
+    
+        // Lấy tất cả permissions của user (qua role)
+        $permissions = $user->getAllPermissions()->map(function ($permission) {
+            return $permission->name; // Chỉ lấy tên permission
+        });
+    
+        // Gộp thông tin vào chung một mảng
+        $userData = $user->toArray(); // Chuyển toàn bộ thông tin user thành mảng
+    
+        // Thêm roles và permissions vào mảng userData
+        $userData['roles'] = $roles;
+        $userData['permissions'] = $permissions;
+            return response()->json(['message' => 'Login successful' , 'user' => $userData ], 200);
         }
 
         return response()->json(['message' => 'Invalid credentials'], 401);
@@ -59,7 +74,8 @@ class AuthController extends Controller
                 'gender' => $request->gender,
                 'birthday' => $request->birthday,
             ]);
-
+            $user->assignRole('member');
+            
             event(new UserRegistered($user));
 
 
@@ -72,6 +88,8 @@ class AuthController extends Controller
                 'points' => 0,
                 'total_spent' => 0,
             ];
+            $user['role']=$user->getRoleNames()->implode(', ');
+            $user = $user->makeHidden(['roles']); 
 
             Membership::create($membership);
 
@@ -92,7 +110,27 @@ class AuthController extends Controller
 
     public function user(Request $request)
     {
-        return response()->json($request->user());
+        $user = Auth::user();
+
+        // Lấy tất cả roles của user
+        $roles = $user->getRoleNames();
+    
+        // Lấy tất cả permissions của user (qua role)
+        $permissions = $user->getAllPermissions()->map(function ($permission) {
+            return $permission->name; // Chỉ lấy tên permission
+        });
+    
+        // Gộp thông tin vào chung một mảng
+        $userData = $user->toArray(); // Chuyển toàn bộ thông tin user thành mảng
+    
+        // Thêm roles và permissions vào mảng userData
+        $userData['roles'] = $roles;
+        $userData['permissions'] = $permissions;
+    
+        // Trả về dữ liệu user với role và permission
+        return response()->json([
+            'user' => $userData
+        ]);
     }
 
     public function logout(Request $request)

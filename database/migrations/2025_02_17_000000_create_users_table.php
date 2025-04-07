@@ -22,7 +22,6 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->enum('gender', ['nam', 'nữ', 'giới tính khác'])->nullable();
             $table->date('birthday')->nullable();
-            $table->string('role')->default(User::TYPE_MEMBER); 
             $table->timestamp('email_verified_at')->nullable();
             $table->string('remember_token', 100)->nullable();
             $table->foreignId('cinema_id')->nullable()->constrained('cinemas')->onDelete('cascade');
