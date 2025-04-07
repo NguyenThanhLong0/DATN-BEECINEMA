@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\MovieController;
 use App\Http\Controllers\Api\ComboFoodController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\MovieReviewController;
+use App\Http\Controllers\Api\PermissionController;
+use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\SeatTemplateController;
@@ -100,7 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('showtimemovie', [ShowtimeController::class, 'showtimeMovie']);
 
 // Admin Routes (auth:sanctum + role:admin)
-Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     // Users Management
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{id}', [UserController::class, 'show']);
@@ -123,17 +125,64 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::patch('cinemas/{cinema}', [CinemaController::class, 'update'])->name('cinemas.update.partial');
     Route::delete('cinemas/{cinema}', [CinemaController::class, 'destroy'])->name('cinemas.destroy');
 
-    // Foods
-    Route::post('foods', [FoodController::class, 'store'])->name('foods.store');
-    Route::put('foods/{food}', [FoodController::class, 'update'])->name('foods.update');
-    Route::patch('foods/{food}', [FoodController::class, 'update'])->name('foods.update.partial');
-    Route::delete('foods/{food}', [FoodController::class, 'destroy'])->name('foods.destroy');
-
     // Ranks
     Route::post('ranks', [RankController::class, 'store'])->name('ranks.store');
     Route::put('ranks/{rank}', [RankController::class, 'update'])->name('ranks.update');
     Route::patch('ranks/{rank}', [RankController::class, 'update'])->name('ranks.update.partial');
     Route::delete('ranks/{rank}', [RankController::class, 'destroy'])->name('ranks.destroy');
+
+        // Movies
+    Route::post('/movies', [MovieController::class, 'store']);
+    Route::put('/movies/{movie}', [MovieController::class, 'update']);
+    Route::patch('/movies/{movie}', [MovieController::class, 'update']);
+    Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
+    Route::post('movies/update-active', [MovieController::class, 'updateActive'])->name('movies.update-active');
+    Route::post('movies/update-hot', [MovieController::class, 'updateHot'])->name('movies.update-hot');
+
+    
+    // Banners
+    Route::post('banners', [BannerController::class, 'store'])->name('banners.store');
+    Route::put('banners/{banner}', [BannerController::class, 'update'])->name('banners.update');
+    Route::patch('banners/{banner}', [BannerController::class, 'update'])->name('banners.update.partial');
+    Route::delete('banners/{banner}', [BannerController::class, 'destroy'])->name('banners.destroy');
+
+
+    // Movie Reviews
+    Route::post('movie-reviews', [MovieReviewController::class, 'store']);
+    Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
+    Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
+    Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
+
+    // Contact
+    Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
+    Route::put('contact/{contact}', [ContactController::class, 'update'])->name('contact.update');
+    Route::patch('contact/{contact}', [ContactController::class, 'update'])->name('contact.update.partial');
+    Route::delete('contact/{contact}', [ContactController::class, 'destroy'])->name('contact.destroy');
+
+    //Permission
+    Route::get('permission',[PermissionController::class,'index']); //danh sach
+    Route::get('permission/{id}',[PermissionController::class,'show']); //chi tiet
+    Route::post('permission/add',[PermissionController::class,'store']); //them
+    Route::patch('permission/update/{id}',[PermissionController::class,'update']); //update
+    Route::put('permission/update/{id}',[PermissionController::class,'update']); //update
+    Route::delete('/permission/delete/{id}',[PermissionController::class,'destroy']); //delete
+
+    Route::prefix('roles')->group(function () {
+        Route::get('/', [RoleController::class, 'index']);
+        Route::post('add', [RoleController::class, 'store']);
+        Route::get('{id}', [RoleController::class, 'show']);
+        Route::put('update/{id}', [RoleController::class, 'update']);
+        Route::patch('update/{id}', [RoleController::class, 'update']);
+        Route::delete('delete/{id}', [RoleController::class, 'destroy']);
+    });
+});
+// Admin Cinema Routes (auth:sanctum + role:admin_cinema)
+Route::middleware(['auth:sanctum','role:admin|admin_cinema'])->group(function () {
+    // Foods
+    Route::post('foods', [FoodController::class, 'store'])->name('foods.store');
+    Route::put('foods/{food}', [FoodController::class, 'update'])->name('foods.update');
+    Route::patch('foods/{food}', [FoodController::class, 'update'])->name('foods.update.partial');
+    Route::delete('foods/{food}', [FoodController::class, 'destroy'])->name('foods.destroy');
 
     // Seat Templates
     Route::post('/seat-templates', [SeatTemplateController::class, 'store']);
@@ -166,26 +215,6 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::patch('/type-seats/{typeSeat}', [TypeSeatController::class, 'update']);
     Route::delete('/type-seats/{typeSeat}', [TypeSeatController::class, 'destroy']);
 
-    // Movies
-    Route::post('/movies', [MovieController::class, 'store']);
-    Route::put('/movies/{movie}', [MovieController::class, 'update']);
-    Route::patch('/movies/{movie}', [MovieController::class, 'update']);
-    Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
-    Route::post('movies/update-active', [MovieController::class, 'updateActive'])->name('movies.update-active');
-    Route::post('movies/update-hot', [MovieController::class, 'updateHot'])->name('movies.update-hot');
-
-    // Combo Foods
-    // Route::post('combofoods', [ComboFoodController::class, 'store'])->name('combofoods.store');
-    // Route::put('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update');
-    // Route::patch('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update.partial');
-    // Route::delete('combofoods/{combofood}', [ComboFoodController::class, 'destroy'])->name('combofoods.destroy');
-
-    // Banners
-    Route::post('banners', [BannerController::class, 'store'])->name('banners.store');
-    Route::put('banners/{banner}', [BannerController::class, 'update'])->name('banners.update');
-    Route::patch('banners/{banner}', [BannerController::class, 'update'])->name('banners.update.partial');
-    Route::delete('banners/{banner}', [BannerController::class, 'destroy'])->name('banners.destroy');
-
     // Showtimes
 
     Route::post('add-showtime-per-day', [ShowtimeController::class, 'addShowtimePerDay']);
@@ -205,12 +234,14 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
     Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
 
-    // Contact
-    Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
-    Route::put('contact/{contact}', [ContactController::class, 'update'])->name('contact.update');
-    Route::patch('contact/{contact}', [ContactController::class, 'update'])->name('contact.update.partial');
-    Route::delete('contact/{contact}', [ContactController::class, 'destroy'])->name('contact.destroy');
+    // Combo Foods
+    // Route::post('combofoods', [ComboFoodController::class, 'store'])->name('combofoods.store');
+    // Route::put('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update');
+    // Route::patch('combofoods/{combofood}', [ComboFoodController::class, 'update'])->name('combofoods.update.partial');
+    // Route::delete('combofoods/{combofood}', [ComboFoodController::class, 'destroy'])->name('combofoods.destroy');
+
 });
+
 
 // Public Routes (Không cần xác thực)
 Route::get('branches', [BranchController::class, 'index'])->name('branches.index');
@@ -315,3 +346,4 @@ Route::get('/booking-trends', [ReportController::class,'bookingTrends']);//Thố
 
 // Reports & Overview (Thường cần auth, nhưng để public theo yêu cầu đơn giản hóa)
 Route::get('/revenue-statistics', [ReportController::class, 'revenueStatistics']);
+
