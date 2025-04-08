@@ -1036,25 +1036,23 @@ class ShowtimeController extends Controller
             $movieVersion = MovieVersion::findOrFail($request->movie_version_id);
             $movieDuration = $movie->duration ?? 0;
             $cleaningTime = Showtime::CLEANINGTIME;
-            $user = auth()->user();
     
             return DB::transaction(function () use (
-                $request, 
-                $movie, 
-                $movieVersion, 
-                $movieDuration, 
-                $cleaningTime, 
-                $user
+                $request,
+                $movie,
+                $movieVersion,
+                $movieDuration,
+                $cleaningTime
             ) {
-                $createdShowtimes = [];
-                $overlappingShowtimes = [];
+                $showtimesToInsert = [];
                 $seatShowtimesToInsert = [];
+                $overlappingShowtimes = [];
     
-                // Load all rooms in one query
+                // Load rooms
                 $roomIds = collect($request->showtimes)->pluck('room_id')->unique()->toArray();
-                $rooms = Room::whereIn('id', $roomIds)->get()->keyBy('id');
+                $rooms = Room::whereIn('id', $roomIds)->with('seats')->get()->keyBy('id');
     
-                // Load existing showtimes for all relevant dates and rooms
+                // Load existing showtimes
                 $dates = collect($request->showtimes)->pluck('date')->unique()->toArray();
                 $existingShowtimes = Showtime::whereIn('room_id', $roomIds)
                     ->whereIn('date', $dates)
@@ -1072,8 +1070,6 @@ class ShowtimeController extends Controller
                         throw new \Exception("Phòng {$roomId} không hợp lệ hoặc không thuộc rạp {$cinemaId}");
                     }
     
-                    $roomExistingShowtimes = $existingShowtimes[$date][$roomId] ?? collect();
-    
                     foreach ($dayData['showtimes'] as $showtimeData) {
                         if ($showtimeData['type'] !== 'generated' || $showtimeData['overlapping']) {
                             continue;
@@ -1082,21 +1078,30 @@ class ShowtimeController extends Controller
                         $startTime = Carbon::parse("{$date} {$showtimeData['start_time']}");
                         $endTime = $startTime->copy()->addMinutes($movieDuration);
     
-                        $isOverlapping = $roomExistingShowtimes->contains(function ($existing) use ($startTime, $endTime) {
-                            $existingStart = Carbon::parse($existing->start_time);
-                            $existingEnd = Carbon::parse($existing->end_time);
-                            return $startTime->lt($existingEnd) && $endTime->gt($existingStart);
-                        });
+                        // Check trùng giờ
+                        $isOverlapping = Showtime::where('room_id', $roomId)
+                            ->where('date', $date)
+                            ->where(function ($query) use ($startTime, $endTime) {
+                                $query->whereBetween('start_time', [$startTime, $endTime])
+                                      ->orWhereBetween('end_time', [$startTime, $endTime])
+                                      ->orWhere(function ($query) use ($startTime, $endTime) {
+                                          $query->where('start_time', '<=', $startTime)
+                                                ->where('end_time', '>=', $endTime);
+                                      });
+                            })
+                            ->exists();
     
                         if ($isOverlapping) {
                             $overlappingShowtimes[] = "Suất chiếu tại phòng {$roomId} ngày {$date} từ {$startTime->format('H:i')}";
                             continue;
                         }
     
-                        $newShowtime = Showtime::create([
+                        $slug = Str::uuid()->toString();
+    
+                        $showtimesToInsert[] = [
+                            'slug' => $slug,
                             'cinema_id' => $cinemaId,
                             'room_id' => $roomId,
-                            'slug' => Showtime::generateCustomRandomString(),
                             'format' => ($room->typeRoom->name ?? 'Không xác định') . ' ' . ($movieVersion->name ?? 'Không xác định'),
                             'movie_version_id' => $request->movie_version_id,
                             'movie_id' => $request->movie_id,
@@ -1104,22 +1109,9 @@ class ShowtimeController extends Controller
                             'start_time' => $startTime->format('Y-m-d H:i'),
                             'end_time' => $endTime->format('Y-m-d H:i'),
                             'is_active' => true,
-                        ]);
-    
-                        // Prepare seat showtimes for bulk insert
-                        $seats = $room->seats; // Assuming Room has seats relationship
-                        foreach ($seats as $seat) {
-                            $seatShowtimesToInsert[] = [
-                                'showtime_id' => $newShowtime->id,
-                                'seat_id' => $seat->id,
-                                'status' => 'available',
-                                'price' => $seat->typeSeat->price ?? null,
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ];
-                        }
-    
-                        $createdShowtimes[] = $newShowtime;
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
                     }
                 }
     
@@ -1127,25 +1119,50 @@ class ShowtimeController extends Controller
                     throw new \Exception("Có suất chiếu bị trùng: " . implode(", ", $overlappingShowtimes));
                 }
     
-                if (empty($createdShowtimes)) {
+                if (empty($showtimesToInsert)) {
                     throw new \Exception("Không có suất chiếu nào được tạo.");
                 }
     
-                // Bulk insert seat showtimes
-                SeatShowtime::insert($seatShowtimesToInsert);
+                // Chunk insert Showtime
+                collect($showtimesToInsert)->chunk(500)->each(function ($chunk) {
+                    Showtime::insert($chunk->toArray());
+                });
+    
+                // Truy lại Showtime theo slug
+                $slugs = array_column($showtimesToInsert, 'slug');
+                $createdShowtimes = Showtime::whereIn('slug', $slugs)->get();
+    
+                foreach ($createdShowtimes as $showtime) {
+                    $room = $rooms[$showtime->room_id];
+                    foreach ($room->seats as $seat) {
+                        $seatShowtimesToInsert[] = [
+                            'showtime_id' => $showtime->id,
+                            'seat_id' => $seat->id,
+                            'status' => 'available',
+                            'price' => $seat->typeSeat->price ?? null,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
+                    }
+                }
+    
+                // Chunk insert SeatShowtime
+                collect($seatShowtimesToInsert)->chunk(1000)->each(function ($chunk) {
+                    SeatShowtime::insert($chunk->toArray());
+                });
     
                 return response()->json([
                     'message' => 'Thêm suất chiếu thành công!',
-                    'showtimes' => $createdShowtimes
                 ], 201);
             });
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'message' => 'Có lỗi xảy ra',
                 'error' => $e->getMessage()
             ], 422);
         }
     }
+    
 
     public function addShowtimePerDay(AddShowtimePerDayRequest $request)
     {
@@ -1334,6 +1351,7 @@ class ShowtimeController extends Controller
                         continue;
                     }
     
+                    $cinema = Cinema::find($room->cinema_id);
                     $existingShowtimes = Showtime::where('room_id', $room->id)
                         ->where('cinema_id', $room->cinema_id)
                         ->where('date', $date->format('Y-m-d'))
@@ -1350,7 +1368,6 @@ class ShowtimeController extends Controller
                         $currentStartTime = $startHour->copy();
     
                         while ($currentStartTime->copy()->addMinutes($movieDuration)->lte($endHour)) {
-                            // Chỉ tính end_time dựa trên movieDuration, không cộng cleaningTime
                             $currentEndTime = $currentStartTime->copy()->addMinutes($movieDuration);
                             $isOverlapping = false;
     
@@ -1364,21 +1381,20 @@ class ShowtimeController extends Controller
                                 }
                             }
     
-                            $generatedShowtimes[] = [
-                                'start_time' => $currentStartTime->format('H:i'),
-                                'end_time' => $currentEndTime->format('H:i'),
-                                'type' => 'generated',
-                                'overlapping' => $isOverlapping
-                            ];
+                            if (!$isOverlapping) {
+                                $generatedShowtimes[] = [
+                                    'start_time' => $currentStartTime->format('H:i'),
+                                    'end_time' => $currentEndTime->format('H:i'),
+                                    'type' => 'generated'
+                                ];
+                            }
     
-                            // Cộng thêm cleaningTime để tạo khoảng cách giữa các suất chiếu
                             $currentStartTime = $currentEndTime->addMinutes($cleaningTime);
                         }
                     } else {
                         foreach ($request->showtimes as $showtimeData) {
                             $startTimeStr = preg_replace('/\d{4}-\d{2}-\d{2}\s*/', '', $showtimeData['start_time']);
                             $startTime = Carbon::parse($date->format('Y-m-d') . ' ' . trim($startTimeStr));
-                            // Chỉ tính end_time dựa trên movieDuration
                             $endTime = $startTime->copy()->addMinutes($movieDuration);
     
                             $isOverlapping = false;
@@ -1392,12 +1408,13 @@ class ShowtimeController extends Controller
                                 }
                             }
     
-                            $generatedShowtimes[] = [
-                                'start_time' => $startTime->format('H:i'),
-                                'end_time' => $endTime->format('H:i'),
-                                'type' => 'generated',
-                                'overlapping' => $isOverlapping
-                            ];
+                            if (!$isOverlapping) {
+                                $generatedShowtimes[] = [
+                                    'start_time' => $startTime->format('H:i'),
+                                    'end_time' => $endTime->format('H:i'),
+                                    'type' => 'generated'
+                                ];
+                            }
                         }
                     }
     
@@ -1410,8 +1427,6 @@ class ShowtimeController extends Controller
                             'start_time' => Carbon::parse($s->start_time)->format('H:i'),
                             'end_time' => Carbon::parse($s->end_time)->format('H:i'),
                             'type' => 'existing',
-                            'overlapping' => $totalSeats,
-                            'booked' => $bookedSeats,
                             'seat_info' => "$bookedSeats/$totalSeats ghế đã đặt"
                         ];
                     }
@@ -1419,7 +1434,9 @@ class ShowtimeController extends Controller
                     $results[] = [
                         'date' => $date->format('Y-m-d'),
                         'room_id' => $room->id,
+                        'room_name' => $room->name,
                         'cinema_id' => $room->cinema_id,
+                        'cinema_name' => $cinema->name,
                         'showtimes' => array_merge($existing, $generatedShowtimes)
                     ];
                 }
@@ -1427,6 +1444,8 @@ class ShowtimeController extends Controller
     
             return response()->json([
                 'movie_id' => $request->movie_id,
+                'movie_name' => $movie->name, // Thêm tên phim
+                'movie_image' => $movie->img_thumbnail, // Thêm ảnh phim
                 'movie_version_id' => $request->input('movie_version_id', null),
                 'showtimes' => $results
             ]);
