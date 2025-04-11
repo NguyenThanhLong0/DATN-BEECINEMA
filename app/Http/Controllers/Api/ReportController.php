@@ -113,7 +113,10 @@ class ReportController extends Controller
     if ($request->filled('start_date') && $request->filled('end_date')) {
         $query->whereBetween('tickets.created_at', [$request->input('start_date'), $request->input('end_date')]);
     }
-
+    // Lọc theo rạp chiếu (cinema)
+    if ($request->filled('cinema_id')) {
+        $query->where('tickets.cinema_id', $request->input('cinema_id'));
+    }
     // Lọc theo loại món ăn
     if ($request->filled('food_type')) {
         $query->where('food.type', $request->input('food_type'));
@@ -463,84 +466,91 @@ class ReportController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         $timeGroup = $request->input('group_by', 'day');
-
-        // Tạo điều kiện lọc chung dựa trên start_date và end_date
-        $filterConditions = function ($query) use ($startDate, $endDate) {
+        $cinemaId = $request->input('cinema_id'); // Nhận thêm cinema_id
+    
+        // Tạo điều kiện lọc chung dựa trên start_date, end_date, cinema_id
+        $filterConditions = function ($query) use ($startDate, $endDate, $cinemaId) {
             if ($startDate) {
                 $query->where('tickets.created_at', '>=', $startDate);
             }
             if ($endDate) {
                 $query->where('tickets.created_at', '<=', $endDate);
             }
+            if ($cinemaId) {
+                $query->where('tickets.cinema_id', $cinemaId);
+            }
         };
-
+    
         // Biểu đồ xu hướng bán vé theo ngày/tuần/tháng
         $ticketSalesTrend = Ticket_Seat::join('tickets', 'tickets.id', '=', 'ticket_seats.ticket_id')
             ->selectRaw('DATE_FORMAT(ticket_seats.created_at, ?) as time_group, COUNT(ticket_seats.id) as total_tickets', [$this->getTimeFormat($timeGroup)])
-            ->when($startDate || $endDate, $filterConditions)
+            ->when($startDate || $endDate || $cinemaId, $filterConditions)
             ->groupBy('time_group')
             ->orderByRaw('MIN(ticket_seats.created_at)')
             ->get();
-
+    
         // Tổng số vé đã bán
         $totaltickets = Ticket_Seat::join('tickets', 'tickets.id', '=', 'ticket_seats.ticket_id')
-            ->when($startDate || $endDate, $filterConditions)
+            ->when($startDate || $endDate || $cinemaId, $filterConditions)
             ->count('ticket_seats.id');
-
+    
         // Số vé trung bình mỗi ngày
         $days = $startDate && $endDate ? (strtotime($endDate) - strtotime($startDate)) / (60 * 60 * 24) + 1 : 1;
         $avgTicketsPerDay = $days > 0 ? round($totaltickets / $days, 2) : 0;
-
+    
         // Phân loại vé theo type_seat_id từ bảng seat
         $ticketsByType = Ticket_Seat::join('tickets', 'tickets.id', '=', 'ticket_seats.ticket_id')
             ->join('seats', 'ticket_seats.seat_id', '=', 'seats.id')
-            ->when($startDate || $endDate, $filterConditions)
+            ->when($startDate || $endDate || $cinemaId, $filterConditions)
             ->selectRaw('seats.type_seat_id as seat_type, COUNT(ticket_seats.id) as total_tickets')
             ->groupBy('seats.type_seat_id')
             ->get();
-
+    
         // Top khung giờ đông khách
         $peakHours = Ticket_Seat::join('tickets', 'tickets.id', '=', 'ticket_seats.ticket_id')
             ->join('showtimes', 'tickets.showtime_id', '=', 'showtimes.id')
-            ->when($startDate || $endDate, $filterConditions)
+            ->when($startDate || $endDate || $cinemaId, $filterConditions)
             ->selectRaw('HOUR(showtimes.start_time) as hour, COUNT(ticket_seats.id) as total_tickets')
             ->groupBy('hour')
             ->orderByDesc('total_tickets')
             ->limit(5)
             ->get();
-
+    
         // Bảng các phim có số vé cao nhất
         $topMoviesByTickets = Ticket_Seat::join('tickets', 'tickets.id', '=', 'ticket_seats.ticket_id')
             ->join('movies', 'tickets.movie_id', '=', 'movies.id')
+            ->when($startDate || $endDate || $cinemaId, $filterConditions)
             ->selectRaw('movies.name as movie, COUNT(ticket_seats.id) as total_tickets')
-            ->when($startDate || $endDate, $filterConditions)
             ->groupBy('movies.name')
             ->orderByDesc('total_tickets')
             ->limit(10)
             ->get();
-
+    
         // Bảng các rạp có tỷ lệ lấp đầy ghế cao nhất
-        $cinemas = Cinema::whereHas('showtimes', function ($query) use ($startDate, $endDate) {
+        $cinemas = Cinema::whereHas('showtimes', function ($query) use ($startDate, $endDate, $cinemaId) {
             if ($startDate) {
                 $query->where('date', '>=', $startDate);
             }
             if ($endDate) {
                 $query->where('date', '<=', $endDate);
             }
+            if ($cinemaId) {
+                $query->where('cinema_id', $cinemaId);
+            }
         })->get();
-
+    
         $data = [];
-
+    
         foreach ($cinemas as $cinema) {
             $showtimes = Showtime::where('cinema_id', $cinema->id)
                 ->when($startDate, fn($query) => $query->where('date', '>=', $startDate))
                 ->when($endDate, fn($query) => $query->where('date', '<=', $endDate))
                 ->get();
-
+    
             $totalSeats = $showtimes->sum(fn($showtime) => Seat::where('room_id', $showtime->room_id)->count());
             $totalBookedSeats = $showtimes->sum(fn($showtime) => SeatShowtime::where('showtime_id', $showtime->id)->where('status', 'booked')->count());
             $occupancyRate = $totalSeats > 0 ? round(($totalBookedSeats / $totalSeats) * 100, 2) : 0;
-
+    
             $cinemaData = [
                 'cinema' => $cinema->name,
                 'total_seats' => $totalSeats,
@@ -548,19 +558,19 @@ class ReportController extends Controller
                 'empty_seats' => $totalSeats - $totalBookedSeats,
                 'occupancy_rate' => $occupancyRate . '%'
             ];
-
+    
             if ($startDate) {
                 $cinemaData['start_date'] = $startDate;
             }
             if ($endDate) {
                 $cinemaData['end_date'] = $endDate;
             }
-
+    
             $data[] = $cinemaData;
         }
-
+    
         $data = collect($data)->sortByDesc('occupancy_rate')->take(5)->values()->all();
-
+    
         return response()->json([
             'totaltickets' => $totaltickets,
             'avgTicketsPerDay' => $avgTicketsPerDay,
@@ -571,6 +581,7 @@ class ReportController extends Controller
             'cinemaOccupancy' => $data,
         ]);
     }
+    
 
     public function customer(){
 
@@ -665,30 +676,35 @@ class ReportController extends Controller
     //xu huong dat ve
     public function bookingTrends()
     {
-        // Validation cho request
+        // Validate đầu vào
         $validated = request()->validate([
             'start_date' => 'nullable|date|before_or_equal:end_date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
         ]);
     
-        // Lấy khoảng thời gian mặc định nếu không có input (mặc định là tháng hiện tại)
+        $cinemaId = request()->input('cinema_id'); // ✅ Lấy cinema_id từ request
+    
         $startDate = request()->input('start_date', Carbon::now()->startOfMonth()->toDateString());
         $endDate = request()->input('end_date', Carbon::now()->endOfMonth()->toDateString());
         $startOfPeriod = Carbon::parse($startDate)->startOfDay();
         $endOfPeriod = Carbon::parse($endDate)->endOfDay();
     
-        // 1. Booking Trend by Time (Xu hướng đặt vé theo ngày trong khoảng thời gian)
+        // 1. Booking Trend by Time
         $bookingTrendByTime = Ticket::where('status', '!=', 'đã hủy')
+            ->when($cinemaId, fn($query) => $query->where('cinema_id', $cinemaId))
             ->whereBetween('created_at', [$startOfPeriod, $endOfPeriod])
             ->selectRaw('DATE(created_at) as date, COUNT(id) as total_bookings, SUM(total_price) as total_revenue')
             ->groupBy('date')
             ->orderBy('date', 'asc')
             ->get()
-            ->map(function ($item) {
+            ->map(function ($item) use ($cinemaId) {
                 $prevDay = Ticket::where('status', '!=', 'đã hủy')
+                    ->when($cinemaId, fn($query) => $query->where('cinema_id', $cinemaId))
                     ->whereDate('created_at', Carbon::parse($item->date)->subDay())
                     ->count();
+    
                 $growthRate = $prevDay > 0 ? round((($item->total_bookings - $prevDay) / $prevDay) * 100, 2) : null;
+    
                 return [
                     'date' => $item->date,
                     'total_bookings' => $item->total_bookings,
@@ -697,18 +713,18 @@ class ReportController extends Controller
                 ];
             });
     
-        // 2. Top Booking Customers (Khách hàng đặt vé nhiều nhất trong khoảng thời gian)
+        // 2. Top Booking Customers
         $topBookingCustomers = Ticket_Seat::join('tickets', 'tickets.id', '=', 'ticket_seats.ticket_id')
             ->join('users', 'users.id', '=', 'tickets.user_id')
             ->where('tickets.status', '!=', 'đã hủy')
             ->whereBetween('tickets.created_at', [$startOfPeriod, $endOfPeriod])
+            ->when($cinemaId, fn($query) => $query->where('tickets.cinema_id', $cinemaId))
             ->selectRaw('users.id, users.name as user, COUNT(ticket_seats.id) as total_tickets, SUM(tickets.total_price) as total_spent, MAX(tickets.created_at) as last_booking')
             ->groupBy('users.id', 'users.name')
             ->orderByDesc('total_tickets')
             ->limit(5)
             ->get()
             ->map(function ($item) {
-
                 return [
                     'user_id' => $item->id,
                     'user' => $item->user,
@@ -716,17 +732,18 @@ class ReportController extends Controller
                     'total_spent' => (int) $item->total_spent,
                     'last_booking' => Carbon::parse($item->last_booking)->toDateString(),
                 ];
-
             });
     
-        // 3. Booking Payment Methods (Phương thức thanh toán trong khoảng thời gian)
+        // 3. Booking Payment Methods
         $bookingPaymentMethods = Ticket::where('status', '!=', 'đã hủy')
+            ->when($cinemaId, fn($query) => $query->where('cinema_id', $cinemaId))
             ->whereBetween('created_at', [$startOfPeriod, $endOfPeriod])
             ->selectRaw('payment_name, COUNT(id) as total_bookings, SUM(total_price) as total_amount')
             ->groupBy('payment_name')
             ->get();
     
         $totalBookings = $bookingPaymentMethods->sum('total_bookings');
+    
         $paymentMethodsStats = $bookingPaymentMethods->map(function ($item) use ($totalBookings) {
             $percentage = $totalBookings > 0 ? round(($item->total_bookings / $totalBookings) * 100, 2) : 0;
             return [
@@ -737,22 +754,26 @@ class ReportController extends Controller
             ];
         });
     
-        // 4. Returning Booking Rate (Tỷ lệ khách hàng quay lại trong khoảng thời gian)
-        $customersBefore = Ticket::where('created_at', '<', $startOfPeriod)
+        // 4. Returning Booking Rate
+        $customersBefore = Ticket::when($cinemaId, fn($query) => $query->where('cinema_id', $cinemaId))
+            ->where('created_at', '<', $startOfPeriod)
             ->pluck('user_id')
             ->unique();
     
-        $totalBookingsThisPeriod = Ticket::whereBetween('created_at', [$startOfPeriod, $endOfPeriod])
+        $totalBookingsThisPeriod = Ticket::when($cinemaId, fn($query) => $query->where('cinema_id', $cinemaId))
+            ->whereBetween('created_at', [$startOfPeriod, $endOfPeriod])
             ->pluck('user_id')
             ->unique();
     
-        $returningCustomers = Ticket::whereBetween('created_at', [$startOfPeriod, $endOfPeriod])
+        $returningCustomers = Ticket::when($cinemaId, fn($query) => $query->where('cinema_id', $cinemaId))
+            ->whereBetween('created_at', [$startOfPeriod, $endOfPeriod])
             ->whereIn('user_id', $customersBefore)
             ->pluck('user_id')
             ->unique();
     
         $totalCustomersBefore = $customersBefore->count();
         $returningCount = $returningCustomers->count();
+    
         $retentionRate = $totalCustomersBefore > 0 ? round(($returningCount / $totalCustomersBefore) * 100, 2) : 0;
     
         $returningBookingRate = [
@@ -763,11 +784,9 @@ class ReportController extends Controller
             'retention_rate' => "$retentionRate%",
         ];
     
-        
-    
-        
-        // 5. Peak Booking Hours (Giờ cao điểm đặt vé trong khoảng thời gian)
+        // 5. Peak Booking Hours
         $peakBookingHours = Ticket::where('status', '!=', 'đã hủy')
+            ->when($cinemaId, fn($query) => $query->where('cinema_id', $cinemaId))
             ->whereBetween('created_at', [$startOfPeriod, $endOfPeriod])
             ->selectRaw('HOUR(created_at) as hour, COUNT(id) as total_bookings')
             ->groupBy('hour')
@@ -782,7 +801,6 @@ class ReportController extends Controller
                 ];
             });
     
-        // Trả về response
         return response()->json([
             'booking_trend_by_time' => $bookingTrendByTime,
             'top_booking_customers' => $topBookingCustomers,
@@ -791,4 +809,4 @@ class ReportController extends Controller
             'peak_booking_hours' => $peakBookingHours,
         ], 200, [], JSON_NUMERIC_CHECK);
     }
-}
+}    
