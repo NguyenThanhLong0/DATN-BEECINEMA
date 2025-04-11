@@ -158,14 +158,15 @@ class OverviewController extends Controller
             : $ticketsSoldChange;
     
         // newCustomers: Số khách hàng mới tháng hiện tại
-        $newCustomersQuery = User::where('role', 'member');
+        $newCustomersQuery = User::role('member'); // Spatie scope
         if (!empty($month) && !empty($year)) {
-            $newCustomersQuery->whereMonth('created_at', $month)->whereYear('created_at', $year);
+            $newCustomersQuery->whereMonth('created_at', $month)
+                            ->whereYear('created_at', $year);
         }
         $newCustomers = $newCustomersQuery->count();
-    
-        // newCustomers: Số khách hàng mới tháng trước
-        $newCustomersPreviousQuery = User::where('role', 'member')
+
+        // Lấy user có role "member" tạo trong tháng trước
+        $newCustomersPreviousQuery = User::role('member')
             ->whereMonth('created_at', $previousMonth)
             ->whereYear('created_at', $previousYear);
         $newCustomersPrevious = $newCustomersPreviousQuery->count();

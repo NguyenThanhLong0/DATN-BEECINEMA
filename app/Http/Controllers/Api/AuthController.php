@@ -36,18 +36,8 @@ class AuthController extends Controller
             
             $roles = $user->getRoleNames();
     
-        // Lấy tất cả permissions của user (qua role)
-        $permissions = $user->getAllPermissions()->map(function ($permission) {
-            return $permission->name; // Chỉ lấy tên permission
-        });
-    
-        // Gộp thông tin vào chung một mảng
-        $userData = $user->toArray(); // Chuyển toàn bộ thông tin user thành mảng
-    
-        // Thêm roles và permissions vào mảng userData
-        $userData['roles'] = $roles;
-        $userData['permissions'] = $permissions;
-            return response()->json(['message' => 'Login successful' , 'user' => $userData ], 200);
+        
+            return response()->json(['message' => 'Login successful'], 200);
         }
 
         return response()->json(['message' => 'Invalid credentials'], 401);
@@ -105,7 +95,6 @@ class AuthController extends Controller
                 'gender' => $request->gender,
                 'birthday' => $request->birthday,
             ]);
-            
             $user->assignRole('member');
             
             event(new UserRegistered($user));

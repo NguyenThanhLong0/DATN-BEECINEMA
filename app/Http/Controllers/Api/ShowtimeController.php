@@ -1162,7 +1162,6 @@ class ShowtimeController extends Controller
             ], 422);
         }
     }
-    
 
     public function addShowtimePerDay(AddShowtimePerDayRequest $request)
     {
