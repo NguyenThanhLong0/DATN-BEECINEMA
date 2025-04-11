@@ -24,6 +24,7 @@ class RoleController extends Controller
 
         $result = $roles->map(function ($role) {
             return [
+                'id' => $role->id,
                 'role' => $role->name,
                 'permissions' => $role->permissions->pluck('name')
             ];

@@ -102,7 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('showtimemovie', [ShowtimeController::class, 'showtimeMovie']);
 
 // Admin Routes (auth:sanctum + role:admin)
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware(['role:admin'])->group(function () {
     // Users Management
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{id}', [UserController::class, 'show']);
@@ -168,7 +168,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/permission/delete/{id}',[PermissionController::class,'destroy']); //delete
 
     Route::prefix('roles')->group(function () {
-        Route::get('/', [RoleController::class, 'index']);
         Route::get('/permission', [RoleController::class, 'role']);
         Route::post('add', [RoleController::class, 'store']);
         Route::get('{id}', [RoleController::class, 'show']);
@@ -177,8 +176,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('delete/{id}', [RoleController::class, 'destroy']);
     });
 });
+
+
 // Admin Cinema Routes (auth:sanctum + role:admin_cinema)
-Route::middleware(['auth:sanctum','role:admin|admin_cinema'])->group(function () {
+Route::middleware(['auth:sanctum','role:admin|cinema'])->group(function () {
     // Foods
     Route::post('foods', [FoodController::class, 'store'])->name('foods.store');
     Route::put('foods/{food}', [FoodController::class, 'update'])->name('foods.update');
@@ -281,6 +282,8 @@ Route::put('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
 Route::patch('/type-rooms/{typeRoom}', [TypeRoomController::class, 'update']);
 
 Route::delete('/type-rooms/{typeRoom}', [TypeRoomController::class, 'destroy']);
+
+Route::get('/roles', [RoleController::class, 'index']);
 
 // Voucher
 Route::prefix('vouchers')->middleware('auth:sanctum')->group(function () {

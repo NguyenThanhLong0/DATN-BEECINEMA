@@ -59,7 +59,7 @@ class UserController extends Controller
                 'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
                 'gender' => 'required|string|in:nam,nữ,khác',
                 'birthday' => 'required|date',
-                'role' => 'required|in:member,staff,admin,cinema'
+                'role' => 'required'
             ]);
 
             $user = User::create([
@@ -69,7 +69,7 @@ class UserController extends Controller
                 'phone' => $request->phone,
                 'gender' => $request->gender,
                 'birthday' => $request->birthday,
-                'id_cinema'=>$request->id_cinema,
+                'cinema_id'=>$request->id_cinema,
             ]);
             $user->assignRole($request->role);
 

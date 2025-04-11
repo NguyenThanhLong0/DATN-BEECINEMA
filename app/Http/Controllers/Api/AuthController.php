@@ -101,10 +101,13 @@ class AuthController extends Controller
             // Gửi email xác thực
             $rank = Rank::where('is_default', true)->first();
 
+            $date=Carbon::parse($user->birthday);
+            $uniquePart = preg_replace('/\D/', '', microtime(true));
+            $uniquePart = substr($uniquePart, -7); 
             $membership = [
                 'user_id' => $user->id,
                 'rank_id' => $rank->is_default,
-                'code' => str_pad($user->id, 12, '0', STR_PAD_LEFT),
+                'code' => rand(1000000,9999999).$uniquePart, 
                 'points' => 0,
                 'total_spent' => 0,
             ];
@@ -319,14 +322,19 @@ class AuthController extends Controller
                     'password' => bcrypt('randompassword'), // Mật khẩu ngẫu nhiên
                     'email_verified_at' => Carbon::now()
                 ]);
-
-                Membership::create([
+                $user->assignRole('member');
+                
+                $uniquePart = preg_replace('/\D/', '', microtime(true)); // Loại bỏ dấu chấm
+                $uniquePart = substr($uniquePart, -7); 
+                $membership = [
                     'user_id' => $user->id,
-                    'rank_id' => $rank->id, // Sửa lỗi lấy rank_id
-                    'code' => str_pad($user->id, 12, '0', STR_PAD_LEFT),
+                    'rank_id' => $rank->is_default,
+                    'code' => rand(1000000,9999999).$uniquePart, 
                     'points' => 0,
                     'total_spent' => 0,
-                ]);
+                ];
+
+                Membership::create($membership);
             } else {
                 // Nếu user đã tồn tại nhưng chưa xác thực email, cập nhật email_verified_at
                 $updateData = [];

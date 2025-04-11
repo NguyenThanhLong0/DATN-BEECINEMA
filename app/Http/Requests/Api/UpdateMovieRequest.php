@@ -32,7 +32,7 @@ class UpdateMovieRequest extends FormRequest
             'name' => 'required|unique:movies,name,' . $movie->id . '|max:255',
             'category' => 'required|max:255',
             'img_thumbnail' => 'required|url|max:255',
-            'description' => 'required|max:255',
+            'description' => 'required|max:3000',
             'director' => 'required|max:255',
             'cast' => 'required|max:255',
             'trailer_url' => 'required|max:255',

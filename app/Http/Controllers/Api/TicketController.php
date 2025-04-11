@@ -572,91 +572,81 @@ class TicketController extends Controller
     }
     //lọc vé
     public function filter(Request $request)
-        {
-            
-            // Log::info('Filter Request:', $request->all());
-            try {
-                $query = Ticket::query()
-                    ->select([
-                        'tickets.code',
-                        'users.name as user_name',
-                        'users.email as user_email',
-                        'users.role as user_role',
-                        'movies.img_thumbnail as movie_image',
-                        'movies.name as movie_name',
-                        'cinemas.name as cinema_name',
-                        'rooms.name as room_name',
-                        'tickets.total_price',
-                        'tickets.status',
-                        'tickets.payment_name',
-                        'showtimes.start_time as start_time',
-                        'showtimes.date as show_date',
-
-                        'tickets.expiry',
-                        'tickets.payment_name',
-                        DB::raw('GROUP_CONCAT(seats.name ORDER BY seats.name ASC) as seat_names')
-                    ])
-                    ->join('users', 'tickets.user_id', '=', 'users.id')
-                    ->join('movies', 'tickets.movie_id', '=', 'movies.id')
-                    ->join('cinemas', 'tickets.cinema_id', '=', 'cinemas.id')
-                    ->join('rooms', 'tickets.room_id', '=', 'rooms.id')
-
-                    ->join('showtimes', 'tickets.showtime_id', '=', 'showtimes.id')
-                    ->join('ticket_seats', 'tickets.id', '=', 'ticket_seats.ticket_id') // Bảng trung gian
-                    ->join('seats', 'ticket_seats.seat_id', '=', 'seats.id') // Liên kết với bảng seats
-                    ->groupBy('tickets.id');
-
-                    // $query = Ticket::query();
-                // Lọc theo branch_id nếu có
-                if ($request->has('branch_id')) {
-                    $query->where('cinemas.branch_id',  $request->branch_id);
-                }
-
-                // Lọc theo cinema_id nếu có
-                if ($request->has('cinema_id')) {
-                    $query->where('tickets.cinema_id',  $request->cinema_id);
-                }
-
-                // Lọc theo movie_id nếu có
-                if ($request->has('movie_id')) {
-                    $query->where('tickets.movie_id', $request->movie_id);
-                }
-
-                // Lọc theo ngày chiếu nếu có
-                if ($request->has('date')) {
-                    $query->whereDate('tickets.created_at', $request->date);
-                }
-
-                // Lọc theo trạng thái nếu có
-                if ($request->has('status')) {
-                    $query->where('tickets.status', $request->status);
-                }
-
-                // Lấy dữ liệu
-                // Log::info('SQL Query:', ['sql' => $query->toSql(), 'bindings' => $query->getBindings()]);
-                $tickets = $query->get();
-                // Log::info('Tickets count:', ['count' => $tickets->count()]);
-
-                if ($tickets->isEmpty()) {
-                    return response()->json(['message' => 'Không tìm thấy vé']);
-                }
-                // Trả về response
-                return response()->json([
-                    'success' => true,
-                    'data' => $tickets
-                ]);
-                // dd($query->toSql(), $query->getBindings());
-            } catch (\Exception $e) {
-                // Xử lý lỗi và trả về JSON thông báo lỗi
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Đã có lỗi xảy ra khi lấy danh sách vé.',
-                    'error' => $e->getMessage()
-                ], 500);
+    {
+        try {
+            $query = Ticket::query()
+                ->select([
+                    'tickets.code',
+                    'users.name as user_name',
+                    'users.email as user_email',
+                    // 🛠️ Thay thế users.role bằng subquery để lấy role đầu tiên
+                    DB::raw('(SELECT roles.name 
+                              FROM model_has_roles 
+                              JOIN roles ON roles.id = model_has_roles.role_id 
+                              WHERE model_has_roles.model_id = users.id 
+                              LIMIT 1) as user_role'),
+                    'movies.img_thumbnail as movie_image',
+                    'movies.name as movie_name',
+                    'cinemas.name as cinema_name',
+                    'rooms.name as room_name',
+                    'tickets.total_price',
+                    'tickets.status',
+                    'showtimes.start_time as start_time',
+                    'showtimes.date as show_date',
+                    'tickets.expiry',
+                    'tickets.payment_name',
+                    DB::raw('GROUP_CONCAT(seats.name ORDER BY seats.name ASC) as seat_names')
+                ])
+                ->join('users', 'tickets.user_id', '=', 'users.id')
+                ->join('movies', 'tickets.movie_id', '=', 'movies.id')
+                ->join('cinemas', 'tickets.cinema_id', '=', 'cinemas.id')
+                ->join('rooms', 'tickets.room_id', '=', 'rooms.id')
+                ->join('showtimes', 'tickets.showtime_id', '=', 'showtimes.id')
+                ->join('ticket_seats', 'tickets.id', '=', 'ticket_seats.ticket_id')
+                ->join('seats', 'ticket_seats.seat_id', '=', 'seats.id')
+                ->groupBy('tickets.id');
+    
+            // Bộ lọc
+            if ($request->has('branch_id')) {
+                $query->where('cinemas.branch_id', $request->branch_id);
             }
-
-
+    
+            if ($request->has('cinema_id')) {
+                $query->where('tickets.cinema_id', $request->cinema_id);
+            }
+    
+            if ($request->has('movie_id')) {
+                $query->where('tickets.movie_id', $request->movie_id);
+            }
+    
+            if ($request->has('date')) {
+                $query->whereDate('tickets.created_at', $request->date);
+            }
+    
+            if ($request->has('status')) {
+                $query->where('tickets.status', $request->status);
+            }
+    
+            $tickets = $query->get();
+    
+            if ($tickets->isEmpty()) {
+                return response()->json(['message' => 'Không tìm thấy vé']);
+            }
+    
+            return response()->json([
+                'success' => true,
+                'data' => $tickets
+            ]);
+    
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã có lỗi xảy ra khi lấy danh sách vé.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
+    
 
     public function confirm(Request $request)
 {

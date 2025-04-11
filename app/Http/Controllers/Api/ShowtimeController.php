@@ -1212,8 +1212,9 @@ class ShowtimeController extends Controller
 
                     $currentStartTime = $startHour;
 
-                    while ($currentStartTime->copy()->addMinutes($movieDuration + $cleaningTime)->lt($endHour)) {
-                        $currentEndTime = $currentStartTime->copy()->addMinutes($movieDuration + $cleaningTime);
+                    while ($currentStartTime->copy()->addMinutes($movieDuration)->lt($endHour)) {
+                        // Chỉ tính end_time dựa trên thời lượng phim
+                        $currentEndTime = $currentStartTime->copy()->addMinutes($movieDuration);
 
                         $isOverlapping = false;
                         foreach ($existingShowtimes as $showtime) {
@@ -1246,22 +1247,24 @@ class ShowtimeController extends Controller
                                 SeatShowtime::create([
                                     'showtime_id' => $newShowtime->id,
                                     'seat_id' => $seat->id,
-                                    'status' => 'available', // Đặt trạng thái mặc định là "available"
-                                    'price' => $seat->typeSeat->price ?? null, // Lấy giá từ bảng `type_seat`
+                                    'status' => 'available',
+                                    'price' => $seat->typeSeat->price ?? null,
                                 ]);
                             }
 
                             $createdShowtimes[] = $newShowtime;
                         }
 
-                        $currentStartTime = $currentEndTime;
+                        // Cộng thêm thời gian giải lao để tính start_time của suất tiếp theo
+                        $currentStartTime = $currentEndTime->copy()->addMinutes($cleaningTime);
                     }
                 } else {
                     $showtimes = $request->input('showtimes');
 
                     foreach ($showtimes as $showtimeData) {
                         $startTime = Carbon::parse($date . ' ' . $showtimeData['start_time']);
-                        $endTime = $startTime->copy()->addMinutes($movieDuration + $cleaningTime);
+                        // Chỉ tính end_time dựa trên thời lượng phim
+                        $endTime = $startTime->copy()->addMinutes($movieDuration);
 
                         $existingShowtimes = Showtime::where('room_id', $room->id)
                             ->where('date', $date)
@@ -1296,7 +1299,7 @@ class ShowtimeController extends Controller
                                 'showtime_id' => $newShowtime->id,
                                 'seat_id' => $seat->id,
                                 'status' => 'available',
-                                'price' => $seat->typeSeat->price ?? null, // Lấy giá từ bảng `type_seat`
+                                'price' => $seat->typeSeat->price ?? null,
                             ]);
                         }
 
