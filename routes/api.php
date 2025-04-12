@@ -169,6 +169,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::prefix('roles')->group(function () {
         Route::get('/', [RoleController::class, 'index']);
+        Route::get('/permission', [RoleController::class, 'role']);
         Route::post('add', [RoleController::class, 'store']);
         Route::get('{id}', [RoleController::class, 'show']);
         Route::put('update/{id}', [RoleController::class, 'update']);
