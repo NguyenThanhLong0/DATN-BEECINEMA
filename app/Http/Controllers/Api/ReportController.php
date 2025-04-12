@@ -255,13 +255,13 @@ class ReportController extends Controller
 
     public function totalRevenue(Request $request)
     {
-
-        $start_date = $request->input('start_date'); // Thêm tham số ngày bắt đầu
-        $end_date = $request->input('end_date'); // Thêm tham số ngày kết thúc
-        $timeGroup = $request->input('group_by', 'month'); // Mặc định nhóm theo tháng
-        
+        $start_date = $request->input('start_date');
+        $end_date = $request->input('end_date');
+        $cinema_id = $request->input('cinema_id'); // Lấy tham số cinema_id
+        $timeGroup = $request->input('group_by', 'month');
+    
         // Tạo điều kiện chung cho tất cả truy vấn
-        $filterConditions = function ($query) use ( $start_date, $end_date) {
+        $filterConditions = function ($query) use ($start_date, $end_date, $cinema_id) {
             if ($start_date && $end_date) {
                 $query->whereBetween('tickets.created_at', [$start_date, $end_date]);
             } elseif ($start_date) {
@@ -269,19 +269,23 @@ class ReportController extends Controller
             } elseif ($end_date) {
                 $query->where('tickets.created_at', '<=', $end_date);
             }
+    
+            if ($cinema_id) {
+                $query->where('tickets.cinema_id', $cinema_id);
+            }
         };
-        
+    
         // Tổng doanh thu
         $totalRevenue = Ticket::where('status', '!=', 'đã hủy')
-            ->when( $start_date || $end_date, $filterConditions)
+            ->when($start_date || $end_date || $cinema_id, $filterConditions)
             ->sum('total_price');
-        
+    
         // Doanh thu theo rạp
         $revenueByCinema = Ticket::where('status', '!=', 'đã hủy')
             ->join('cinemas', 'tickets.cinema_id', '=', 'cinemas.id')
             ->selectRaw('cinemas.name as cinema, SUM(tickets.total_price) as revenue')
             ->groupBy('cinemas.name')
-            ->when( $start_date || $end_date, $filterConditions)
+            ->when($start_date || $end_date || $cinema_id, $filterConditions)
             ->get()
             ->map(function ($item) use ($totalRevenue) {
                 $percentage = $totalRevenue > 0 ? round(($item->revenue / $totalRevenue) * 100, 2) : 0;
@@ -294,13 +298,13 @@ class ReportController extends Controller
             })
             ->sortByDesc('percentage_value')
             ->values();
-        
+    
         // Doanh thu theo phim
         $revenueByMovie = Ticket::where('status', '!=', 'đã hủy')
             ->join('movies', 'tickets.movie_id', '=', 'movies.id')
             ->selectRaw('movies.name as movie, SUM(tickets.total_price) as revenue')
             ->groupBy('movies.name')
-            ->when( $start_date || $end_date, $filterConditions)
+            ->when($start_date || $end_date || $cinema_id, $filterConditions)
             ->get()
             ->map(function ($item) use ($totalRevenue) {
                 $percentage = $totalRevenue > 0 ? round(($item->revenue / $totalRevenue) * 100, 2) : 0;
@@ -313,12 +317,12 @@ class ReportController extends Controller
             })
             ->sortByDesc('percentage_value')
             ->values();
-        
-        // Thống kê hình thức thanh toán
+    
+        // Hình thức thanh toán
         $paymentMethods = Ticket::where('status', '!=', 'đã hủy')
             ->selectRaw('payment_name, SUM(total_price) as total_amount')
             ->groupBy('payment_name')
-            ->when( $start_date || $end_date, $filterConditions)
+            ->when($start_date || $end_date || $cinema_id, $filterConditions)
             ->get()
             ->map(function ($item) use ($totalRevenue) {
                 $percentage = $totalRevenue > 0 ? round(($item->total_amount / $totalRevenue) * 100, 2) : 0;
@@ -338,19 +342,19 @@ class ReportController extends Controller
                     'percentage' => $item['percentage']
                 ];
             });
-        
+    
         // Xu hướng doanh thu theo tháng hoặc ngày
-        $trendColumn = $timeGroup === 'day' ? "DATE_FORMAT(tickets.created_at, '%d-%m')" : "DATE_FORMAT(tickets.created_at, '%b')";
-        
+        $trendColumn = $timeGroup === 'day'
+            ? "DATE_FORMAT(tickets.created_at, '%d-%m')"
+            : "DATE_FORMAT(tickets.created_at, '%b')";
+    
         $revenueTrend = Ticket::where('status', '!=', 'đã hủy')
             ->selectRaw("$trendColumn as time, SUM(tickets.total_price) as revenue")
             ->groupBy('time')
             ->orderByRaw('MIN(tickets.created_at)')
-            ->when($start_date && $end_date, fn($query) => $query->whereBetween('tickets.created_at', [$start_date, $end_date]))
-            ->when($start_date && !$end_date, fn($query) => $query->where('tickets.created_at', '>=', $start_date))
-            ->when($end_date && !$start_date, fn($query) => $query->where('tickets.created_at', '<=', $end_date))
+            ->when($start_date || $end_date || $cinema_id, $filterConditions)
             ->get();
-
+    
         return response()->json([
             'totalRevenue' => $totalRevenue,
             'revenueByCinema' => $revenueByCinema,
@@ -359,6 +363,7 @@ class ReportController extends Controller
             'monthlyTrend' => $revenueTrend
         ]);
     }
+    
     
     
     private function getTimeFormat($groupBy)

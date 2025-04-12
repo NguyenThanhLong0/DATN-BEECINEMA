@@ -14,9 +14,22 @@ class RoleController extends Controller
      // Hiển thị danh sách tất cả các role
      public function index()
      {
-         // Lấy danh sách tất cả các role
-         $roles = Role::select('id', 'name')->orderby('id')->get();
-         return response()->json($roles);
+        $roles = Role::whereNotIn('name', ['member', 'admin'])->pluck('name');
+        return response()->json($roles);
+     }
+
+     public function role()
+     {
+        $roles = Role::with('permissions')->get();
+
+        $result = $roles->map(function ($role) {
+            return [
+                'role' => $role->name,
+                'permissions' => $role->permissions->pluck('name')
+            ];
+        });
+    
+        return response()->json($result);
      }
  
      /**
@@ -56,15 +69,12 @@ class RoleController extends Controller
      public function show(string $id)
      {
          try {
-             // Lấy thông tin role theo ID
-             $role = Role::findOrFail($id);
- 
-             // Trả về thông tin role kèm với danh sách permissions
-             $data = $role->toArray();
-             $permissions = $role->permissions->pluck('name');
-             $data['permissions'] = $permissions;
- 
-             return response()->json($data);
+            $role = Role::findOrFail($id);
+
+            return response()->json([
+                'role' => $role->name,
+                'permissions' => $role->permissions->pluck('name')
+            ]);
          } catch (ModelNotFoundException $e) {
              return response()->json(['error' => 'Role không tồn tại'], 404);
          } catch (\Exception $e) {
