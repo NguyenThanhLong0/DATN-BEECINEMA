@@ -104,14 +104,14 @@ Route::middleware('auth:sanctum')->group(function () {
 // Admin Routes (auth:sanctum + role:admin)
 Route::middleware(['auth:sanctum'])->group(function () {
     // Users Management
-    Route::get('/users', [UserController::class, 'index']);
-    Route::get('/users/{id}', [UserController::class, 'show']);
-    Route::put('/users/{id}', [UserController::class, 'update']);
-    Route::patch('/users/{id}', [UserController::class, 'update']);
-    Route::post('/users/create', [UserController::class, 'add']);
-    Route::delete('/users/{id}', [UserController::class, 'destroy']);
-    Route::post('/users/{id}/restore', [UserController::class, 'restore']);
-    Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']);
+    // Route::get('/users', [UserController::class, 'index']);
+    // Route::get('/users/{id}', [UserController::class, 'show']);
+    // Route::put('/users/{id}', [UserController::class, 'update']);
+    // Route::patch('/users/{id}', [UserController::class, 'update']);
+    // Route::post('/users/create', [UserController::class, 'add']);
+    // Route::delete('/users/{id}', [UserController::class, 'destroy']);
+    // Route::post('/users/{id}/restore', [UserController::class, 'restore']);
+    // Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']);
 
     // Branches
     Route::post('branches', [BranchController::class, 'store'])->name('branches.store');
@@ -347,3 +347,11 @@ Route::get('/booking-trends', [ReportController::class,'bookingTrends']);//Thố
 // Reports & Overview (Thường cần auth, nhưng để public theo yêu cầu đơn giản hóa)
 Route::get('/revenue-statistics', [ReportController::class, 'revenueStatistics']);
 
+Route::get('/users', [UserController::class, 'index']);
+Route::get('/users/{id}', [UserController::class, 'show']);
+Route::put('/users/{id}', [UserController::class, 'update']);
+Route::patch('/users/{id}', [UserController::class, 'update']);
+Route::post('/users/create', [UserController::class, 'add']);
+Route::delete('/users/{id}', [UserController::class, 'destroy']);
+Route::post('/users/{id}/restore', [UserController::class, 'restore']);
+Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']);
