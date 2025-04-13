@@ -33,8 +33,6 @@ class AuthController extends Controller
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
             $user = Auth::user();
-            
-            $roles = $user->getRoleNames();
     
         
             return response()->json(['message' => 'Login successful'], 200);

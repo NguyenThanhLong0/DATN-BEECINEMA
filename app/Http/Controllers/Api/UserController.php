@@ -12,25 +12,39 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Exception;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Facades\Log;
+use Laravel\Ui\Presets\React;
 
 class UserController extends Controller
 {
     // Lấy danh sách user (chỉ admin mới có quyền)
-    public function index()
+    public function index(Request $request)
     {
         try {
-            $users = User::all();
-            foreach ($users as $user) {
-                $user['role']=$user->getRoleNames()->implode(', ');
-                $user = $user->makeHidden(['roles']); 
-
-                // Xử lý các tên vai trò ở đây
+            $cinema_id = $request->input('cinema_id');
+    
+            $usersQuery = User::query();
+    
+            if ($cinema_id) {
+                $usersQuery->where('cinema_id', $cinema_id);
             }
-            // $user = User::find($userId); // Tìm người dùng
-            return response()->json($users, 201);
-        } catch (Exception $e) {
-            return response()->json(['error' => 'Error fetching users', 'message' => $e->getMessage()], 500);
+    
+            // Eager load tên rạp (cinemas), chỉ lấy id và name
+            $users = $usersQuery->with(['cinema:id,name'])->get();
+    
+            // Thêm role và ẩn roles
+            $users = $users->map(function ($user) {
+                $user['role'] = $user->getRoleNames()->implode(', ');
+                return $user->makeHidden(['roles']);
+            });
+    
+            return response()->json($users, 200);
+    
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Lỗi khi lấy danh sách người dùng',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -67,6 +81,8 @@ class UserController extends Controller
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'phone' => $request->phone,
+                'address' =>$request->address,
+                'arvatar' => $request->arvatar,
                 'gender' => $request->gender,
                 'birthday' => $request->birthday,
                 'cinema_id'=>$request->id_cinema,
@@ -91,6 +107,11 @@ class UserController extends Controller
     {
         try {
             $user = User::findOrFail($id);
+            if($user->hasRole('member'))
+            {
+                return response()->json(['error' => 'Bạn không có quyền thay đổi thông tin của người dùng','role'=>$user->getRoleNames()]);
+            }
+
             $user->update($request->except('role'));
             if ($request->has('role')) {
                 // Sync các vai trò mới cho người dùng, sẽ xóa các vai trò cũ
@@ -99,6 +120,22 @@ class UserController extends Controller
             
             $user['role']=$user->getRoleNames()->implode(', ');
             $user = $user->makeHidden(['roles']); 
+            return response()->json([
+                'message' => 'User updated successfully',
+                'user' => $user
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Error updating user', 'message' => $e->getMessage()], 500);
+        }
+    }
+    public function updateuser(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user = Auth::user()) {
+                return response()->json(['message' => 'User not authenticated'], 401);
+            }
+            $user->update($request->except('role'));
             return response()->json([
                 'message' => 'User updated successfully',
                 'user' => $user
@@ -190,7 +227,31 @@ class UserController extends Controller
         }
     }
 
+    public function changePassword(Request $request,$id)
+    {
+        try {
 
+            $user=User::findOrFail($id);
+            if($user->hasRole('member'))
+            {
+                return response()->json(['error' => 'Bạn không có quyền thay đổi mật khẩu của người dùng','role'=>$user->getRoleNames()]);
+            }
+            // Validate input
+            $request->validate([
+                'new_password' => 'required|string|min:8|confirmed',
+            ]);
+            // Update the password
+            $user->password = Hash::make($request->new_password);
+            $user->save();
+
+            return response()->json(['message' => 'Password changed successfully']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Password change failed',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
     public function membership()
 
