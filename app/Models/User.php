@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use App\Notifications\CustomVerifyEmail;
+use App\Notifications\ResetPasswordCustom;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -109,4 +110,12 @@ class User extends Authenticatable implements MustVerifyEmail, ShouldQueue
 
         return $membership ? $membership->name : 'Member';
     }
+
+
+    public function sendPasswordResetNotification($token)
+{
+    $url = config('app.frontend_url')."?token={$token}&email={$this->email}";
+
+    $this->notify(new ResetPasswordCustom($url));
+}
 }

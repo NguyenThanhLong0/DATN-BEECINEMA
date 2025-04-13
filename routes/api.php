@@ -45,6 +45,8 @@ Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
 // Các route cần xác thực (auth:sanctum)
 Route::middleware('auth:sanctum')->group(function () {
+    Route::put('/users/update', [UserController::class, 'updateuser']);
+    Route::patch('/users/update', [UserController::class, 'updateuser']);
     // Authentication
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/user', [AuthController::class, 'user']);
@@ -100,18 +102,19 @@ Route::middleware('auth:sanctum')->group(function () {
 });
     Route::get('showtimespage', [ShowtimeController::class, 'pageShowtime']);
     Route::get('showtimemovie', [ShowtimeController::class, 'showtimeMovie']);
-
-// Admin Routes (auth:sanctum + role:admin)
-Route::middleware(['role:admin'])->group(function () {
     // Users Management
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{id}', [UserController::class, 'show']);
     Route::put('/users/{id}', [UserController::class, 'update']);
     Route::patch('/users/{id}', [UserController::class, 'update']);
+    Route::post('/users/change-password/{id}',[UserController::class,'changePassword']);
     Route::post('/users/create', [UserController::class, 'add']);
     Route::delete('/users/{id}', [UserController::class, 'destroy']);
     Route::post('/users/{id}/restore', [UserController::class, 'restore']);
     Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']);
+// Admin Routes (auth:sanctum + role:admin)
+Route::middleware(['role:admin'])->group(function () {
+
 
     // Branches
     Route::post('branches', [BranchController::class, 'store'])->name('branches.store');

@@ -188,7 +188,7 @@ return [
         'Socialite' => Laravel\Socialite\Facades\Socialite::class,
     ])->toArray(),
 
-    'frontend_url' => env('FRONTEND_URL', 'https://beecinema-ten.vercel.app'),
+    'frontend_url' => env('FRONTEND_URL'),
 
 
 ];
