@@ -40,6 +40,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+Route::post('/users/change-password',[AuthController::class,'changePassword']);
 Route::get('/verify/email/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
 Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
@@ -52,7 +53,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/email/resend', [AuthController::class, 'resendVerificationEmail']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
-
+    Route::put('/users/update', [UserController::class, 'updateuser']);
+    Route::patch('/users/update', [UserController::class, 'updateuser']);
     // User Profile & Related
     Route::get('/profile', [UserController::class, 'profile']);
     Route::get('/user/membership', [UserController::class, 'membership']);
@@ -102,87 +104,91 @@ Route::middleware('auth:sanctum')->group(function () {
 });
     Route::get('showtimespage', [ShowtimeController::class, 'pageShowtime']);
     Route::get('showtimemovie', [ShowtimeController::class, 'showtimeMovie']);
-    // Users Management
-    Route::get('/users', [UserController::class, 'index']);
-    Route::get('/users/{id}', [UserController::class, 'show']);
-    Route::put('/users/{id}', [UserController::class, 'update']);
-    Route::patch('/users/{id}', [UserController::class, 'update']);
-    Route::post('/users/change-password/{id}',[UserController::class,'changePassword']);
-    Route::post('/users/create', [UserController::class, 'add']);
-    Route::delete('/users/{id}', [UserController::class, 'destroy']);
-    Route::post('/users/{id}/restore', [UserController::class, 'restore']);
-    Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']);
-// Admin Routes (auth:sanctum + role:admin)
-Route::middleware(['role:admin'])->group(function () {
 
-
-    // Branches
-    Route::post('branches', [BranchController::class, 'store'])->name('branches.store');
-    Route::put('branches/{branch}', [BranchController::class, 'update'])->name('branches.update');
-    Route::patch('branches/{branch}', [BranchController::class, 'update'])->name('branches.update.partial');
-    Route::delete('branches/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
-
-    // Cinemas
-    Route::post('cinemas', [CinemaController::class, 'store'])->name('cinemas.store');
-    Route::put('cinemas/{cinema}', [CinemaController::class, 'update'])->name('cinemas.update');
-    Route::patch('cinemas/{cinema}', [CinemaController::class, 'update'])->name('cinemas.update.partial');
-    Route::delete('cinemas/{cinema}', [CinemaController::class, 'destroy'])->name('cinemas.destroy');
-
-    // Ranks
-    Route::post('ranks', [RankController::class, 'store'])->name('ranks.store');
-    Route::put('ranks/{rank}', [RankController::class, 'update'])->name('ranks.update');
-    Route::patch('ranks/{rank}', [RankController::class, 'update'])->name('ranks.update.partial');
-    Route::delete('ranks/{rank}', [RankController::class, 'destroy'])->name('ranks.destroy');
-
-        // Movies
-    Route::post('/movies', [MovieController::class, 'store']);
-    Route::put('/movies/{movie}', [MovieController::class, 'update']);
-    Route::patch('/movies/{movie}', [MovieController::class, 'update']);
-    Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
-    Route::post('movies/update-active', [MovieController::class, 'updateActive'])->name('movies.update-active');
-    Route::post('movies/update-hot', [MovieController::class, 'updateHot'])->name('movies.update-hot');
-
-    
-    // Banners
-    Route::post('banners', [BannerController::class, 'store'])->name('banners.store');
-    Route::put('banners/{banner}', [BannerController::class, 'update'])->name('banners.update');
-    Route::patch('banners/{banner}', [BannerController::class, 'update'])->name('banners.update.partial');
-    Route::delete('banners/{banner}', [BannerController::class, 'destroy'])->name('banners.destroy');
-
-
-    // Movie Reviews
-    Route::post('movie-reviews', [MovieReviewController::class, 'store']);
-    Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
-    Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
-    Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
-
-    // Contact
-    Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
-    Route::put('contact/{contact}', [ContactController::class, 'update'])->name('contact.update');
-    Route::patch('contact/{contact}', [ContactController::class, 'update'])->name('contact.update.partial');
-    Route::delete('contact/{contact}', [ContactController::class, 'destroy'])->name('contact.destroy');
-
-    //Permission
-    Route::get('permission',[PermissionController::class,'index']); //danh sach
-    Route::get('permission/{id}',[PermissionController::class,'show']); //chi tiet
-    Route::post('permission/add',[PermissionController::class,'store']); //them
-    Route::patch('permission/update/{id}',[PermissionController::class,'update']); //update
-    Route::put('permission/update/{id}',[PermissionController::class,'update']); //update
-    Route::delete('/permission/delete/{id}',[PermissionController::class,'destroy']); //delete
-
-    Route::prefix('roles')->group(function () {
-        Route::get('/permission', [RoleController::class, 'role']);
-        Route::post('add', [RoleController::class, 'store']);
-        Route::get('{id}', [RoleController::class, 'show']);
-        Route::put('update/{id}', [RoleController::class, 'update']);
-        Route::patch('update/{id}', [RoleController::class, 'update']);
-        Route::delete('delete/{id}', [RoleController::class, 'destroy']);
+    Route::middleware(['role:admin|admin_cinema'])->group(function () {
+        // Users Management
+        Route::post('/users/change-password/{id}',[UserController::class,'changePassword']);
+        Route::get('/users', [UserController::class, 'index']);
+        Route::post('/users/create', [UserController::class, 'add']);
+        Route::get('/users/{id}', [UserController::class, 'show']);
+        Route::put('/users/{id}', [UserController::class, 'update']);
+        Route::patch('/users/{id}', [UserController::class, 'update']);
     });
-});
+// Admin Routes (auth:sanctum + role:admin)
+    Route::middleware(['role:admin'])->group(function () {
+        // Users Management
+
+        Route::delete('/users/{id}', [UserController::class, 'destroy']);
+        Route::post('/users/{id}/restore', [UserController::class, 'restore']);
+        Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']);
+
+        // Branches
+        Route::post('branches', [BranchController::class, 'store'])->name('branches.store');
+        Route::put('branches/{branch}', [BranchController::class, 'update'])->name('branches.update');
+        Route::patch('branches/{branch}', [BranchController::class, 'update'])->name('branches.update.partial');
+        Route::delete('branches/{branch}', [BranchController::class, 'destroy'])->name('branches.destroy');
+
+        // Cinemas
+        Route::post('cinemas', [CinemaController::class, 'store'])->name('cinemas.store');
+        Route::put('cinemas/{cinema}', [CinemaController::class, 'update'])->name('cinemas.update');
+        Route::patch('cinemas/{cinema}', [CinemaController::class, 'update'])->name('cinemas.update.partial');
+        Route::delete('cinemas/{cinema}', [CinemaController::class, 'destroy'])->name('cinemas.destroy');
+
+        // Ranks
+        Route::post('ranks', [RankController::class, 'store'])->name('ranks.store');
+        Route::put('ranks/{rank}', [RankController::class, 'update'])->name('ranks.update');
+        Route::patch('ranks/{rank}', [RankController::class, 'update'])->name('ranks.update.partial');
+        Route::delete('ranks/{rank}', [RankController::class, 'destroy'])->name('ranks.destroy');
+
+            // Movies
+        Route::post('/movies', [MovieController::class, 'store']);
+        Route::put('/movies/{movie}', [MovieController::class, 'update']);
+        Route::patch('/movies/{movie}', [MovieController::class, 'update']);
+        Route::delete('/movies/{movie}', [MovieController::class, 'destroy']);
+        Route::post('movies/update-active', [MovieController::class, 'updateActive'])->name('movies.update-active');
+        Route::post('movies/update-hot', [MovieController::class, 'updateHot'])->name('movies.update-hot');
+
+        
+        // Banners
+        Route::post('banners', [BannerController::class, 'store'])->name('banners.store');
+        Route::put('banners/{banner}', [BannerController::class, 'update'])->name('banners.update');
+        Route::patch('banners/{banner}', [BannerController::class, 'update'])->name('banners.update.partial');
+        Route::delete('banners/{banner}', [BannerController::class, 'destroy'])->name('banners.destroy');
+
+
+        // Movie Reviews
+        Route::post('movie-reviews', [MovieReviewController::class, 'store']);
+        Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
+        Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
+        Route::delete('movie-reviews/{movieReview}', [MovieReviewController::class, 'destroy']);
+
+        // Contact
+        Route::post('contact', [ContactController::class, 'store'])->name('contact.store');
+        Route::put('contact/{contact}', [ContactController::class, 'update'])->name('contact.update');
+        Route::patch('contact/{contact}', [ContactController::class, 'update'])->name('contact.update.partial');
+        Route::delete('contact/{contact}', [ContactController::class, 'destroy'])->name('contact.destroy');
+
+        //Permission
+        Route::get('permission',[PermissionController::class,'index']); //danh sach
+        Route::get('permission/{id}',[PermissionController::class,'show']); //chi tiet
+        Route::post('permission/add',[PermissionController::class,'store']); //them
+        Route::patch('permission/update/{id}',[PermissionController::class,'update']); //update
+        Route::put('permission/update/{id}',[PermissionController::class,'update']); //update
+        Route::delete('/permission/delete/{id}',[PermissionController::class,'destroy']); //delete
+
+        Route::prefix('roles')->group(function () {
+            Route::get('/permission', [RoleController::class, 'role']);
+            Route::post('add', [RoleController::class, 'store']);
+            Route::get('{id}', [RoleController::class, 'show']);
+            Route::put('update/{id}', [RoleController::class, 'update']);
+            Route::patch('update/{id}', [RoleController::class, 'update']);
+            Route::delete('delete/{id}', [RoleController::class, 'destroy']);
+        });
+    });
 
 
 // Admin Cinema Routes (auth:sanctum + role:admin_cinema)
-Route::middleware(['auth:sanctum','role:admin|cinema'])->group(function () {
+Route::middleware(['auth:sanctum','role:admin|admin_cinema'])->group(function () {
     // Foods
     Route::post('foods', [FoodController::class, 'store'])->name('foods.store');
     Route::put('foods/{food}', [FoodController::class, 'update'])->name('foods.update');
