@@ -46,7 +46,17 @@ class UserController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+
+        foreach ($users as $user) {
+            $user['role'] = $user->getRoleNames()->implode(', ');
+            $user->makeHidden(['roles']);
+        }
+
+        return response()->json($users, 200);
+    } catch (Exception $e) {
+        return response()->json(['error' => 'Error fetching users', 'message' => $e->getMessage()], 500);
     }
+}   
 
     // Lấy thông tin user cụ thể
     public function show($id)
@@ -100,6 +110,23 @@ class UserController extends Controller
                 'error' => 'Create user failed',
                 'message' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    public function updateuser(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            if (!$user = Auth::user()) {
+                return response()->json(['message' => 'User not authenticated'], 401);
+            }
+            $user->update($request->except('role'));
+            return response()->json([
+                'message' => 'User updated successfully',
+                'user' => $user
+            ], 200);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Error updating user', 'message' => $e->getMessage()], 500);
         }
     }
     // Cập nhật user
