@@ -22,41 +22,28 @@ class UserController extends Controller
     {
         try {
             $cinema_id = $request->input('cinema_id');
-    
             $usersQuery = User::query();
-    
+
+            // Join với bảng cinemas để lấy tên rạp
+            $usersQuery->leftJoin('cinemas', 'users.cinema_id', '=', 'cinemas.id')
+                    ->select('users.*', 'cinemas.name as cinema_name');
+
             if ($cinema_id) {
-                $usersQuery->where('cinema_id', $cinema_id);
+                $users = $usersQuery->where('users.cinema_id', $cinema_id)->get();
+            } else {
+                $users = $usersQuery->get();
             }
-    
-            // Eager load tên rạp (cinemas), chỉ lấy id và name
-            $users = $usersQuery->with(['cinema:id,name'])->get();
-    
-            // Thêm role và ẩn roles
-            $users = $users->map(function ($user) {
+
+            foreach ($users as $user) {
                 $user['role'] = $user->getRoleNames()->implode(', ');
-                return $user->makeHidden(['roles']);
-            });
-    
+                $user->makeHidden(['roles']);
+            }
+
             return response()->json($users, 200);
-    
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Lỗi khi lấy danh sách người dùng',
-                'message' => $e->getMessage()
-            ], 500);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Error fetching users', 'message' => $e->getMessage()], 500);
         }
-
-        foreach ($users as $user) {
-            $user['role'] = $user->getRoleNames()->implode(', ');
-            $user->makeHidden(['roles']);
-        }
-
-        return response()->json($users, 200);
-    } catch (Exception $e) {
-        return response()->json(['error' => 'Error fetching users', 'message' => $e->getMessage()], 500);
-    }
-}   
+    }   
 
     // Lấy thông tin user cụ thể
     public function show($id)
@@ -78,11 +65,12 @@ class UserController extends Controller
         try {
             $request->validate([
                 'name' => 'required|string|max:255',
-                'email' => 'required|string|email|max:255|unique:users',
+                'email' => 'required|string|email:rfc,dns|max:255|unique:users',
                 'password' => 'required|string|min:8|confirmed',
                 'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
                 'gender' => 'required|string|in:nam,nữ,khác',
                 'birthday' => 'required|date',
+                'address' => 'string|max:500',
                 'role' => 'required'
             ]);
 
@@ -92,7 +80,7 @@ class UserController extends Controller
                 'password' => Hash::make($request->password),
                 'phone' => $request->phone,
                 'address' =>$request->address,
-                'arvatar' => $request->arvatar,
+                'avatar' => $request->avatar,
                 'gender' => $request->gender,
                 'birthday' => $request->birthday,
                 'cinema_id'=>$request->id_cinema,
@@ -133,6 +121,14 @@ class UserController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email:rfc,dns|max:255|unique:users,email,'.$id,
+                'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
+                'gender' => 'required|string|in:nam,nữ,khác',
+                'address' => 'string|nullable|max:500',
+                'birthday' => 'required|date',
+            ]);
             $user = User::findOrFail($id);
             if($user->hasRole('member'))
             {
@@ -151,24 +147,40 @@ class UserController extends Controller
                 'message' => 'User updated successfully',
                 'user' => $user
             ], 200);
-        } catch (Exception $e) {
-            return response()->json(['error' => 'Error updating user', 'message' => $e->getMessage()], 500);
-        }
+        }catch (Exception $e) {
+                return response()->json([
+                    'error' => 'Update user failed',
+                    'message' => $e->getMessage(),
+                ], 500);
+            }
     }
     public function updateuser(Request $request)
     {
         try {
+            
             $user = Auth::user();
             if (!$user = Auth::user()) {
                 return response()->json(['message' => 'User not authenticated'], 401);
             }
+
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email:rfc,dns|max:255|unique:users,email,'.$user->id,
+                'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
+                'gender' => 'required|string|in:nam,nữ,khác',
+                'address' => 'string|nullable|max:500',
+                'birthday' => 'required|date',
+            ]);
             $user->update($request->except('role'));
             return response()->json([
                 'message' => 'User updated successfully',
                 'user' => $user
             ], 200);
         } catch (Exception $e) {
-            return response()->json(['error' => 'Error updating user', 'message' => $e->getMessage()], 500);
+            return response()->json([
+                'error' => 'Update user failed',
+                'message' => $e->getMessage(),
+            ], 500);
         }
     }
 
@@ -254,7 +266,7 @@ class UserController extends Controller
         }
     }
 
-    public function changePassword(Request $request,$id)
+    public function changePasswordAdmin(Request $request,$id)
     {
         try {
 

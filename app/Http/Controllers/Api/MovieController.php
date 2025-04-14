@@ -291,8 +291,9 @@ class MovieController extends Controller
     {
         try {
             $currentNow = now();
+            $sevenDaysLater = $currentNow->copy()->addDays(10); // Thời điểm 7 ngày sau
             $cinemaId = $request->query('cinema_id'); // Lấy cinema_id từ request
-
+    
             // Phim đang chiếu
             $moviesShowing = Movie::where([
                 ['is_active', '1'],
@@ -300,38 +301,34 @@ class MovieController extends Controller
                 ['release_date', '<=', $currentNow],
                 ['end_date', '>=', $currentNow]
             ])
-                ->withCount(['showtimes' => function ($query) use ($currentNow, $cinemaId) {
+                ->withCount(['showtimes' => function ($query) use ($currentNow, $sevenDaysLater, $cinemaId) {
                     $query->where('is_active', 1)
-                        ->where('start_time', '>', $currentNow);
-
+                        ->whereBetween('start_time', [$currentNow, $sevenDaysLater]);
+    
                     if ($cinemaId) {
                         $query->where('cinema_id', $cinemaId);
                     }
                 }])
-                ->orderBy('is_hot', 'desc')
                 ->latest('id')
-                ->limit(8)
                 ->get();
-
+    
             // Phim sắp chiếu
             $moviesUpcoming = Movie::where([
                 ['is_active', '1'],
                 ['is_publish', '1'],
                 ['release_date', '>', $currentNow]
             ])
-                ->withCount(['showtimes' => function ($query) use ($currentNow, $cinemaId) {
+                ->withCount(['showtimes' => function ($query) use ($currentNow, $sevenDaysLater, $cinemaId) {
                     $query->where('is_active', 1)
-                        ->where('start_time', '>', $currentNow);
-
+                        ->whereBetween('start_time', [$currentNow, $sevenDaysLater]);
+    
                     if ($cinemaId) {
                         $query->where('cinema_id', $cinemaId);
                     }
                 }])
-                ->orderBy('is_hot', 'desc')
                 ->latest('id')
-                ->limit(8)
                 ->get();
-
+    
             // Phim suất chiếu đặc biệt
             $moviesSpecial = Movie::where([
                 ['is_active', '1'],
@@ -342,19 +339,17 @@ class MovieController extends Controller
                     $query->where('end_date', '<', $currentNow) // Phim đã hết chiếu
                         ->orWhere('release_date', '>', $currentNow); // Hoặc phim sắp chiếu
                 })
-                ->withCount(['showtimes' => function ($query) use ($currentNow, $cinemaId) {
+                ->withCount(['showtimes' => function ($query) use ($currentNow, $sevenDaysLater, $cinemaId) {
                     $query->where('is_active', 1)
-                        ->where('start_time', '>', $currentNow);
-
+                        ->whereBetween('start_time', [$currentNow, $sevenDaysLater]);
+    
                     if ($cinemaId) {
                         $query->where('cinema_id', $cinemaId);
                     }
                 }])
-                ->orderBy('is_hot', 'desc')
                 ->latest('id')
-                ->limit(8)
                 ->get();
-
+    
             return response()->json([
                 'message' => 'hiển thị thành công!',
                 'status' => true,
@@ -364,7 +359,7 @@ class MovieController extends Controller
             ]);
         } catch (\Throwable $th) {
             return response()->json([
-                'message' => 'hiển thị không thất bại!',
+                'message' => 'hiển thị thất bại!', // Sửa thông báo lỗi cho đúng ngữ nghĩa
                 'status' => false,
             ], 500);
         }
