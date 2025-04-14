@@ -78,11 +78,12 @@ class UserController extends Controller
         try {
             $request->validate([
                 'name' => 'required|string|max:255',
-                'email' => 'required|string|email|max:255|unique:users',
+                'email' => 'required|string|email:rfc,dns|max:255|unique:users',
                 'password' => 'required|string|min:8|confirmed',
                 'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
                 'gender' => 'required|string|in:nam,nữ,khác',
                 'birthday' => 'required|date',
+                'address' => 'string|max:500',
                 'role' => 'required'
             ]);
 
@@ -133,6 +134,14 @@ class UserController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email:rfc,dns|max:255|unique:users,email,'.$id,
+                'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
+                'gender' => 'required|string|in:nam,nữ,khác',
+                'address' => 'string|nullable|max:500',
+                'birthday' => 'required|date',
+            ]);
             $user = User::findOrFail($id);
             if($user->hasRole('member'))
             {
@@ -151,24 +160,40 @@ class UserController extends Controller
                 'message' => 'User updated successfully',
                 'user' => $user
             ], 200);
-        } catch (Exception $e) {
-            return response()->json(['error' => 'Error updating user', 'message' => $e->getMessage()], 500);
-        }
+        }catch (Exception $e) {
+                return response()->json([
+                    'error' => 'Update user failed',
+                    'message' => $e->getMessage(),
+                ], 500);
+            }
     }
     public function updateuser(Request $request)
     {
         try {
+            
             $user = Auth::user();
             if (!$user = Auth::user()) {
                 return response()->json(['message' => 'User not authenticated'], 401);
             }
+
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email:rfc,dns|max:255|unique:users,email,'.$user->id,
+                'phone' => ['required', 'regex:/^((0[2-9])|(84[2-9]))[0-9]{8}$/'],
+                'gender' => 'required|string|in:nam,nữ,khác',
+                'address' => 'string|nullable|max:500',
+                'birthday' => 'required|date',
+            ]);
             $user->update($request->except('role'));
             return response()->json([
                 'message' => 'User updated successfully',
                 'user' => $user
             ], 200);
         } catch (Exception $e) {
-            return response()->json(['error' => 'Error updating user', 'message' => $e->getMessage()], 500);
+            return response()->json([
+                'error' => 'Update user failed',
+                'message' => $e->getMessage(),
+            ], 500);
         }
     }
 
