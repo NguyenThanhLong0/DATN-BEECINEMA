@@ -98,4 +98,57 @@ class PriceRuleController extends Controller
               return response()->json(['error' => 'Không thể xóa quy tắc giá', 'message' => $e->getMessage()], 500);
           }
       }
+
+      //Lấy giá theo rạp 
+      public function cinemaPrice($id)
+      {
+          try {
+              $prices = PriceRule::where('price_rules.cinema_id', $id)
+                  ->join('type_rooms', 'price_rules.type_room_id', '=', 'type_rooms.id')
+                  ->join('type_seats', 'price_rules.type_seat_id', '=', 'type_seats.id')
+                  ->join('cinemas', 'price_rules.cinema_id', '=', 'cinemas.id')
+                  ->select(
+                      'price_rules.type_room_id',
+                      'type_rooms.name as room_name',
+                      'cinemas.name as cinema_name',
+                      'price_rules.type_seat_id',
+                      'type_seats.name as seat_name',
+                      'price_rules.price',
+                      'price_rules.day_type',
+                      'price_rules.time_slot'
+                  )
+                  ->get();
+      
+              $grouped = $prices->groupBy('type_room_id')->map(function ($items, $roomId) {
+                  return [
+                      'type_room_id' => $roomId,
+                      'room_name' => $items->first()->room_name,
+                      'cinema_name' => $items->first()->cinema_name,
+                      'seats' => $items->map(function ($item) {
+                          return [
+                              'type_seat_id' => $item->type_seat_id,
+                              'seat_name' => $item->seat_name,
+                              'price' => $item->price,
+                              'day_type' => $item->day_type,
+                              'time_slot' => $item->time_slot,
+                          ];
+                      })->values()
+                  ];
+              })->values();
+      
+              return response()->json([
+                  'status' => true,
+                  'message' => 'Lấy dữ liệu giá vé thành công',
+                  'data' => $grouped
+              ], 200);
+      
+          } catch (\Exception $e) {
+              return response()->json([
+                  'status' => false,
+                  'message' => 'Đã xảy ra lỗi khi lấy dữ liệu',
+                  'error' => $e->getMessage()
+              ], 500);
+          }
+      }
+      
 }

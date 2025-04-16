@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('special_days', function (Blueprint $table) {
             $table->id();
-            $table->date('special_date'); // Ngày đặc biệt
+            $table->date('special_date')->unique(); // Ngày đặc biệt
             $table->string('name');       // Tên ngày đặc biệt (ví dụ: Tết, Giáng sinh)
             $table->string('type');       // Loại ngày đặc biệt (ví dụ: Holiday, Event)
             $table->timestamps();         // Cột created_at và updated_at
