@@ -41,7 +41,7 @@ class SpecialDayController extends Controller
  {
      try {
          $validated = $request->validate([
-             'special_date' => 'required|date',
+             'special_date' => 'required|date|unique:special_days,special_date',
              'name' => 'required|string|max:255',
              'type' => 'required|string|max:255',
          ]);

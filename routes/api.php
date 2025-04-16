@@ -187,23 +187,7 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('delete/{id}', [RoleController::class, 'destroy']);
         });
 
-        Route::prefix('price-rules')->group(function () {
-            Route::get('/', [PriceRuleController::class, 'index']); // Lấy tất cả quy tắc giá
-            Route::get('{id}', [PriceRuleController::class, 'show']); // Lấy một quy tắc giá theo ID
-            Route::post('/', [PriceRuleController::class, 'store']); // Tạo quy tắc giá mới
-            Route::put('{id}', [PriceRuleController::class, 'update']); // Cập nhật quy tắc giá
-            Route::patch('{id}', [PriceRuleController::class, 'update']); // Cập nhật quy tắc giá
-            Route::delete('{id}', [PriceRuleController::class, 'destroy']); // Xóa quy tắc giá
-        });
-        
-        Route::prefix('special-days')->group(function () {
-            Route::get('/', [SpecialDayController::class, 'index']); // Lấy tất cả các ngày đặc biệt
-            Route::get('{id}', [SpecialDayController::class, 'show']); // Lấy một ngày đặc biệt theo ID
-            Route::post('/', [SpecialDayController::class, 'store']); // Tạo mới một ngày đặc biệt
-            Route::put('{id}', [SpecialDayController::class, 'update']); // Cập nhật thông tin ngày đặc biệt
-            Route::patch('{id}', [SpecialDayController::class, 'update']); // Cập nhật thông tin ngày đặc biệt
-            Route::delete('{id}', [SpecialDayController::class, 'destroy']); // Xóa một ngày đặc biệt
-        });
+
     });
 
 
@@ -382,3 +366,22 @@ Route::get('/booking-trends', [ReportController::class,'bookingTrends']);//Thố
 // Reports & Overview (Thường cần auth, nhưng để public theo yêu cầu đơn giản hóa)
 Route::get('/revenue-statistics', [ReportController::class, 'revenueStatistics']);
 
+Route::prefix('price-rules')->group(function () {
+    Route::get('/', [PriceRuleController::class, 'index']); // Lấy tất cả quy tắc giá
+    Route::get('/cinema/{id}', [PriceRuleController::class, 'cinemaPrice']); // lay gia theo rap
+    Route::get('{id}', [PriceRuleController::class, 'show']); // Lấy một quy tắc giá theo ID
+    Route::post('/', [PriceRuleController::class, 'store']); // Tạo quy tắc giá mới
+    Route::put('{id}', [PriceRuleController::class, 'update']); // Cập nhật quy tắc giá
+    Route::patch('{id}', [PriceRuleController::class, 'update']); // Cập nhật quy tắc giá
+    Route::delete('{id}', [PriceRuleController::class, 'destroy']); // Xóa quy tắc giá
+});
+
+Route::prefix('special-days')->group(function () {
+    Route::get('/', [SpecialDayController::class, 'index']); // Lấy tất cả các ngày đặc biệt
+    Route::get('{id}', [SpecialDayController::class, 'show']); // Lấy một ngày đặc biệt theo ID
+    Route::post('/', [SpecialDayController::class, 'store']); // Tạo mới một ngày đặc biệt
+    Route::put('{id}', [SpecialDayController::class, 'update']); // Cập nhật thông tin ngày đặc biệt
+    Route::patch('{id}', [SpecialDayController::class, 'update']); // Cập nhật thông tin ngày đặc biệt
+    Route::delete('{id}', [SpecialDayController::class, 'destroy']); // Xóa một ngày đặc biệt
+
+});
