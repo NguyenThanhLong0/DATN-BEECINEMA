@@ -26,6 +26,8 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ChooseSeatController;
 use App\Http\Controllers\Api\OverviewController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PriceRuleController;
+use App\Http\Controllers\Api\SpecialDayController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -117,7 +119,7 @@ Route::middleware('auth:sanctum')->group(function () {
 // Admin Routes (auth:sanctum + role:admin)
     Route::middleware(['role:admin'])->group(function () {
         // Users Management
-    
+        
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
         Route::post('/users/{id}/restore', [UserController::class, 'restore']);
         Route::delete('/users/{id}/force-delete', [UserController::class, 'forceDelete']);
@@ -183,6 +185,24 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::put('update/{id}', [RoleController::class, 'update']);
             Route::patch('update/{id}', [RoleController::class, 'update']);
             Route::delete('delete/{id}', [RoleController::class, 'destroy']);
+        });
+
+        Route::prefix('price-rules')->group(function () {
+            Route::get('/', [PriceRuleController::class, 'index']); // Lấy tất cả quy tắc giá
+            Route::get('{id}', [PriceRuleController::class, 'show']); // Lấy một quy tắc giá theo ID
+            Route::post('/', [PriceRuleController::class, 'store']); // Tạo quy tắc giá mới
+            Route::put('{id}', [PriceRuleController::class, 'update']); // Cập nhật quy tắc giá
+            Route::patch('{id}', [PriceRuleController::class, 'update']); // Cập nhật quy tắc giá
+            Route::delete('{id}', [PriceRuleController::class, 'destroy']); // Xóa quy tắc giá
+        });
+        
+        Route::prefix('special-days')->group(function () {
+            Route::get('/', [SpecialDayController::class, 'index']); // Lấy tất cả các ngày đặc biệt
+            Route::get('{id}', [SpecialDayController::class, 'show']); // Lấy một ngày đặc biệt theo ID
+            Route::post('/', [SpecialDayController::class, 'store']); // Tạo mới một ngày đặc biệt
+            Route::put('{id}', [SpecialDayController::class, 'update']); // Cập nhật thông tin ngày đặc biệt
+            Route::patch('{id}', [SpecialDayController::class, 'update']); // Cập nhật thông tin ngày đặc biệt
+            Route::delete('{id}', [SpecialDayController::class, 'destroy']); // Xóa một ngày đặc biệt
         });
     });
 

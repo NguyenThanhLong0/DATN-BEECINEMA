@@ -101,22 +101,6 @@ class UserController extends Controller
         }
     }
 
-    public function updateuser(Request $request)
-    {
-        try {
-            $user = Auth::user();
-            if (!$user = Auth::user()) {
-                return response()->json(['message' => 'User not authenticated'], 401);
-            }
-            $user->update($request->except('role'));
-            return response()->json([
-                'message' => 'User updated successfully',
-                'user' => $user
-            ], 200);
-        } catch (Exception $e) {
-            return response()->json(['error' => 'Error updating user', 'message' => $e->getMessage()], 500);
-        }
-    }
     // Cập nhật user
     public function update(Request $request, $id)
     {
