@@ -22,41 +22,28 @@ class UserController extends Controller
     {
         try {
             $cinema_id = $request->input('cinema_id');
-    
             $usersQuery = User::query();
-    
+
+            // Join với bảng cinemas để lấy tên rạp
+            $usersQuery->leftJoin('cinemas', 'users.cinema_id', '=', 'cinemas.id')
+                    ->select('users.*', 'cinemas.name as cinema_name');
+
             if ($cinema_id) {
-                $usersQuery->where('cinema_id', $cinema_id);
+                $users = $usersQuery->where('users.cinema_id', $cinema_id)->get();
+            } else {
+                $users = $usersQuery->get();
             }
-    
-            // Eager load tên rạp (cinemas), chỉ lấy id và name
-            $users = $usersQuery->with(['cinema:id,name'])->get();
-    
-            // Thêm role và ẩn roles
-            $users = $users->map(function ($user) {
+
+            foreach ($users as $user) {
                 $user['role'] = $user->getRoleNames()->implode(', ');
-                return $user->makeHidden(['roles']);
-            });
-    
+                $user->makeHidden(['roles']);
+            }
+
             return response()->json($users, 200);
-    
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Lỗi khi lấy danh sách người dùng',
-                'message' => $e->getMessage()
-            ], 500);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Error fetching users', 'message' => $e->getMessage()], 500);
         }
-
-        foreach ($users as $user) {
-            $user['role'] = $user->getRoleNames()->implode(', ');
-            $user->makeHidden(['roles']);
-        }
-
-        return response()->json($users, 200);
-    } catch (Exception $e) {
-        return response()->json(['error' => 'Error fetching users', 'message' => $e->getMessage()], 500);
-    }
-}   
+    }   
 
     // Lấy thông tin user cụ thể
     public function show($id)
@@ -93,7 +80,7 @@ class UserController extends Controller
                 'password' => Hash::make($request->password),
                 'phone' => $request->phone,
                 'address' =>$request->address,
-                'arvatar' => $request->arvatar,
+                'avatar' => $request->avatar,
                 'gender' => $request->gender,
                 'birthday' => $request->birthday,
                 'cinema_id'=>$request->id_cinema,
@@ -279,7 +266,7 @@ class UserController extends Controller
         }
     }
 
-    public function changePassword(Request $request,$id)
+    public function changePasswordAdmin(Request $request,$id)
     {
         try {
 

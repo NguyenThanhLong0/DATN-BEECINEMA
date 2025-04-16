@@ -100,7 +100,10 @@ class RolePermissionSeeder extends Seeder
             'Xóa tài khoản',
             'Cấu hình website',
             'Danh sách thống kê',
-            'Thẻ thành viên'
+            'Thẻ thành viên',
+            'Danh sách quyền',
+            'Thêm quyền',
+            'Sửa quyền',
         ];
 
         foreach ($permissions as $permission) {
@@ -187,7 +190,10 @@ class RolePermissionSeeder extends Seeder
             'Xóa tài khoản',
             'Cấu hình website',
             'Danh sách thống kê',
-            'Thẻ thành viên'
+            'Thẻ thành viên',
+            'Danh sách quyền',
+            'Thêm quyền',
+            'Sửa quyền',
         ]);
     
         $adminCinema->givePermissionTo([

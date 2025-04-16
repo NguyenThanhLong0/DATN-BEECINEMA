@@ -30,7 +30,7 @@ class AuthServiceProvider extends ServiceProvider
         // URL backend để xác minh email
         $backendUrl = config('app.url', 'http://datn-beecinema.test'); 
         // URL frontend để chuyển hướng sau khi xác minh email thành công
-        $frontendUrl = config('app.frontend_url', 'https://beecinema-ten.vercel.app');
+        $frontendUrl = config('app.frontend_url');
         
         // Trả về URL xác minh email từ backend, kèm với redirect_to
         return "{$backendUrl}/verify/email/{$notifiable->getKey()}/" . sha1($notifiable->getEmailForVerification()) . "?redirect_to={$frontendUrl}/email-verified";

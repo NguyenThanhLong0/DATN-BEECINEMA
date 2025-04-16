@@ -114,7 +114,7 @@ class User extends Authenticatable implements MustVerifyEmail, ShouldQueue
 
     public function sendPasswordResetNotification($token)
 {
-    $url = config('app.frontend_url')."?token={$token}&email={$this->email}";
+    $url = config('app.frontend_url')."/change-password?token={$token}&email={$this->email}";
 
     $this->notify(new ResetPasswordCustom($url));
 }
