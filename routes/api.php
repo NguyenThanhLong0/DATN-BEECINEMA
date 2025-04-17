@@ -188,11 +188,9 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('delete/{id}', [RoleController::class, 'destroy']);
         });
 
-<<<<<<< HEAD
-
-=======
         Route::prefix('price-rules')->group(function () {
             Route::get('/', [PriceRuleController::class, 'index']); // Lấy tất cả quy tắc giá
+            Route::get('/cinema/{id}', [PriceRuleController::class, 'cinemaPrice']); // lay gia theo rap
             Route::get('{id}', [PriceRuleController::class, 'show']); // Lấy một quy tắc giá theo ID
             Route::post('/', [PriceRuleController::class, 'store']); // Tạo quy tắc giá mới
             Route::post('/update-rule-prices', [PriceRuleController::class, 'updateRulePrices']); // Cập nhật quy tắc giá
@@ -207,7 +205,6 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::patch('{id}', [SpecialDayController::class, 'update']); // Cập nhật thông tin ngày đặc biệt
             Route::delete('{id}', [SpecialDayController::class, 'destroy']); // Xóa một ngày đặc biệt
         });
->>>>>>> 9732bf7 (feat price ticket)
     });
 
 
