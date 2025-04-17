@@ -38,7 +38,7 @@ class StoreShowtimeRequest extends FormRequest
                 'required',
                 Rule::in(['generated']), // Chỉ chấp nhận type = 'generated'
             ],
-            'showtimes.*.showtimes.*.overlapping' => 'required|boolean',
+            // 'showtimes.*.showtimes.*.overlapping' => 'required|boolean',
         ];
     }
 
@@ -64,8 +64,8 @@ class StoreShowtimeRequest extends FormRequest
             'showtimes.*.showtimes.*.end_time.after' => 'Giờ kết thúc phải sau giờ bắt đầu.',
             'showtimes.*.showtimes.*.type.required' => 'Loại suất chiếu là bắt buộc.',
             'showtimes.*.showtimes.*.type.in' => 'Loại suất chiếu phải là "generated".',
-            'showtimes.*.showtimes.*.overlapping.required' => 'Trạng thái overlapping là bắt buộc.',
-            'showtimes.*.showtimes.*.overlapping.boolean' => 'Trạng thái overlapping phải là true hoặc false.',
+            // 'showtimes.*.showtimes.*.overlapping.required' => 'Trạng thái overlapping là bắt buộc.',
+            // 'showtimes.*.showtimes.*.overlapping.boolean' => 'Trạng thái overlapping phải là true hoặc false.',
         ];
     }
 

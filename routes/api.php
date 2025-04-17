@@ -35,7 +35,8 @@ use Illuminate\Support\Facades\Route;
 | API Routes
 |--------------------------------------------------------------------------
 */
-
+Route::post('showtimes', [ShowtimeController::class, 'store']);
+ Route::post('/showtimes/preview', [ShowtimeController::class, 'previewShowtimes']);
 // Authentication (Không cần auth:sanctum cho đăng nhập/đăng ký)
 Route::get('/sanctum/csrf-cookie', [\Laravel\Sanctum\Http\Controllers\CsrfCookieController::class, 'show']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -254,7 +255,7 @@ Route::middleware(['auth:sanctum','role:admin|admin_cinema'])->group(function ()
     // Showtimes
 
     Route::post('add-showtime-per-day', [ShowtimeController::class, 'addShowtimePerDay']);
-    Route::post('showtimes', [ShowtimeController::class, 'store']);
+    
     Route::put('showtimes/{showtime}', [ShowtimeController::class, 'update']);
     Route::patch('showtimes/{showtime}', [ShowtimeController::class, 'update']);
     Route::delete('showtimes/{showtime}', [ShowtimeController::class, 'destroy']);
@@ -263,7 +264,7 @@ Route::middleware(['auth:sanctum','role:admin|admin_cinema'])->group(function ()
     Route::get('/showtimes/slug/{slug}', [ShowtimeController::class, 'showBySlug']);
     Route::post('/showtimes/{id}/copy', [ShowtimeController::class, 'copyShowtime']);
     Route::get('listshowtimesdate', [ShowtimeController::class, 'listShowtimesByDate']);
-    Route::post('/showtimes/preview', [ShowtimeController::class, 'previewShowtimes']);
+   
     // Movie Reviews
     Route::post('movie-reviews', [MovieReviewController::class, 'store']);
     Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
