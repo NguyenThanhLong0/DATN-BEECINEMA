@@ -210,7 +210,7 @@ class PriceRuleController extends Controller
                         'type_seat_id' => 3,
                         'day_type' => $day,
                         'time_slot' => $slot,
-                        'price' => ($basePrice + $doubleSurcharge) * 2, // <-- Đây mới đúng
+                        'price' => ($basePrice * 2 ) + $doubleSurcharge, // <-- Đây mới đúng
                         'valid_from' => now(),
                     ]);
                   }
@@ -287,7 +287,7 @@ class PriceRuleController extends Controller
                           'type_seat_id' => 3,
                           'day_type' => $day,
                           'time_slot' => $slot,
-                          'price' => ($basePrice + $doubleSurcharge) * 2,
+                          'price' => ($basePrice * 2) + $doubleSurcharge,
                           'valid_from' => now(),
                       ]);
                   }
