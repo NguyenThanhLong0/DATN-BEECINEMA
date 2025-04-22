@@ -15,6 +15,8 @@ class Kernel extends ConsoleKernel
         // $schedule->command('inspire')->hourly();
         $schedule->command('revenue:calculate-daily')->dailyAt('20:15'); // Chạy lúc 23:59 mỗi ngày
         $schedule->command('tickets:update-status')->everyTenMinutes();
+        $schedule->command('points:expire-points')->everyMinute();
+        $schedule->command('points:notify-expiring')->everyMinute();
     }
 
     /**
