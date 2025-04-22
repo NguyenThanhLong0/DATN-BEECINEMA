@@ -34,20 +34,9 @@ class MovieReviewController extends Controller
             $request->validate([
                 'movie_id' => 'required|exists:movies,id',
                 'rating' => 'required|integer|min:1|max:10',
-                'description' => 'required|string',
             ]);
 
             $userId = auth()->id();
-
-            // Kiểm tra xem người dùng đã xem phim này chưa
-            $hasWatched = Ticket::where('user_id', $userId)
-                ->where('movie_id', $request->movie_id)
-                ->where('status', 'đã xuất vé')  // Chỉ tính những vé đã được xuất
-                ->exists();
-
-            if (!$hasWatched) {
-                return response()->json(['error' => 'Bạn phải xem phim này trước khi đánh giá.'], 403);
-            }
 
             $review = MovieReview::create([
                 'movie_id' => $request->movie_id,
@@ -105,6 +94,50 @@ class MovieReviewController extends Controller
             ], 204);
         } catch (Exception $e) {
             return response()->json(['error' => 'Có lỗi xảy ra khi xóa đánh giá.'], 500);
+        }
+    }
+
+    public function checkReviewStatus($movieId, Request $request)
+    {
+        try {
+            $userId = $request->user()->id;
+    
+            $ticket = Ticket::where('user_id', $userId)
+                ->where('movie_id', $movieId)
+                ->where('expiry', '<', now())  // Kiểm tra vé chưa hết hạn
+                ->first();
+    
+            // Nếu không tìm thấy vé hợp lệ
+            if (!$ticket) {
+                return response()->json([
+                    'hasPurchased' => false, 
+                    'message' => 'Bạn chưa mua vé hoặc vé đã hết hạn.'
+                ]);
+            }
+    
+            $review = MovieReview::where('user_id', $userId)
+                ->where('movie_id', $movieId)
+                ->first();
+    
+            // Nếu người dùng đã đánh giá
+            if ($review) {
+                return response()->json([
+                    'hasPurchased' => true,
+                    'hasReviewed' => true,
+                    'review' => $review,
+                ]);
+            }
+    
+            // Nếu người dùng đã mua vé nhưng chưa đánh giá
+            return response()->json([
+                'hasPurchased' => true,
+                'hasReviewed' => false,
+                'message' => 'Bạn đã mua vé, nhưng chưa đánh giá bộ phim này.'
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'error' => 'Có lỗi xảy ra, vui lòng thử lại sau.'
+            ], 500);
         }
     }
 }
