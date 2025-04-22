@@ -26,8 +26,10 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ChooseSeatController;
 use App\Http\Controllers\Api\OverviewController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PointController;
 use App\Http\Controllers\Api\PriceRuleController;
 use App\Http\Controllers\Api\SpecialDayController;
+use App\Http\Controllers\PointController as ControllersPointController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -49,6 +51,9 @@ Route::get('/auth/google', [AuthController::class, 'redirectToGoogle']);
 Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
 // Các route cần xác thực (auth:sanctum)
 Route::middleware('auth:sanctum')->group(function () {
+    //Points
+    Route::get('/points/available', [ControllersPointController::class, 'getAvailablePoints']);
+
     Route::put('/users/update', [UserController::class, 'updateuser']);
     Route::patch('/users/update', [UserController::class, 'updateuser']);
     // Authentication

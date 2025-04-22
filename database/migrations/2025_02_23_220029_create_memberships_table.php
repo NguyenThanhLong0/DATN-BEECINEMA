@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('rank_id')->constrained()->onDelete('cascade'); // Khóa ngoại rank_id
             $table->string('code')->nullable()->unique();
             $table->integer('points')->default(0);
+            $table->integer('expired_soon_points')->default(0);
             $table->integer('total_spent')->default(0);
             $table->timestamps();
         });
