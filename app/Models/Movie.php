@@ -51,6 +51,10 @@ class Movie extends Model
         ['id' => 4, 'name' => 'T18', 'description' => 'Phim được phổ biến đến khán giả từ đủ 18 tuổi trở lên.'],
         ['id' => 5, 'name' => 'K', 'description' => 'Phim được phổ biến đến khán giả dưới 13 tuổi và có người bảo hộ đi cùng.'],
     ];
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class);
+    }
 
     public function sluggable(): array
     {

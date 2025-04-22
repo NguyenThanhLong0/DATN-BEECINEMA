@@ -29,4 +29,10 @@ class Combo extends Model
     {
         return $this->belongsToMany(Food::class, 'combo_food')->withPivot('quantity');
     }
+    // public function foods()
+    // {
+    //     return $this->belongsToMany(Food::class, 'combo_food')
+    //         ->withPivot('quantity')
+    //         ->withTimestamps();
+    // }
 }

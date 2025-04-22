@@ -33,7 +33,7 @@ class StoreMovieRequest extends FormRequest
             'name' => 'required|unique:movies|max:255',
             'category' => 'required|max:255',
             'img_thumbnail' => 'required|url|max:255',
-            'description' => 'required|max:255', // Giới hạn mô tả.
+            'description' => 'required|max:3000', // Giới hạn mô tả.
             'director' => 'required|max:255',
             'cast' => 'required|max:255', // Giới hạn danh sách diễn viên.
             'duration' => 'required|integer|min:30|max:180',

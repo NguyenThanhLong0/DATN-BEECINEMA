@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\PostController;
+use App\Http\Controllers\Api\AuthController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -25,3 +26,4 @@ Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])
     // ->middleware('verified')
     ->name('home');
 
+    Route::get('/verify/email/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');

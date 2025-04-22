@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\UserVoucher;
 use App\Models\Voucher;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class TicketController extends Controller
@@ -25,21 +26,21 @@ class TicketController extends Controller
     }
 
     // Lấy thông tin 1 ticket theo ID
-    public function show($id)
-    {
-        $ticket = Ticket::find($id);
-        if (!$ticket) {
-            return response()->json(['message' => 'Ticket not found'], 404);
-        }
-        return response()->json($ticket, 200);
-    }
+    // public function show($id)
+    // {
+    //     $ticket = Ticket::find($id);
+    //     if (!$ticket) {
+    //         return response()->json(['message' => 'Ticket not found'], 404);
+    //     }
+    //     return response()->json($ticket, 200);
+    // }
 
     // Tạo mới ticket
     public function store(Request $request)
     {
+
         // Lấy user_id từ token
         $user_id = Auth()->id();
-
         // Validation
         $validatedData = Validator::make($request->all(), [
             'cinema_id' => 'required|exists:cinemas,id',
@@ -75,6 +76,14 @@ class TicketController extends Controller
 
         DB::beginTransaction();
         try {
+            // Lấy thông tin Membership của user
+            $user = User::findOrFail($user_id);
+            $membership = Membership::firstOrCreate(
+                ['user_id' => $user->id],
+                ['total_spent' => 0, 'rank_id' => null, 'points' => 0]
+            );
+            // Lấy rank hiện tại của user
+            $currentRank = Rank::find($membership->rank_id)?->name ?? 'Member';
             $ticket = Ticket::create(array_merge(
                 $request->only([
                     'cinema_id',
@@ -87,9 +96,15 @@ class TicketController extends Controller
                     'code',
                     'status',
                     'staff',
-                    'expiry',
+                    'expiry'
                 ]),
-                ['user_id' => $user_id, 'total_price' => 0]
+                [
+                    'user_id' => $user_id,
+                    'total_price' => 0,
+                    'rank_at_booking' => $currentRank,
+                    'point' => 0,
+                    'point_discount' => 0
+                ]
             ));
 
             $total_price = 0;
@@ -143,36 +158,44 @@ class TicketController extends Controller
             }
 
             // Xử lý Membership
-            $user = User::findOrFail($user_id);
-            $isFirstBooking = !Membership::where('user_id', $user->id)->exists(); // Kiểm tra lần đầu đặt vé không
+            // $user = User::findOrFail($user_id);
+            // $isFirstBooking = !Membership::where('user_id', $user->id)->exists(); // Kiểm tra lần đầu đặt vé không
 
-            $membership = Membership::firstOrCreate(
-                ['user_id' => $user->id],
-                ['total_spent' => 0, 'rank_id' => null, 'points' => 0]
-            );
+            // $membership = Membership::firstOrCreate(
+            //     ['user_id' => $user->id],
+            //     ['total_spent' => 0, 'rank_id' => null, 'points' => 0]
+            // );
 
+            $usedPoints = 0;
+            $pointDiscount = 0;
             // Xử lý trừ điểm nếu người dùng nhập số điểm muốn sử dụng
             if ($request->has('use_points') && $request->use_points > 0) {
-                $usePoints = (int) $request->use_points;
+                $usedPoints = (int) $request->use_points;
 
                 // Kiểm tra điểm có đủ không
-                if ($usePoints > $membership->points) {
+                if ($usedPoints > $membership->points) {
                     return response()->json(['message' => 'Điểm không đủ'], 400);
                 }
-
+                $pointDiscount = $usedPoints;
                 // Trừ điểm và cập nhật lịch sử
-                $membership->decrement('points', $usePoints);
-                $total_price -= $usePoints;
-
+                $membership->decrement('points', $usedPoints);
+                $total_price -= $usedPoints;
+                //lưu vào bảng Point_history
                 PointHistory::create([
                     'membership_id' => $membership->id,
-                    'points' => -$usePoints,
+                    'points' => -$usedPoints,
                     'type' => 'trừ điểm',
                 ]);
+                $ticket->point = $usedPoints;
+                $ticket->point_discount = $usedPoints;
+                $ticket->save(); // Sử dụng save() thay vì update()
             }
-
             // Cập nhật total_price của ticket
-            $ticket->update(['total_price' => $total_price]);
+            $ticket->update([
+                'total_price' => max(0, $total_price), // Không cho giá trị âm
+                'point' => $usedPoints, // Số điểm đã dùng
+                'point_discount' => $pointDiscount // Giá trị quy đổi từ điểm
+            ]);
 
             // Cập nhật tổng tiền đã chi tiêu
             $membership->increment('total_spent', $total_price);
@@ -304,7 +327,7 @@ class TicketController extends Controller
             if ($request->voucher_id) {
                 $voucher = Voucher::find($request->voucher_id);
                 if ($voucher) {
-                    $discount = ($voucher->type == '1')
+                    $discount = ($voucher->type == 'percent')
                         ? ($total_price * $voucher->discount) / 100
                         : min($voucher->discount, $total_price);
                     $total_price -= $discount;
@@ -326,6 +349,7 @@ class TicketController extends Controller
                 ['total_spent' => 0, 'rank_id' => null, 'points' => 0]
             );
             //Trừ điểm của họ khi họ muốn dùng điểm để thanh toán
+            $pointUsed = 0;
             if ($request->has('use_points') && $request->use_points > 0) {
                 $usePoints = (int) $request->use_points;
                 if ($usePoints > $membership->points) {
@@ -333,6 +357,7 @@ class TicketController extends Controller
                 }
                 $membership->decrement('points', $usePoints);
                 $total_price -= $usePoints;
+                $pointUsed = $usePoints;
                 //Lưu lịch sử khi người dùng tiêu điểm "trừ điểm"
                 PointHistory::create([
                     'membership_id' => $membership->id,
@@ -341,7 +366,15 @@ class TicketController extends Controller
                 ]);
             }
 
-            $ticket->update(['total_price' => $total_price]); //cập nhật lại tổng tiền vé
+
+            // $ticket->update(['total_price' => $total_price]); 
+            //cập nhật lại tổng tiền vé
+            $ticket->total_price = $total_price;
+            $ticket->point = $pointUsed;
+            $ticket->point_discount = $pointUsed;
+            $ticket->save();
+
+
             $membership->increment('total_spent', $total_price); //cập nhật lại số tiền mà khách đa chi tiêu
             // cập nhật rank của thành viên dựa trên số tiền khách đã chi tiêu
             $rank = Rank::where('total_spent', '<=', $membership->total_spent)
@@ -377,6 +410,7 @@ class TicketController extends Controller
             ], 500);
         }
     }
+
     // lịch sử đặt vé của người dùng
     public function getBookingHistory(Request $request)
     {
@@ -403,24 +437,24 @@ class TicketController extends Controller
                     'movie:id,name,duration,img_thumbnail', //lấy ra tên và thời lượng phim
                     'room:id,name',
                     'showtime:id,start_time,end_time',
-                    'voucher:id,code,type,discount',
+                    'voucher:id,code,discount_type,discount_value',
                 ])
                 ->orderBy('created_at', 'desc')
                 ->get()
                 ->map(function ($ticket) {
-                // Tính tổng tiền ghế
-                $ticket->total_seat_price = $ticket->seats->sum('price');
+                    // Tính tổng tiền ghế
+                    $ticket->total_seat_price = $ticket->seats->sum('price');
 
-                // Tính tổng tiền combo
-                $totalComboPrice = 0;
-                foreach ($ticket->combos as $combo) {
-                    $totalComboPrice += $combo->price * $combo->quantity;
-                }
-                
-                $ticket->total_combo_price = $totalComboPrice;
+                    // Tính tổng tiền combo
+                    $totalComboPrice = 0;
+                    foreach ($ticket->combos as $combo) {
+                        $totalComboPrice += $combo->price * $combo->quantity;
+                    }
 
-                return $ticket;
-            });
+                    $ticket->total_combo_price = $totalComboPrice;
+
+                    return $ticket;
+                });
 
             return response()->json([
                 'message' => 'Lịch sử đặt vé',
@@ -433,4 +467,221 @@ class TicketController extends Controller
             ], 500);
         }
     }
+
+
+    public function show($code)
+    {
+        // Tìm vé theo code
+        $ticket = Ticket::where('code', $code)
+            ->with(['user', 'cinema', 'room', 'movie', 'showtime', 'ticketSeats.seat', 'ticketCombos.combo.foods'])
+            ->first();
+
+        if (!$ticket) {
+            return response()->json(['message' => 'Không tìm thấy vé'], 404);
+        }
+
+        // Tính tổng tiền combo
+        $comboDetails = [];
+        $totalComboPrice = 0;
+        foreach ($ticket->ticketCombos as $ticketCombo) {
+            $combo = $ticketCombo->combo;
+            $foods = [];
+
+            foreach ($combo->foods as $food) {
+                $foods[] = [
+                    'food_id' => $food->id,
+                    'food_name' => $food->name,
+                    'food_price' => $food->price,
+                    'food_img' => $food->img_thumbnail,
+                    'quantity' => $food->pivot->quantity, // Lấy số lượng từ bảng trung gian
+                ];
+            }
+
+            $comboPrice = $combo->price * $ticketCombo->quantity;
+            $totalComboPrice += $comboPrice;
+
+            $comboDetails[] = [
+                'combo_id' => $combo->id,
+                'combo_name' => $combo->name,
+                'img' => $combo->img_thumbnail,
+                'quantity' => $ticketCombo->quantity,
+                'price_per_unit' => $combo->price,
+                'total_price' => $comboPrice,
+                'foods' => $foods, // Thêm danh sách food vào combo
+            ];
+        }
+
+        // Tính tổng tiền ghế
+        $seatDetails = [];
+        $totalSeatPrice = 0;
+        foreach ($ticket->ticketSeats as $ticketSeat) {
+            $totalSeatPrice += $ticketSeat->price;
+            $seatDetails[] = [
+                'seat_id' => $ticketSeat->seat->id,
+                'seat_name' => $ticketSeat->seat->name,
+                'price' => $ticketSeat->price,
+            ];
+        }
+
+        return response()->json([
+            'ticket' => [
+                'id' => $ticket->id,
+                'user' => [
+                    'id' => $ticket->user->id,
+                    'name' => $ticket->user->name,
+                    'email' => $ticket->user->email,
+                    'avata' => $ticket->user->avata,
+                    'phone' => $ticket->user->phone,
+                    'address' => $ticket->user->address,
+                    'gender' => $ticket->user->gender,
+                    'birthday' => $ticket->user->birthday,
+                    'role' => $ticket->user->role,
+                ],
+                'cinema' => ['id' => $ticket->cinema->id, 'name' => $ticket->cinema->name, "address" => $ticket->cinema->address, 'branch' => optional($ticket->cinema->branch)->name],
+                'room' => ['id' => $ticket->room->id, 'name' => $ticket->room->name],
+                'movie' => ['id' => $ticket->movie->id, 'name' => $ticket->movie->name, 'img' => $ticket->movie->img_thumbnail, 'duration' => $ticket->movie->duration, 'age' => $ticket->movie->rating, 'category' => $ticket->movie->category],
+                'showtime' => [
+                    'id' => $ticket->showtime->id,
+                    'format' => $ticket->showtime->format,
+                    'start_time' => $ticket->showtime->start_time,
+                    'end_time' => $ticket->showtime->end_time
+                ],
+                'voucher_code' => $ticket->voucher_code,
+                'voucher_discount' => $ticket->voucher_discount,
+                'payment_name' => $ticket->payment_name,
+                'code' => $ticket->code,
+                'status' => $ticket->status,
+                'staff' => $ticket->staff,
+                'expiry' => $ticket->expiry,
+                'point' => $ticket->point,
+                'point_discount' => $ticket->point_discount,
+                'rank_at_booking' => $ticket->rank_at_booking,
+                'total_price' => $ticket->total_price,
+                'create_at' => $ticket->created_at,
+                'update_at' => $ticket->update_at,
+                'combos' => [
+                    'details' => $comboDetails,
+                    'total_combo_price' => $totalComboPrice,
+                ],
+                'seats' => [
+                    'details' => $seatDetails,
+                    'total_seat_price' => $totalSeatPrice,
+                ],
+            ],
+        ], 200);
+    }
+    //lọc vé
+    public function filter(Request $request)
+    {
+        try {
+            $query = Ticket::query()
+                ->select([
+                    'tickets.code',
+                    'users.name as user_name',
+                    'users.email as user_email',
+                    // 🛠️ Thay thế users.role bằng subquery để lấy role đầu tiên
+                    DB::raw('(SELECT roles.name 
+                              FROM model_has_roles 
+                              JOIN roles ON roles.id = model_has_roles.role_id 
+                              WHERE model_has_roles.model_id = users.id 
+                              LIMIT 1) as user_role'),
+                    'movies.img_thumbnail as movie_image',
+                    'movies.name as movie_name',
+                    'cinemas.name as cinema_name',
+                    'rooms.name as room_name',
+                    'tickets.total_price',
+                    'tickets.status',
+                    'showtimes.start_time as start_time',
+                    'showtimes.date as show_date',
+                    'tickets.expiry',
+                    'tickets.payment_name',
+                    DB::raw('GROUP_CONCAT(seats.name ORDER BY seats.name ASC) as seat_names')
+                ])
+                ->join('users', 'tickets.user_id', '=', 'users.id')
+                ->join('movies', 'tickets.movie_id', '=', 'movies.id')
+                ->join('cinemas', 'tickets.cinema_id', '=', 'cinemas.id')
+                ->join('rooms', 'tickets.room_id', '=', 'rooms.id')
+                ->join('showtimes', 'tickets.showtime_id', '=', 'showtimes.id')
+                ->join('ticket_seats', 'tickets.id', '=', 'ticket_seats.ticket_id')
+                ->join('seats', 'ticket_seats.seat_id', '=', 'seats.id')
+                ->groupBy('tickets.id');
+    
+            // Bộ lọc
+            if ($request->has('branch_id')) {
+                $query->where('cinemas.branch_id', $request->branch_id);
+            }
+    
+            if ($request->has('cinema_id')) {
+                $query->where('tickets.cinema_id', $request->cinema_id);
+            }
+    
+            if ($request->has('movie_id')) {
+                $query->where('tickets.movie_id', $request->movie_id);
+            }
+    
+            if ($request->has('date')) {
+                $query->whereDate('tickets.created_at', $request->date);
+            }
+    
+            if ($request->has('status')) {
+                $query->where('tickets.status', $request->status);
+            }
+    
+            $tickets = $query->get();
+    
+            if ($tickets->isEmpty()) {
+                return response()->json(['message' => 'Không tìm thấy vé']);
+            }
+    
+            return response()->json([
+                'success' => true,
+                'data' => $tickets
+            ]);
+    
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Đã có lỗi xảy ra khi lấy danh sách vé.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
+
+    public function confirm(Request $request)
+{
+    $ticketId = $request->input('ticket_id');
+
+    if (!$ticketId) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vui lòng cung cấp ID của vé!'
+        ], 400);
+    }
+
+    $ticket = Ticket::where('id', $ticketId)->first();
+
+    if (!$ticket) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Vé không tồn tại!'
+        ], 404);
+    }
+
+    if ($ticket->status == "Đã thanh toán" ) {
+        $ticket->update([
+            'status' => "Đã xuất vé"
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Thay đổi trạng thái thành công!'
+        ]);
+    }
+
+    return response()->json([
+        'success' => false,
+        'message' => 'Vé không hợp lệ hoặc đã hết hạn!'
+    ], 400);
+}
 }

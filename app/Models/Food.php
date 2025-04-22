@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Food extends Model
 {
     use HasFactory;
-    
+
 
     protected $fillable = [
         'name',
@@ -35,4 +35,10 @@ class Food extends Model
         return $this->belongsToMany(Combo::class, 'combo_food', 'food_id', 'combo_id')
                     ->withPivot('quantity');  // Lưu số lượng món ăn trong combo
     }
+    // public function combos()
+    // {
+    //     return $this->belongsToMany(Combo::class, 'combo_food')
+    //         ->withPivot('quantity')
+    //         ->withTimestamps();
+    // }
 }

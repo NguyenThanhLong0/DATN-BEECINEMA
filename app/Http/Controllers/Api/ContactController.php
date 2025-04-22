@@ -14,10 +14,12 @@ class ContactController extends Controller
      */
     public function index()
     {
+        $contacts = Contact::latest()->get();
+    
         return response()->json([
             'status' => 200,
             'message' => 'Lấy Thông Tin Thành Công',
-            'data' => Contact::all()
+            'data' => $contacts
         ], Response::HTTP_OK);
     }
 
@@ -66,6 +68,7 @@ class ContactController extends Controller
             'phone' => 'nullable|string|max:20',
             'message' => 'nullable|string',
             'address' => 'nullable|string|max:255',
+            'status' => 'required'
         ]);
 
         $contact->update($request->all());

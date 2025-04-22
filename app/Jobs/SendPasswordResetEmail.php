@@ -29,15 +29,18 @@ class SendPasswordResetEmail implements ShouldQueue
     public function handle(): void
     {
         try {
-            $status = Password::sendResetLink(
-                ['email' => $this->email]
-            );
+        $status = Password::sendResetLink([
+            'email' => $this->email
+        ]);
 
-            if ($status !== Password::RESET_LINK_SENT) {
-                Log::error("Unable to send password reset link to {$this->email}");
-            }
-        } catch (\Exception $e) {
-            Log::error("Error while sending password reset email: " . $e->getMessage());
+        if ($status !== Password::RESET_LINK_SENT) {
+            Log::error("Unable to send password reset link to {$this->email}");
+        } else {
+            Log::info("Password reset link sent to {$this->email}");
         }
+
+    } catch (\Exception $e) {
+        Log::error("Error while sending password reset email: " . $e->getMessage());
+    }
     }
 }

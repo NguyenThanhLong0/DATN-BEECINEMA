@@ -42,7 +42,11 @@ return [
         ],
 
         'api' => [
-        'driver' => 'sanctum', // Hoặc 'passport' nếu bạn dùng Laravel Passport
+        'driver' => 'sanctum',
+        'provider' => 'users',
+    ],
+    'sanctum' => [
+        'driver' => 'sanctum',
         'provider' => 'users',
     ],
 
@@ -101,7 +105,7 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => 'password_reset_tokens',
-            'expire' => 60,
+            'expire' => 15,
             'throttle' => 60,
         ],
     ],

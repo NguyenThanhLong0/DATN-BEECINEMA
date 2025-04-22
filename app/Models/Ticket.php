@@ -12,6 +12,7 @@ class Ticket extends Model
     use HasFactory;
 
     protected $fillable = [
+
         'user_id',
         'cinema_id',
         'room_id',
@@ -24,7 +25,12 @@ class Ticket extends Model
         'total_price',
         'status',
         'staff',
-        'expiry'
+        'expiry',
+        'point',
+        'point_discount',
+        'rank_at_booking'
+
+
     ];
     protected static function boot()
     {
@@ -79,7 +85,20 @@ class Ticket extends Model
         return $this->belongsTo(Showtime::class);
     }
 
+
+
+    // tính tổng giá trị sau khi trừ điểm giảm giá
+    public function getFinalPriceAttribute()
+    {
+        return max(0, $this->total_price - $this->point_discount);
+    }
+    // lấy ra rank hiện tại theo user
+    public function getCurrentRankAttribute()
+    {
+        return $this->user ? $this->user->current_rank : 'Member';
+    }
     //  Quan hệ với bảng `vouchers`
+
     public function voucher()
     {
         return $this->belongsTo(Voucher::class, 'voucher_code', 'code');
@@ -89,5 +108,16 @@ class Ticket extends Model
     {
         // Lấy thời gian hiện tại theo định dạng yyyymmddHis (NămThángNgàyGiờPhútGiây)
         return now()->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis');
+    }
+    public function ticketCombos()
+    {
+        return $this->hasMany(Ticket_Combo::class, 'ticket_id', 'id');
+    }
+    // tính tổng giá trị sau khi trừ điểm giảm giá
+
+    //lọc theo branch
+    public function branch()
+    {
+        return $this->hasOneThrough(Branch::class, Cinema::class, 'id', 'id', 'cinema_id', 'branch_id');
     }
 }

@@ -18,6 +18,8 @@ return new class extends Migration
             $table->string('phone')->nullable();
             $table->text('message')->nullable();
             $table->string('address')->nullable();
+            $table->string('status')
+            ->default('Chưa xử lý');
             $table->timestamps();
         });
     }
