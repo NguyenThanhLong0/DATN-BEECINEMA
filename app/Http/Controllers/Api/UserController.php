@@ -290,7 +290,7 @@ class UserController extends Controller
         $membership = Membership::with([
             'rank',
             'pointHistories' => function ($query) {
-                $query->orderBy('created_at', 'desc')->limit(10);
+                $query->orderBy('created_at', 'desc');
             }
         ])->where('user_id', $user->id)->first();
 
@@ -306,13 +306,13 @@ class UserController extends Controller
         ->where('expired_at', '<=', now()->addDays(3))
         ->sum('points');
         // Tính tổng điểm tích lũy và tổng điểm đã tiêu
-        $total_nhan = $membership->pointHistories->where('type', 'Nhận điểm')->sum('remaining_points');
+        $total_nhan = $membership->pointHistories->where('type', 'Nhận điểm')->sum('remaining_points')??0;
         $total_dung= $membership->pointHistories->where('type', 'Dùng điểm')->sum('remaining_points');
         $total_het= $membership->pointHistories->where('type', 'Hết hạn')->sum('remaining_points');
         $totalSpentPoints = $membership->pointHistories->where('type', 'Dùng điểm')->sum('points');
 
         // Thêm tổng điểm vào mảng membership
-        $membership->totalEarnedPoints = $total_nhan-$total_dung-$total_het;
+        $membership->totalEarnedPoints = $total_nhan-$total_het-$total_het;
         $membership->totalSpentPoints = $totalSpentPoints;
         $membership->expiringPoints = $expiringPoints;
 
