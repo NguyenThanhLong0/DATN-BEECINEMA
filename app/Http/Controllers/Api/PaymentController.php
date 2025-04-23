@@ -264,6 +264,35 @@ class PaymentController extends Controller
         $showtime = Showtime::findOrFail($request->showtime_id);
         $seatIds = $request->seat_id;
 
+        $priceCombo = $request->price_combo; // Tiền tổng combo
+        $priceSeat = $request->price_seat; //Tiền tổng ghế
+        $comboDiscount = $request->combo_discount ?? 0; // Giảm giá combo
+        $voucherDiscount = $request->voucher_discount ?? 0; // Giảm giá voucher
+        $pointDiscount = $request->point_discount ?? 0; // Giảm giá điểm
+        $totalDiscount = $request->total_discount ?? 0; // Tổng tiền giảm
+        $totalPriceBeforeDiscount = $request->total_price_before_discount; // Tổng tiền chưa giảm
+        $totalPayment = $request->total_price; // Tổng tiền thanh toán (đã giảm)
+
+        
+        // Lấy rank của người dùng từ bảng Membership
+        $pointService = app(PointService::class);
+        $membership = Membership::where('user_id', $userId)->first();
+        // Kiểm tra số điểm đã sử dụng
+        $pointUsed = $request->points ?? 0;
+        $availablePoints = $pointService->getAvailablePoints($membership->id);
+        if ($availablePoints < $pointUsed) {
+            throw new Exception("Không đủ điểm để sử dụng: Cần $pointUsed điểm, nhưng chỉ có $availablePoints điểm hợp lệ.");
+        }
+        $pointDiscount = $pointUsed; // 1 điểm = 1 VND
+        $rank = $membership ? $membership->rank : null;
+
+        // Tiền giảm giá tổng tất cả theo rank (ticket_percentage)
+        $ticketDiscount = 0;
+        if ($rank) {
+            $ticketDiscount = $totalPriceBeforeDiscount * ($rank->ticket_percentage / 100); // Giảm giá vé
+        }
+
+
         // Kiểm tra trạng thái ghế
         $seatShowtimes = DB::table('seat_showtimes')
             ->whereIn('seat_id', $seatIds)
@@ -303,34 +332,7 @@ class PaymentController extends Controller
         }
 
         // Nhận các giá trị
-        $priceCombo = $request->price_combo; // Tiền tổng combo
-        $priceSeat = $request->price_seat; //Tiền tổng ghế
-        $comboDiscount = $request->combo_discount ?? 0; // Giảm giá combo
-        $voucherDiscount = $request->voucher_discount ?? 0; // Giảm giá voucher
-        $pointDiscount = $request->point_discount ?? 0; // Giảm giá điểm
-        $totalDiscount = $request->total_discount ?? 0; // Tổng tiền giảm
-        $totalPriceBeforeDiscount = $request->total_price_before_discount; // Tổng tiền chưa giảm
-        $totalPayment = $request->total_price; // Tổng tiền thanh toán (đã giảm)
-
-        
-        // Lấy rank của người dùng từ bảng Membership
-        $pointService = app(PointService::class);
-        $membership = Membership::where('user_id', $userId)->first();
-        // Kiểm tra số điểm đã sử dụng
-        $pointUsed = $request->points ?? 0;
-        $availablePoints = $pointService->getAvailablePoints($membership->id);
-        if ($availablePoints < $pointUsed) {
-            throw new Exception("Không đủ điểm để sử dụng: Cần $pointUsed điểm, nhưng chỉ có $availablePoints điểm hợp lệ.");
-        }
-        $pointDiscount = $pointUsed; // 1 điểm = 1 VND
-        $rank = $membership ? $membership->rank : null;
-
-        // Tiền giảm giá tổng tất cả theo rank (ticket_percentage)
-        $ticketDiscount = 0;
-        if ($rank) {
-            $ticketDiscount = $totalPriceBeforeDiscount * ($rank->ticket_percentage / 100); // Giảm giá vé
-        }
-
+       
         // Kiểm tra ngày đặc biệt và giảm giá combo nếu là Thứ 7, Chủ Nhật, 2/9,...
         $comboDiscount = 0;
         $currentDate = now();

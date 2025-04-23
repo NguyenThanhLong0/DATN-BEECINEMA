@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Ticket;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class UpdateTicketStatus extends Command
 {
@@ -18,5 +19,6 @@ class UpdateTicketStatus extends Command
         ->update(['status' => 'Đã hết hạn']);
 
         $this->info("Đã cập nhật {$expiredTickets} vé.");
+        Log::info("Đã cập nhật {$expiredTickets} vé.");
     }
 }

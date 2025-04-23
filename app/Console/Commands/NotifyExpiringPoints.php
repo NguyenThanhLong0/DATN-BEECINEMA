@@ -37,7 +37,7 @@ class NotifyExpiringPoints extends Command
             // Lấy các điểm sắp hết hạn theo batch để tối ưu hiệu suất
             PointHistory::where('type', 'Nhận điểm')
                 ->whereNotNull('expired_at')
-                ->whereBetween('expired_at', [Carbon::now(), Carbon::now()->addDays(7)])
+                ->whereBetween('expired_at', [Carbon::now(), Carbon::now()->addDays(3)])
                 ->chunkById(100, function ($expiringPoints) {
                     // Tải trước Membership và User liên quan để giảm truy vấn
                     $membershipIds = $expiringPoints->pluck('membership_id')->unique();
@@ -54,7 +54,7 @@ class NotifyExpiringPoints extends Command
                                 $membership->user,
                                 $point->remaining_points, // Sử dụng remaining_points
                                 $point->expired_at
-                            );
+                            )->onQueue('emails');
 
                             Log::info('Dispatched expiring points notification', [
                                 'user_id' => $membership->user_id,
