@@ -39,6 +39,165 @@ class PaymentController extends Controller
         return $uniquePart . $randomPart;
     }
 
+    public function getPoints(Request $request) {
+        try{
+            $code=$request->code;
+            $points=Membership::where('code',$code)->get();
+            return response()->json($points);
+        }catch(Exception $e){
+            return response()->json(["error"=>$e]);
+        }
+
+    }
+
+    public function paymentOffline(Request $request)
+{
+    try{
+        $request->validate([
+            'seat_id' => 'required|array',
+            'seat_id.*' => 'integer|exists:seats,id',
+            'combo' => 'nullable|array',
+            'combo.*' => 'nullable|integer|min:0|max:10',
+            'showtime_id' => 'required|integer|exists:showtimes,id',
+            'points' => 'nullable|integer|min:0', 
+            'price_combo' => 'nullable|numeric|min:0',
+            'price_seat' => 'nullable|numeric|min:0',
+            'combo_discount' => 'nullable|numeric|min:0',
+            'point_discount' => 'nullable|numeric|min:0',
+            'total_discount' => 'nullable|numeric|min:0',
+            'total_price_before_discount' => 'required|numeric|min:0',
+            'total_price' => 'required|numeric|min:0',
+        ]);
+
+        $showtime = Showtime::findOrFail($request->showtime_id);
+        $seatIds = $request->seat_id;
+        $orderCode = $this->generateOrderCode();
+        $totalPayment = $request->total_price; // Tổng tiền thanh toán (đã giảm)
+    
+        
+        // Lấy rank của người dùng từ bảng Membership
+        $code=$request->code;
+        if ($code) {
+            $userId = Membership::where('code', $code)->value('user_id');
+            if (!$userId) {
+                return response()->json(['message' => 'Code không hợp lệ'], 404);
+            }
+        } else {
+            $userId = auth()->id();
+        }
+        $pointService = app(PointService::class);
+        // Đặt điểm mặc định
+        $pointUsed = $request->points ?? 0;
+        $rank = null;
+
+        // Nếu có code thì kiểm tra membership và điểm
+        if ($code) {
+            $membership = Membership::where('code', $code)->first();
+            if (!$membership) {
+                return response()->json(['message' => 'Mã thành viên không hợp lệ.'], 404);
+            }
+
+            $rank = $membership->rank;
+            $availablePoints = $pointService->getAvailablePoints($membership->id);
+            if ($availablePoints < $pointUsed) {
+                return response()->json(['message' => "Không đủ điểm. Bạn có $availablePoints điểm, cần $pointUsed điểm."], 400);
+            }
+                // Trừ điểm vào tổng thanh toán
+                $totalPayment -= $pointUsed;
+                $totalPayment = max($totalPayment, 0); 
+        }
+        
+
+        // Tạo ticket (luôn tạo dù có hoặc không có code)
+        $ticket = Ticket::create([
+            'user_id' => $userId,
+            'cinema_id' => $showtime->cinema_id,
+            'room_id' => $showtime->room_id,
+            'movie_id' => $showtime->movie_id,
+            'showtime_id' => $showtime->id,
+            'voucher_code' => $request->voucher_id ?? null,
+            'voucher_discount' => $request->voucher_discount ?? null,
+            'payment_name' => 'Tiền mặt',
+            'code' => $orderCode,
+            'total_price' => $totalPayment,
+            'status' => 'Đã thanh toán',
+            'staff' => auth()->id() ?? null,
+            'expiry' => $showtime->end_time,
+            'point' => $code ? floor($totalPayment * 0.03) : null,
+            'point_discount' => $pointUsed,
+            'rank_at_booking' => $rank?->name,
+        ]);
+
+        // Nếu có dùng điểm và có membership -> trừ điểm
+        if ($code && $membership && $pointUsed > 0) {
+            $pointService->usePoints($membership->id, $pointUsed, $ticket->id);
+        }
+
+        // Nếu có code và tổng thanh toán > 0 thì cộng điểm
+        if ($code && $membership && $totalPayment > 0) {
+            $pointsToAdd = floor($totalPayment * 0.03);
+            $pointService->earnPoints($membership->id, $pointsToAdd, $ticket->id);
+        }
+        // Kiểm tra trạng thái ghế
+        $seatShowtimes = DB::table('seat_showtimes')
+            ->whereIn('seat_id', $seatIds)
+            ->where('showtime_id', $showtime->id)
+            ->get();
+        $priceSeat = $seatShowtimes->sum('price');
+    
+        foreach ($seatShowtimes as $seat) {
+            if ($seat->hold_expires_at < now() || $seat->user_id != $userId || $seat->status != 'hold') {
+                return response()->json(['error' => 'Một hoặc nhiều ghế không hợp lệ.'], 400);
+            }
+        }
+    
+        // Xác định thời gian giữ ghế theo phương thức thanh toán
+        $holdTime = now();
+        if ($request->payment_name == 'VNPAY' || $request->payment_name == 'ZALOPAY') {
+            $holdTime = now()->addMinutes(15); // Giữ ghế 15 phút cho VNPAY và ZALOPAY
+        } elseif ($request->payment_name == 'MOMO') {
+            $holdTime = now()->addMinutes(10); // Giữ ghế 10 phút cho MOMO
+        } else {
+            $holdTime = now()->addMinutes(15); // Mặc định là 15 phút
+        }
+    
+        // Cập nhật trạng thái ghế và thời gian giữ ghế cho tất cả ghế trong yêu cầu thanh toán
+        DB::table('seat_showtimes')
+            ->whereIn('seat_id', $seatIds)
+            ->where('showtime_id', $showtime->id)
+            ->update([
+                'status' => 'hold',
+                'hold_expires_at' => $holdTime, // Cập nhật thời gian giữ ghế
+                'user_id' => $userId,
+            ]);
+    
+        //  Thêm job để tự động giải phóng ghế sau 15 phút nếu chưa thanh toán
+        foreach ($seatIds as $seatId) {
+            ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay(now()->addMinutes(15));
+        }
+
+
+    
+    
+        return response()->json([
+            'mess'=>"Đặt vé thành công",
+            "code"=>$orderCode
+        ]);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'message' => 'Validation failed',
+            'errors' => $e->errors()
+        ], 422);
+    } catch (Exception $e) {
+        return response()->json([
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+    
+  
+}
+
     // public function payment(Request $request)
     // {
     //     // Xác thực dữ liệu đầu vào

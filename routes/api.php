@@ -104,7 +104,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/updateSeatHoldtime', [ShowtimeController::class, 'updateSeatHoldTime']);
 
     // Payment
+
     Route::post('payment', [PaymentController::class, 'payment'])->name('payment');
+    Route::post('payment/offline', [PaymentController::class, 'paymentOffline']);
     Route::get('vnpay-payment', [PaymentController::class, 'vnPayPayment'])->name('vnpay.payment');
     Route::post('/zalopay/payment', [PaymentController::class, 'createPayment']);
     Route::post('/momo-payment', [PaymentController::class, 'MomoPayment']);
@@ -375,6 +377,8 @@ Route::get('/revenue-ticket-statistics', [ReportController::class,'ticketStatist
 Route::get('/customer', [ReportController::class,'customer']);//Thống kê Khách Hàng (Customer Insights)
 Route::get('/booking-trends', [ReportController::class,'bookingTrends']);//Thống kê Xu Hướng Đặt Vé (Booking Trends)
 
+//get point
+Route::post('get-points', [PaymentController::class, 'getPoints']);
 
 // Reports & Overview (Thường cần auth, nhưng để public theo yêu cầu đơn giản hóa)
 Route::get('/revenue-statistics', [ReportController::class, 'revenueStatistics']);
