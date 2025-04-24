@@ -13,8 +13,10 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
-        $schedule->command('revenue:calculate-daily')->dailyAt('20:15'); // Chạy lúc 23:59 mỗi ngày
+        $schedule->command('revenue:calculate-daily')->dailyAt('23:59'); // Chạy lúc 23:59 mỗi ngày
         $schedule->command('tickets:update-status')->everyTenMinutes();
+        $schedule->command('points:expire-points')->everyMinute();
+        $schedule->command('points:notify-expiring')->daily();
     }
 
     /**

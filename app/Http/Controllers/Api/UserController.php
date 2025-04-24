@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Membership;
+use App\Models\PointHistory;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\UserVoucher;
@@ -289,7 +290,7 @@ class UserController extends Controller
         $membership = Membership::with([
             'rank',
             'pointHistories' => function ($query) {
-                $query->orderBy('created_at', 'desc')->limit(10);
+                $query->orderBy('created_at', 'desc');
             }
         ])->where('user_id', $user->id)->first();
 
@@ -297,14 +298,23 @@ class UserController extends Controller
             return response()->json(['message' => 'Membership not found'], 404);
         }
 
-
+        // Lấy các điểm còn hiệu lực và sắp hết hạn trong vòng 3 ngày
+        $expiringPoints = PointHistory::where('membership_id', $membership->id)
+        ->where('type','Nhận điểm')
+        ->whereNotNull('expired_at')
+        ->where('expired_at', '>=', now())
+        ->where('expired_at', '<=', now()->addDays(3))
+        ->sum('points');
         // Tính tổng điểm tích lũy và tổng điểm đã tiêu
-        $totalEarnedPoints = $membership->pointHistories->where('type', 'Nhận điểm')->sum('points');
+        $total_nhan = $membership->pointHistories->where('type', 'Nhận điểm')->sum('remaining_points')??0;
+        $total_dung= $membership->pointHistories->where('type', 'Dùng điểm')->sum('remaining_points');
+        $total_het= $membership->pointHistories->where('type', 'Hết hạn')->sum('remaining_points');
         $totalSpentPoints = $membership->pointHistories->where('type', 'Dùng điểm')->sum('points');
 
         // Thêm tổng điểm vào mảng membership
-        $membership->totalEarnedPoints = $totalEarnedPoints;
+        $membership->totalEarnedPoints = $total_nhan-$total_het-$total_het;
         $membership->totalSpentPoints = $totalSpentPoints;
+        $membership->expiringPoints = $expiringPoints;
 
         return response()->json($membership);
     }

@@ -23,6 +23,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Jobs\CreateSeatShowtimesJob;
+
 
 class ShowtimeController extends Controller
 {
@@ -1055,38 +1057,39 @@ class ShowtimeController extends Controller
     {
         $this->priceCalculationService = $priceCalculationService;
     }
+
     public function store(StoreShowtimeRequest $request)
     {
         try {
             $movie = Movie::findOrFail($request->movie_id);
             $movieVersion = MovieVersion::findOrFail($request->movie_version_id);
             $movieDuration = $movie->duration ?? 0;
-            $cleaningTime = Showtime::CLEANINGTIME;
 
-            return DB::transaction(function () use (
-                $request,
-                $movie,
-                $movieVersion,
-                $movieDuration,
-                $cleaningTime
-            ) {
-                $showtimesToInsert = [];
-                $seatShowtimesToInsert = [];
-                $overlappingShowtimes = [];
+            // Load rooms with minimal data
+            $roomIds = collect($request->showtimes)->pluck('room_id')->unique()->toArray();
+            $rooms = Room::whereIn('id', $roomIds)
+                ->select('id', 'cinema_id', 'type_room_id')
+                ->with([
+                    'seats' => function ($query) {
+                        $query->select('id', 'room_id');
+                    },
+                    'typeRoom' => function ($query) {
+                        $query->select('id', 'name');
+                    }
+                ])
+                ->get()
+                ->keyBy('id');
 
-                // Load rooms
-                $roomIds = collect($request->showtimes)->pluck('room_id')->unique()->toArray();
-                $rooms = Room::whereIn('id', $roomIds)->with('seats')->get()->keyBy('id');
+            foreach ($request->showtimes as $dayData) {
+                DB::transaction(function () use (
+                    $dayData,
+                    $rooms,
+                    $movie,
+                    $movieVersion,
+                    $movieDuration
+                ) {
+                    $showtimesToInsert = [];
 
-                // Load existing showtimes
-                $dates = collect($request->showtimes)->pluck('date')->unique()->toArray();
-                $existingShowtimes = Showtime::whereIn('room_id', $roomIds)
-                    ->whereIn('date', $dates)
-                    ->select('id', 'room_id', 'date', 'start_time', 'end_time')
-                    ->get()
-                    ->groupBy(['date', 'room_id']);
-
-                foreach ($request->showtimes as $dayData) {
                     $date = $dayData['date'];
                     $roomId = $dayData['room_id'];
                     $cinemaId = $dayData['cinema_id'];
@@ -1096,31 +1099,14 @@ class ShowtimeController extends Controller
                         throw new \Exception("Phòng {$roomId} không hợp lệ hoặc không thuộc rạp {$cinemaId}");
                     }
 
+                    $dateCarbon = Carbon::parse($date);
                     foreach ($dayData['showtimes'] as $showtimeData) {
                         if ($showtimeData['type'] !== 'generated') {
                             continue;
                         }
 
-                        $startTime = Carbon::parse("{$date} {$showtimeData['start_time']}");
+                        $startTime = $dateCarbon->copy()->setTimeFromTimeString($showtimeData['start_time']);
                         $endTime = $startTime->copy()->addMinutes($movieDuration);
-
-                        // Check trùng giờ
-                        $isOverlapping = Showtime::where('room_id', $roomId)
-                            ->where('date', $date)
-                            ->where(function ($query) use ($startTime, $endTime) {
-                                $query->whereBetween('start_time', [$startTime, $endTime])
-                                      ->orWhereBetween('end_time', [$startTime, $endTime])
-                                      ->orWhere(function ($query) use ($startTime, $endTime) {
-                                          $query->where('start_time', '<=', $startTime)
-                                                ->where('end_time', '>=', $endTime);
-                                      });
-                            })
-                            ->exists();
-
-                        if ($isOverlapping) {
-                            $overlappingShowtimes[] = "Suất chiếu tại phòng {$roomId} ngày {$date} từ {$startTime->format('H:i')}";
-                            continue;
-                        }
 
                         $slug = Str::uuid()->toString();
 
@@ -1129,8 +1115,8 @@ class ShowtimeController extends Controller
                             'cinema_id' => $cinemaId,
                             'room_id' => $roomId,
                             'format' => ($room->typeRoom->name ?? 'Không xác định') . ' ' . ($movieVersion->name ?? 'Không xác định'),
-                            'movie_version_id' => $request->movie_version_id,
-                            'movie_id' => $request->movie_id,
+                            'movie_version_id' => $movieVersion->id,
+                            'movie_id' => $movie->id,
                             'date' => $date,
                             'start_time' => $startTime->format('Y-m-d H:i'),
                             'end_time' => $endTime->format('Y-m-d H:i'),
@@ -1139,48 +1125,36 @@ class ShowtimeController extends Controller
                             'updated_at' => now(),
                         ];
                     }
-                }
 
-                if (!empty($overlappingShowtimes)) {
-                    throw new \Exception("Có suất chiếu bị trùng: " . implode(", ", $overlappingShowtimes));
-                }
-
-                if (empty($showtimesToInsert)) {
-                    throw new \Exception("Không có suất chiếu nào được tạo.");
-                }
-
-                // Chunk insert Showtime
-                collect($showtimesToInsert)->chunk(500)->each(function ($chunk) {
-                    Showtime::insert($chunk->toArray());
-                });
-
-                // Truy lại Showtime theo slug
-                $slugs = array_column($showtimesToInsert, 'slug');
-                $createdShowtimes = Showtime::whereIn('slug', $slugs)->get();
-
-                foreach ($createdShowtimes as $showtime) {
-                    $room = $rooms[$showtime->room_id];
-                    foreach ($room->seats as $seat) {
-                        $seatShowtimesToInsert[] = [
-                            'showtime_id' => $showtime->id,
-                            'seat_id' => $seat->id,
-                            'status' => 'available',
-                            'price' => $this->priceCalculationService->calculatePrice($showtime, $seat),
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ];
+                    if (empty($showtimesToInsert)) {
+                        throw new \Exception("Không có suất chiếu nào được tạo cho ngày {$date}.");
                     }
-                }
 
-                // Chunk insert SeatShowtime
-                collect($seatShowtimesToInsert)->chunk(1000)->each(function ($chunk) {
-                    SeatShowtime::insert($chunk->toArray());
+                    // Chunk insert Showtime
+                    collect($showtimesToInsert)->chunk(500)->each(function ($chunk) {
+                        Showtime::insert($chunk->toArray());
+                    });
+
+                    // Retrieve created showtimes
+                    $slugs = array_column($showtimesToInsert, 'slug');
+                    $createdShowtimes = Showtime::whereIn('slug', $slugs)
+                        ->select('id', 'slug', 'room_id')
+                        ->get()
+                        ->keyBy('slug');
+
+                    // Dispatch job to create SeatShowtime
+                    foreach ($showtimesToInsert as $showtimeData) {
+                        $showtime = $createdShowtimes[$showtimeData['slug']] ?? null;
+                        if ($showtime) {
+                            dispatch(new CreateSeatShowtimesJob($showtime, $room, $this->priceCalculationService))->onQueue('seat_showtimes');
+                        }
+                    }
                 });
+            }
 
-                return response()->json([
-                    'message' => 'Thêm suất chiếu thành công!',
-                ], 201);
-            });
+            return response()->json([
+                'message' => 'Thêm suất chiếu thành công! Ghế sẽ được xử lý trong nền.',
+            ], 201);
         } catch (\Throwable $e) {
             return response()->json([
                 'message' => 'Có lỗi xảy ra',
@@ -1408,7 +1382,7 @@ class ShowtimeController extends Controller
                                     'showtime_id' => $newShowtime->id,
                                     'seat_id' => $seat->id,
                                     'status' => 'available',
-                                    'price' => $seat->typeSeat->price ?? null,
+                                    'price' => $this->priceCalculationService->calculatePrice($newShowtime, $seat),
                                 ]);
                             }
 
@@ -1459,7 +1433,7 @@ class ShowtimeController extends Controller
                                 'showtime_id' => $newShowtime->id,
                                 'seat_id' => $seat->id,
                                 'status' => 'available',
-                                'price' => $seat->typeSeat->price ?? null,
+                                'price' => $this->priceCalculationService->calculatePrice($newShowtime, $seat),
                             ]);
                         }
 

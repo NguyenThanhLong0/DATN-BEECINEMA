@@ -13,6 +13,7 @@ use App\Models\Ticket_Seat;
 use App\Models\User;
 use App\Models\UserVoucher;
 use App\Models\Voucher;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -219,6 +220,7 @@ class TicketController extends Controller
                 'membership_id' => $membership->id,
                 'points' => $pointsEarned,
                 'type' => 'Tích Điểm',
+                'expired_at'=>Carbon::now()->addMonths(PointHistory::POINT_EXPIRY_DURATION),
             ]);
 
             DB::commit();

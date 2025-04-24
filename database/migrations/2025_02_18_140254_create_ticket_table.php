@@ -31,6 +31,9 @@ return new class extends Migration
             $table->string('status')->default('Chưa xuất vé');
             $table->string('staff')->nullable()->comment('lấy theo type của user');
             $table->dateTime('expiry')->comment('hạn sử dụng');
+            $table->string('rank_at_booking')->nullable();
+            $table->integer('point')->default(0);
+            $table->integer('point_discount')->default(0);
             $table->timestamps();
         });
     }

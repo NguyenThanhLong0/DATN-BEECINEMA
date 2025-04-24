@@ -18,15 +18,17 @@ class PriceCalculationService
         $roomTypeId = $showtime->room->type_room_id; // Lấy từ room.type_room_id
         $seatTypeId = $seat->type_seat_id;
         $timeSlot = $this->determineTimeSlot($startTime);
-        // Log::info('--- Dữ liệu tính giá ---', [
-        //     'startTime' => $startTime->toDateTimeString(),
-        //     'cinemaId' => $cinemaId,
-        //     'roomTypeId' => $roomTypeId,
-        //     'seatTypeId' => $seatTypeId,
-        //     'timeSlot' => $timeSlot,
-        // ]);
+        Log::info('--- Dữ liệu tính giá ---', [
+            'startTime' => $startTime->toDateTimeString(),
+            'cinemaId' => $cinemaId,
+            'roomTypeId' => $roomTypeId,
+            'seatTypeId' => $seatTypeId,
+            'timeSlot' => $timeSlot,
+        ]);
         // Tính giá
         $price = $this->determinePrice($cinemaId, $roomTypeId, $seatTypeId, $startTime, $timeSlot);
+        
+        // Log::info('Gia tien', ['price' => $price]); 
 
         // Nếu không tìm thấy giá từ PriceRules, dùng giá mặc định từ type_seat
         $price = $price ?? ($seat->typeSeat->price ?? 0);
@@ -65,14 +67,14 @@ class PriceCalculationService
         if ($dayOfWeek == 0 || $dayOfWeek == 6) {
             return 'Weekend';
         }
-        return 'Weekday';
+        return 'Weekday';   
     }
 
     private function determineTimeSlot(Carbon $date): string
     {
         $hour = $date->hour;
-        if ($hour >= 7 && $hour < 18) return 'sáng';
-        if ($hour >= 18 && $hour < 24) return 'tối';
+        if ($hour >= 7 && $hour < 18) return 'Morning';
+        if ($hour >= 18 && $hour < 24) return 'Evening';
         return 'Late';
     }
 
@@ -133,7 +135,7 @@ class PriceCalculationService
             ->first();
     
         // Log kết quả tìm kiếm quy tắc
-        Log::info("rule", ['price' => $rule]);
+        // Log::info("rule", ['price' => $rule]);
     
         return $rule ? $rule->price : null;  // Trả về giá nếu tìm thấy quy tắc, ngược lại trả về null
     }
