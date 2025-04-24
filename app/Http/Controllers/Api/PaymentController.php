@@ -39,20 +39,29 @@ class PaymentController extends Controller
         return $uniquePart . $randomPart;
     }
 
-    public function getPoints(Request $request) {
-        try{
-            $code=$request->code;
-            $points=Membership::where('code',$code)->get();
-            return response()->json($points);
-        }catch(Exception $e){
-            return response()->json(["error"=>$e]);
-        }
+    public function getPoints(Request $request)
+{
+    try {
+        $pointService = app(PointService::class);
+        $code = $request->code;
+        $membership = Membership::where('code', $code)->first();
 
+        if (!$membership) {
+            return response()->json(['error' => 'Membership not found'], 404);
+        }
+        $points = $pointService->getAvailablePoints($membership->id);
+
+        return response()->json([
+            'points' => $points
+        ]);
+    } catch (Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
     }
+}
 
     public function paymentOffline(Request $request)
 {
-    try{
+    try {
         $request->validate([
             'seat_id' => 'required|array',
             'seat_id.*' => 'integer|exists:seats,id',
@@ -72,11 +81,10 @@ class PaymentController extends Controller
         $showtime = Showtime::findOrFail($request->showtime_id);
         $seatIds = $request->seat_id;
         $orderCode = $this->generateOrderCode();
-        $totalPayment = $request->total_price; // Tổng tiền thanh toán (đã giảm)
-    
-        
-        // Lấy rank của người dùng từ bảng Membership
-        $code=$request->code;
+        $totalPayment = $request->total_price;
+
+        // Lấy user_id từ code hoặc auth
+        $code = $request->code;
         if ($code) {
             $userId = Membership::where('code', $code)->value('user_id');
             if (!$userId) {
@@ -85,12 +93,12 @@ class PaymentController extends Controller
         } else {
             $userId = auth()->id();
         }
+
         $pointService = app(PointService::class);
-        // Đặt điểm mặc định
         $pointUsed = $request->points ?? 0;
         $rank = null;
 
-        // Nếu có code thì kiểm tra membership và điểm
+        // Kiểm tra membership và điểm
         if ($code) {
             $membership = Membership::where('code', $code)->first();
             if (!$membership) {
@@ -102,13 +110,21 @@ class PaymentController extends Controller
             if ($availablePoints < $pointUsed) {
                 return response()->json(['message' => "Không đủ điểm. Bạn có $availablePoints điểm, cần $pointUsed điểm."], 400);
             }
-                // Trừ điểm vào tổng thanh toán
-                $totalPayment -= $pointUsed;
-                $totalPayment = max($totalPayment, 0); 
         }
-        
 
-        // Tạo ticket (luôn tạo dù có hoặc không có code)
+        // Kiểm tra trạng thái ghế
+        $seatShowtimes = DB::table('seat_showtimes')
+            ->whereIn('seat_id', $seatIds)
+            ->where('showtime_id', $showtime->id)
+            ->get();
+
+        foreach ($seatShowtimes as $seat) {
+            if ($seat->status != 'hold') {
+                return response()->json(['error' => 'Một hoặc nhiều ghế không hợp lệ.'], 400);
+            }
+        }
+
+        // Tạo ticket
         $ticket = Ticket::create([
             'user_id' => $userId,
             'cinema_id' => $showtime->cinema_id,
@@ -116,72 +132,59 @@ class PaymentController extends Controller
             'movie_id' => $showtime->movie_id,
             'showtime_id' => $showtime->id,
             'voucher_code' => $request->voucher_id ?? null,
-            'voucher_discount' => $request->voucher_discount ?? null,
+            'voucher_discount' => $request->voucher_discount ?? 0,
             'payment_name' => 'Tiền mặt',
             'code' => $orderCode,
             'total_price' => $totalPayment,
             'status' => 'Đã thanh toán',
             'staff' => auth()->id() ?? null,
             'expiry' => $showtime->end_time,
-            'point' => $code ? floor($totalPayment * 0.03) : null,
+            'point' => $code ? floor($totalPayment * 0.03) : 0,
             'point_discount' => $pointUsed,
-            'rank_at_booking' => $rank?->name,
+            'rank_at_booking' => $rank?->name ?? "none",
         ]);
 
-        // Nếu có dùng điểm và có membership -> trừ điểm
+        // Xử lý điểm
         if ($code && $membership && $pointUsed > 0) {
             $pointService->usePoints($membership->id, $pointUsed, $ticket->id);
         }
-
-        // Nếu có code và tổng thanh toán > 0 thì cộng điểm
         if ($code && $membership && $totalPayment > 0) {
             $pointsToAdd = floor($totalPayment * 0.03);
             $pointService->earnPoints($membership->id, $pointsToAdd, $ticket->id);
         }
-        // Kiểm tra trạng thái ghế
-        $seatShowtimes = DB::table('seat_showtimes')
-            ->whereIn('seat_id', $seatIds)
-            ->where('showtime_id', $showtime->id)
-            ->get();
-        $priceSeat = $seatShowtimes->sum('price');
-    
-        foreach ($seatShowtimes as $seat) {
-            if ($seat->hold_expires_at < now() || $seat->user_id != $userId || $seat->status != 'hold') {
-                return response()->json(['error' => 'Một hoặc nhiều ghế không hợp lệ.'], 400);
+
+        foreach ($request->seat_id as $seatId) {
+            Ticket_Seat::create([
+                'ticket_id' => $ticket->id,
+                'seat_id' => $seatId,
+                'price' => DB::table('seat_showtimes')->where('seat_id', $seatId)->value('price'),
+            ]);
+        }
+
+        if (!empty($request->combo)) {
+            foreach ($request->combo as $comboId => $quantity) {
+                Ticket_Combo::create([
+                    'ticket_id' => $ticket->id,
+                    'combo_id' => $comboId,
+                    'quantity' => $quantity,
+                    'price' => Combo::find($comboId)->discount_price * $quantity,
+                ]);
             }
         }
-    
-        // Xác định thời gian giữ ghế theo phương thức thanh toán
-        $holdTime = now();
-        if ($request->payment_name == 'VNPAY' || $request->payment_name == 'ZALOPAY') {
-            $holdTime = now()->addMinutes(15); // Giữ ghế 15 phút cho VNPAY và ZALOPAY
-        } elseif ($request->payment_name == 'MOMO') {
-            $holdTime = now()->addMinutes(10); // Giữ ghế 10 phút cho MOMO
-        } else {
-            $holdTime = now()->addMinutes(15); // Mặc định là 15 phút
-        }
-    
-        // Cập nhật trạng thái ghế và thời gian giữ ghế cho tất cả ghế trong yêu cầu thanh toán
+
+        // Cập nhật trạng thái ghế thành booked
         DB::table('seat_showtimes')
             ->whereIn('seat_id', $seatIds)
             ->where('showtime_id', $showtime->id)
             ->update([
-                'status' => 'hold',
-                'hold_expires_at' => $holdTime, // Cập nhật thời gian giữ ghế
+                'status' => 'booked',
                 'user_id' => $userId,
+                'updated_at' => now(),
             ]);
-    
-        //  Thêm job để tự động giải phóng ghế sau 15 phút nếu chưa thanh toán
-        foreach ($seatIds as $seatId) {
-            ReleaseSeatHoldJob::dispatch($seatId, $showtime->id)->delay(now()->addMinutes(15));
-        }
 
-
-    
-    
         return response()->json([
-            'mess'=>"Đặt vé thành công",
-            "code"=>$orderCode
+            'mess' => "Đặt vé thành công",
+            "code" => $orderCode
         ]);
     } catch (\Illuminate\Validation\ValidationException $e) {
         return response()->json([
@@ -194,8 +197,6 @@ class PaymentController extends Controller
             'trace' => $e->getTraceAsString()
         ], 500);
     }
-    
-  
 }
 
     // public function payment(Request $request)
