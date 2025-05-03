@@ -152,6 +152,15 @@ class PaymentController extends Controller
             $pointsToAdd = floor($totalPayment * 0.03);
             $pointService->earnPoints($membership->id, $pointsToAdd, $ticket->id);
         }
+        $membership->increment('total_spent', $ticket['total_price']);
+                        $rank = Rank::where('total_spent', '<=', $membership->total_spent)
+                            ->orderBy('total_spent', 'desc')
+                            ->first() ?? Rank::orderBy('total_spent', 'asc')->first();
+    
+                        if ($rank) {
+                            $membership->rank_id = $rank->id;
+                            $membership->save();
+                        }
 
         foreach ($request->seat_id as $seatId) {
             Ticket_Seat::create([
