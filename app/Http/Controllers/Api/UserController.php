@@ -309,7 +309,7 @@ class UserController extends Controller
         $total_nhan = $membership->pointHistories->where('type', 'Nhận điểm')->sum('remaining_points')??0;
         $total_dung= $membership->pointHistories->where('type', 'Dùng điểm')->sum('remaining_points');
         $total_het= $membership->pointHistories->where('type', 'Hết hạn')->sum('remaining_points');
-        $totalSpentPoints = $membership->pointHistories->where('type', 'Dùng điểm')->sum('points');
+        $totalSpentPoints = $membership->pointHistories->where('type', 'Dùng điểm')->sum('remaining_points');
 
         // Thêm tổng điểm vào mảng membership
         $membership->totalEarnedPoints = $total_nhan-$total_het-$total_het;
