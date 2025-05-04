@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
-
+use Illuminate\Http\JsonResponse;
+            
 class FoodController extends Controller
 {
     //
@@ -151,19 +152,21 @@ class FoodController extends Controller
     }
     
 
-    public function destroy(Food $food)
+    public function destroy(Food $food): JsonResponse
     {
         try {
-            // Kiểm tra nếu có ảnh và xóa nó
-            if ($food->img_thumbnail && Storage::disk('public')->exists($food->img_thumbnail)) {
-                try {
-                    Storage::disk('public')->delete($food->img_thumbnail);
-                } catch (\Exception $e) {
-                    Log::error('Lỗi khi xóa ảnh trong quá trình xóa food: ' . $e->getMessage());
-                }
+            $hasActiveCombo = $food->combos()
+                ->where('is_active', true)
+                ->exists();
+
+            if ($hasActiveCombo) {
+                return response()->json([
+                    'message' => 'Không thể xóa món ăn vì nó thuộc combo đang hoạt động!',
+                    'status' => false
+                ], 422);
             }
 
-            // Delete the food record
+
             $food->delete();
 
             return response()->json([

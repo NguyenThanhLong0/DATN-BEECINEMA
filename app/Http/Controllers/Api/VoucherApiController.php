@@ -129,95 +129,98 @@ class VoucherApiController extends Controller
     }
 
     public function applyVoucher(Request $request)
-{
-    $userId = Auth::id();
-    $voucherCode = $request->voucher_code;
-    $totalAmount= $request->total_amount;
-    // Lấy thông tin voucher
-    $voucher = Voucher::where('code', $voucherCode)->first();
-    if (!$voucher) {
-        return response()->json(['success' => false, 'message' => 'Voucher không tồn tại'], 400);
-    }
-    log::info($totalAmount);
-
-    // Kiểm tra điều kiện sử dụng voucher
-    if ($voucher->start_date > now() || $voucher->end_date < now()) {
-        return response()->json(['success' => false, 'message' => 'Voucher đã hết hạn'], 400);
-    }
-    if ($totalAmount < $voucher->min_order_amount) {
-        return response()->json(['success' => false, 'message' => 'Chưa đủ điều kiện sử dụng voucher'], 400);
-    }
-    if ($voucher->used_count >= $voucher->quantity) {
-        return response()->json(['success' => false, 'message' => 'Voucher đã hết lượt sử dụng'], 400);
-    }
-    if ($voucher->is_active == false) {
-        return response()->json(['success' => false, 'message' => 'Voucher không còn hoạt động'], 400);
-    }
-
-    // Kiểm tra xem user đã áp dụng voucher nào chưa
-    
-
-    // Tính số tiền giảm giá
-    $discountAmount = 0;
-    if ($voucher->discount_type == 'fixed') {
-        $discountAmount = $voucher->discount_value;
-    } elseif ($voucher->discount_type == 'percent') {
-        $discountAmount = ($voucher->discount_value / 100) * $totalAmount;
-    }
-
-    $newTotalAmount = $totalAmount - $discountAmount;
-
-    // Lưu voucher vào database với số tiền giảm
-    Log::info("Dispatching ApplyVoucherJob: userId={$userId}, voucherId={$voucher->id}, discountAmount={$discountAmount}");
-    ApplyVoucherJob::dispatch($userId, $voucher->id, $discountAmount);
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Voucher đã được áp dụng',
-        'discounted_amount' => $newTotalAmount,
-        'discount_value'=>$discountAmount,
-    ]);
-}
-
-public function removeVoucher(Request $request){
-     $userId = Auth::id();
-    $voucherCode = $request->voucher_code;
-    $totalAmount= $request->total_amount;
-    // Lấy thông tin voucher
-    $voucher = Voucher::where('code', $voucherCode)->first();
-    if (!$voucher) {
-        return response()->json(['success' => false, 'message' => 'Voucher không tồn tại'], 400);
-    }
-    $userVoucher = UserVoucher::where('user_id', $userId)->orderBy('id', 'desc')->first();
-
-    if ($userVoucher) {
-        // Nếu đang chọn cùng voucher thì gỡ bỏ
-        if ($userVoucher->voucher_id == $voucher->id) {
-            // Lấy voucher từ database
-            $discount_applied=$voucher->discount_value;
-            $totalAmount=$totalAmount+$discount_applied;
-            $voucherToUpdate = Voucher::find($voucher->id);
-        
-            if ($voucherToUpdate) {
-                $voucherToUpdate->update([
-                    'used_count' => $voucherToUpdate->used_count - 1, // giảm số lần sử dụng
-                ]);
-            }
-    
-            $userVoucher->delete();
-    
-            return response()->json([
-                'success' => true,
-                'message' => 'Voucher đã được gỡ bỏ',
-                'discounted_amount' => $totalAmount,
-                'discount_applied' => $discount_applied,
-            ]);
-        } else {
-            // Nếu user đã có voucher khác, xóa đi trước khi áp voucher mới
-            $userVoucher->delete();
+    {
+        $userId = Auth::id();
+        $voucherCode = $request->voucher_code;
+        $totalAmount= $request->total_amount;
+        // Lấy thông tin voucher
+        $voucher = Voucher::where('code', $voucherCode)->first();
+        if (!$voucher) {
+            return response()->json(['success' => false, 'message' => 'Voucher không tồn tại'], 400);
         }
-    }else{
-        return response()->json('mess:Không tìm thấy bản ghi');
+        log::info($totalAmount);
+    
+        // Kiểm tra điều kiện sử dụng voucher
+        if ($voucher->start_date > now()) {
+            return response()->json(['success' => false, 'message' => 'Voucher chưa đến ngày sử dụng'], 400);
+        }
+        if ($voucher->end_date < now()) {
+            return response()->json(['success' => false, 'message' => 'Voucher đã hết hạn'], 400);
+        }
+        if ($totalAmount < $voucher->min_order_amount) {
+            return response()->json(['success' => false, 'message' => 'Chưa đủ điều kiện sử dụng voucher'], 400);
+        }
+        if ($voucher->used_count >= $voucher->quantity) {
+            return response()->json(['success' => false, 'message' => 'Voucher đã hết lượt sử dụng'], 400);
+        }
+        if ($voucher->is_active == false) {
+            return response()->json(['success' => false, 'message' => 'Voucher không còn hoạt động'], 400);
+        }
+    
+        // Kiểm tra xem user đã áp dụng voucher nào chưa
+        
+    
+        // Tính số tiền giảm giá
+        $discountAmount = 0;
+        if ($voucher->discount_type == 'fixed') {
+            $discountAmount = $voucher->discount_value;
+        } elseif ($voucher->discount_type == 'percent') {
+            $discountAmount = ($voucher->discount_value / 100) * $totalAmount;
+        }
+    
+        $newTotalAmount = $totalAmount - $discountAmount;
+    
+        // Lưu voucher vào database với số tiền giảm
+        // Log::info("Dispatching ApplyVoucherJob: userId={$userId}, voucherId={$voucher->id}, discountAmount={$discountAmount}");
+        ApplyVoucherJob::dispatch($userId, $voucher->id, $discountAmount);
+    
+        return response()->json([
+            'success' => true,
+            'message' => 'Voucher đã được áp dụng',
+            'discounted_amount' => $newTotalAmount,
+            'discount_value'=>$discountAmount,
+        ]);
     }
-}
+
+    public function removeVoucher(Request $request){
+        $userId = Auth::id();
+       $voucherCode = $request->voucher_code;
+       $totalAmount= $request->total_amount;
+       // Lấy thông tin voucher
+       $voucher = Voucher::where('code', $voucherCode)->first();
+       if (!$voucher) {
+           return response()->json(['success' => false, 'message' => 'Voucher không tồn tại'], 400);
+       }
+       $userVoucher = UserVoucher::where('user_id', $userId)->orderBy('id', 'desc')->first();
+   
+       if ($userVoucher) {
+           // Nếu đang chọn cùng voucher thì gỡ bỏ
+           if ($userVoucher->voucher_id == $voucher->id) {
+               // Lấy voucher từ database
+               $discount_applied=$userVoucher->discount_applied;
+               $totalAmount=$totalAmount+$discount_applied;
+               $voucherToUpdate = Voucher::find($voucher->id);
+           
+               if ($voucherToUpdate) {
+                   $voucherToUpdate->update([
+                       'used_count' => $voucherToUpdate->used_count - 1, // giảm số lần sử dụng
+                   ]);
+               }
+       
+               $userVoucher->delete();
+       
+               return response()->json([
+                   'success' => true,
+                   'message' => 'Voucher đã được gỡ bỏ',
+                   'discounted_amount' => $totalAmount,
+                   'discount_applied' => $discount_applied,
+               ],200,[],JSON_NUMERIC_CHECK);
+           } else {
+               // Nếu user đã có voucher khác, xóa đi trước khi áp voucher mới
+               $userVoucher->delete();
+           }
+       }else{
+           return response()->json('mess:Không tìm thấy bản ghi');
+       }
+   }
 }

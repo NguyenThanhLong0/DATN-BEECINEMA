@@ -91,7 +91,7 @@ class RoomController extends Controller
                 'cinema',
                 'typeRoom',
                 'seatTemplate'
-            ])->paginate(10);
+            ])->get();
 
             foreach ($rooms as $room) {
                 // Nếu có `matrix_id`, lấy dữ liệu từ `SeatTemplate`
@@ -155,7 +155,11 @@ class RoomController extends Controller
                 $room->seatMap = $seatMap;
             }
 
-            return response()->json($rooms);
+            return response()->json([
+                "data" => $rooms,
+                "message" => "Lấy danh sách phòng thành công",
+                "status" => true,
+            ]);
         } catch (\Throwable $th) {
             return response()->json([
                 'message' => 'Không thể lấy danh sách phòng!',
@@ -177,7 +181,6 @@ class RoomController extends Controller
 
             // Lấy danh sách ghế thuộc phòng
             $seats = Seat::where('room_id', $room->id)->get();
-
             // Tính tổng số ghế, ghế hỏng & ghế hoạt động
             $totalSeats = $seats->count();
             $brokenSeats = $seats->where('is_active', 0)->count();
@@ -224,6 +227,7 @@ class RoomController extends Controller
 
             // Chuyển thành mảng tuần tự
             $seatMap = array_values($seatMap);
+
 
             return response()->json([
                 'room' => $room,
@@ -278,6 +282,7 @@ class RoomController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'error' => $validator->errors(),
+                'message' => $validator->errors()->first(),
             ], Response::HTTP_UNPROCESSABLE_ENTITY); // 422
         }
 
@@ -355,67 +360,92 @@ class RoomController extends Controller
         }
     }
 
+    
     public function update(Request $request, Room $room)
-    {
-        $rules = [
-            'name' => [
-                'required',
-                'string',
-                Rule::unique('rooms')->where(function ($query) use ($request, $room) {
-                    return $query->where('cinema_id', $request->cinema_id)
-                        ->where('id', '!=', $room->id);
-                }),
-            ],
-        ];
+{
+    $rules = [
+        'name' => [
+            'required',
+            'string',
+            Rule::unique('rooms')->where(function ($query) use ($request, $room) {
+                return $query->where('cinema_id', $request->cinema_id)
+                             ->where('id', '!=', $room->id);
+            }),
+        ],
+    ];
 
-        // Validate input
-        $validator = Validator::make($request->all(), $rules);
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        try {
-            DB::transaction(function () use ($request, $room) {
-                // Handle "publish" action
-                if ($request->action == "publish" && !$room->is_publish) {
-                    $room->update([
-                        'is_publish' => 1,
-                        'is_active' => 1,
-                    ]);
-                } else {
-                    // Update room's is_active status
-                    $room->update([
-                        'name' => $request->name,
-                        'is_active' => isset($request->is_active) ? 1 : 0,
-                    ]);
-                }
-
-                // Update seat status if seats are provided in the request
-                if (!empty($request->seats)) {
-                    foreach ($request->seats as $seatData) {
-                        Seat::where('id', $seatData['id'])->update([
-                            'is_active' => $seatData['is_active'],
-                        ]);
-                    }
-                }
-            });
-
-            // Flash success message
-            session()->flash('success', 'Cập nhật thành công!');
-
-            return response()->json([
-                'message' => "Cập nhật thành công",
-                'room' => $room->fresh(), // Get updated room
-            ], Response::HTTP_OK);
-        } catch (\Throwable $th) {
-            // Flash error message
-            session()->flash('error', 'Đã xảy ra lỗi!');
-
-            return response()->json([
-                'error' => $th->getMessage(),
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
+    $validator = Validator::make($request->all(), $rules);
+    if ($validator->fails()) {
+        return response()->json([
+            'error' => $validator->errors(),
+            'message' => $validator->errors()->first()
+        ], Response::HTTP_UNPROCESSABLE_ENTITY);
     }
+
+    try {
+        DB::transaction(function () use ($request, $room) {
+            if ($request->action === "publish" && !$room->is_publish) {
+                $room->update([
+                    'is_publish' => 1,
+                    'is_active' => 1,
+                ]);
+            } else {
+                $room->update([
+                    'name' => $request->name,
+                    'branch_id' => $request->branch_id,
+                    'cinema_id' => $request->cinema_id,
+                    'type_room_id' => $request->type_room_id,
+                    'seat_template_id' => $request->seat_template_id,
+                    'is_active' => $request->boolean('is_active'),
+                ]);
+            }
+
+            // Xoá toàn bộ ghế cũ
+            DB::table('seats')->where('room_id', $room->id)->delete();
+
+            // Tạo lại ghế mới từ seat_template
+            $seatTemplate = SeatTemplate::findOrFail($request->seat_template_id);
+            $seatStructure = is_string($seatTemplate->seat_structure)
+                ? json_decode($seatTemplate->seat_structure, true)
+                : $seatTemplate->seat_structure;
+
+            $newSeats = [];
+            foreach ($seatStructure as $seat) {
+                $name = $seat['coordinates_y'] . $seat['coordinates_x'];
+
+                if ($seat['type_seat_id'] == 3) {
+                    $name .= ', ' . $seat['coordinates_y'] . ($seat['coordinates_x'] + 1);
+                }
+
+                $newSeats[] = [
+                    'coordinates_x' => $seat['coordinates_x'],
+                    'coordinates_y' => $seat['coordinates_y'],
+                    'name' => $name,
+                    'type_seat_id' => $seat['type_seat_id'],
+                    'room_id' => $room->id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+
+            Seat::insert($newSeats);
+        });
+
+        session()->flash('success', 'Cập nhật thành công!');
+
+        return response()->json([
+            'message' => "Cập nhật thành công",
+            'room' => $room->fresh(),
+        ], Response::HTTP_OK);
+    } catch (\Throwable $th) {
+        session()->flash('error', 'Đã xảy ra lỗi!');
+
+        return response()->json([
+            'error' => $th->getMessage(),
+        ], Response::HTTP_INTERNAL_SERVER_ERROR);
+    }
+}
+
     public function destroy(Room $room)
     {
         try {

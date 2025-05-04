@@ -75,21 +75,21 @@ class ComboController extends Controller
             $result = [
                 'id' => $combo->id,
                 'name' => $combo->name,
-                'price' => $combo->discount_price ?? $combo->price,
+                'price' => intval($combo->price), // Loại bỏ phần thập phân
                 'description' => $combo->description,
                 'is_active' => $combo->is_active,
-                'discount_price' => $combo->discount_price,
+                'discount_price' => $combo->discount_price ? intval($combo->discount_price) : null, // Loại bỏ phần thập phân, giữ null nếu không có giá giảm
                 'img_thumbnail' => $combo->img_thumbnail,
                 'combo_foods' => $combo->foods->map(fn($food) => [
                     'id' => $food->id,
                     'name' => $food->name,
                     'img_thumbnail' => $food->img_thumbnail,
-                    'price' => $food->price,
+                    'price' => intval($food->price), // Loại bỏ phần thập phân
                     'type' => $food->type,
                     'description' => $food->description,
                     'is_active' => $food->is_active,
                     'quantity' => $food->pivot->quantity,
-                    'total_price' => $food->price * $food->pivot->quantity,
+                    'total_price' => intval($food->price * $food->pivot->quantity), // Loại bỏ phần thập phân
                 ]),
             ];
 

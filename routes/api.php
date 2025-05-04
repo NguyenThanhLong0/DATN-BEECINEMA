@@ -110,9 +110,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('vnpay-payment', [PaymentController::class, 'vnPayPayment'])->name('vnpay.payment');
     Route::post('/zalopay/payment', [PaymentController::class, 'createPayment']);
     Route::post('/momo-payment', [PaymentController::class, 'MomoPayment']);
+    Route::get('/vnpay-status/{orderId}', [PaymentController::class, 'checkVnpayStatus']);
+    Route::get('/zalopay-status/{orderId}', [PaymentController::class, 'checkZalopayStatus']);
 
+    // Movie Reviews
     Route::get('check-status-review/{movieId}', [MovieReviewController::class, 'checkReviewStatus']);
-     // Movie Reviews
      Route::post('movie-reviews', [MovieReviewController::class, 'store']);
      Route::put('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);
      Route::patch('movie-reviews/{movieReview}', [MovieReviewController::class, 'update']);

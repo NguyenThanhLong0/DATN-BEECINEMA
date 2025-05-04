@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Cinema;
+use App\Models\Room;
 use Illuminate\Support\Facades\Validator;
 
 class CinemaController extends Controller
@@ -101,10 +102,21 @@ class CinemaController extends Controller
     public function destroy(Cinema $cinema)
     {
         try {
-            $cinema->delete();
-            return response()->json(['message' => 'Xóa thành công!'], 200);
+            // Kiểm tra xem rạp có phòng nào đang hoạt động không
+            if (Room::where('rooms.cinema_id', $cinema->id) // Sửa "figureif" thành "if"
+                ->join('showtimes', 'rooms.id', '=', 'showtimes.room_id')
+                ->where('showtimes.is_active', 1)
+                ->exists()) {
+                return response()->json(['message' => 'Không thể xóa rạp chiếu vì có phòng chiếu đang hoạt động.'], 500);
+            }
+
+            $cinema->delete(); // Xóa rạp chiếu
+            return response()->json(['message' => 'Xóa rạp chiếu thành công!'], 200);
         } catch (\Throwable $th) {
-            return response()->json(['message' => 'Xóa thất bại!', 'error' => $th->getMessage()], 500);
+            return response()->json([
+                'message' => 'Xóa thất bại!',
+                'error' => $th->getMessage(),
+            ], 500);
         }
     }
 }

@@ -52,8 +52,7 @@ class MovieController extends Controller
     public function store(StoreMovieRequest $request)
     {
         try {
-            // Ghi log dữ liệu đầu vào
-            Log::info('Movie Store Request:', $request->all());
+            
 
             DB::transaction(function () use ($request, &$movie) {
                 // Chuẩn bị dữ liệu phim
@@ -82,8 +81,6 @@ class MovieController extends Controller
 
                 // Tạo phim mới
                 $movie = Movie::create($dataMovie);
-                Log::debug($movie);
-                // Thêm các phiên bản của bộ phim nếu có
                 if ($request->has('versions')) {
                     $movieVersions = collect($request->versions)->map(function ($version) use ($movie) {
                         return [
